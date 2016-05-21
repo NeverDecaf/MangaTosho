@@ -1,0 +1,68 @@
+Hi, this is silverado. I've listed all hotkeys used in the default setting.
+Of course you can change the hotkeys in MangaMeeya's menu (Tools->Customize). 
+I've made two settings. Setting#1 is used with a keyboard and Setting#2
+for wireless input devices like powerpoint presenters.
+
+MangaMeeya Settings#1 (Default Setting, reload the setting by pressing F1)
+
+#Reading:
+Next Page			SPACE
+Previous Page		BACKSPACE
+1p Forward			Shift + ->
+1p Backward			Shift + <-
+
+Go to FIRST Page		HOME // on some keyboard this is known as 'POS 1')
+Go to LAST Page		END
+
+Scroll Up			Arrow up
+Scroll Down			Arrow down
+Scroll Right		-> (Arrow right)
+Scroll Left			<- (Arrow left)
+
+#File Navigation:
+Open File			CTRL+O
+Open Folder			CTRL+D
+Read NEXT File		SHIFT+Arrow Down // reads the next file in the same folder
+Read PREVIOUS File	SHIFT+Arrow Up   // reads the previous file in the same folder
+Next Folder			ALT+Arrow Down
+Previous Folder		Alt+Arrow Up
+Close				CTRL+F4
+Exit				B // a quick way to hide your hentai :)
+Read Settings #1		F1 		(same for settings #2,#3)
+Save Settings #1		SHIFT+F1 	(same for settings #2,#3)
+Save File As		CTRL+S // if you want to extract an image
+Delete File			DEL
+
+#Layout:
+Switch to 1/2p Layout	CTRL+ALT+DEL
+Change Book Orientation	O // great if you have to change from manga to manwha
+Zoom +			ADD(+)
+Zoom -			SUBSTRACT(-)
+Rotate (0,90,180,270)	Z
+
+#Mode:
+Fullscreen			ENTER
+Reading Mode		R
+Thumbnail Mode		T
+Explorer Mode		E
+
+#Tools:
+Lens (Zoom 200%)		L
+Insert blank title page	W
+
+
+MangaMeeya Setting#2 (Load the setting by pressing F2)
+
+If you have one of those wireless presenters
+like Logitech Cordless Presenter 2.4 (Bluetooth)
+using Setting#2 will enable you to read your favourite manga
+while leaning back in your chair. It starts automatically in fullscreen mode
+using 1p layout.
+
+Next Page			PAGEDOWN
+Back				PAGEUP
+Exit				DOT (.)
+Remaining keys are similiar to Setting#1
+
+- uploaded by silverado from [Manga Underground]
+http://www.mydailymanga.com

@@ -1,0 +1,47 @@
+MMCE for WinCE.Net and Win32: English adaptation of Managameeya CE 2.4 beta
+
+Geared2003, July 2007
+
+July 20 version:
+-true ARM compatibility ( thanks to Cmonex and Kimstudio)
+-some string translations were corrected,
+-some dialogs windows were optimized for Landscape QVGA and HVGA screens,
+-font display workaround for WinCE 4 and 4.1 devices: If you use a WinCE 4.0 or 4.1 device, you might encounter a font display problem in title bars and explorer mode icons.
+In that case, just copy the provided file (symbol.ttf) in the \Windows\Fonts folder of your device. Soft-Reset.
+
+Description:
+Mangameeya was originally made as a Manga (Comics) viewer for the Japanese market.
+It was a GPL freeware application, but its development has been stopped and the project was unfortunately abandoned for some reason.
+Apart from a Chinese PPC and Win32 translation, Mangameeya was available in Japanese only.
+This WinCE.net HPC port was initially made for the Sigmarion 3, and has never been translated before.
+
+ Main functions:
+
+-Read Image albums ( Mangas, Comics, or any picture/photo album) in RAR (CBR) or ZIP (CBZ) formats, including password protected ZIP or RAR archives
+-Read all common picture formats ( BMP, PNG, GIF, JPG), and can be used a standalone picture viewer
+-Extract ZIP and RAR archives
+-Browse and manage all pictures and image albums with a convenient explorer-like UI with thumbnails (including all common file management like a copy/cut/paste, delete, etc...):
+
+Special features:
+
+-Very fast picture decoding (one of the fastest WinCE image viewing apps - does not rely on GX.dll)
+-an impressive number of options to display files, including powerful filters: there is absolutely no equivalent among WinCE/PPC applications ( commercial or freeware). Only desktop applications offer so many options.
+-Folders containing pictures use thumbnails instead of standard icons ( you can see the first picture of any folder, without opening it)
+-Everything is configurable: menus and toolbars can be completely customized ; hotkeys, hotspots and mouse gestures can be applied for all program functions
+-All settings are stored in an INI file ( nothing is stored in the registry)
+
+Added features compared to the original Japanese package:
+
+-CAB installer ; automatic file association for CBZ and CBR album formats and common picture formats
+-Dialogs have been completely redesigned to fit HVGA screens (like the NEC Mobilepro 900c) and Landscape QVGA screens ( like GPS PNAs)
+-New icons and artwork
+
+Warning:
+
+-This application is not for impatient newbies: if you are not willing to take some time to learn a few basics, then you may want to steer clear... You may want to try the included Win32 PC version first ( no install needed).
+-Like most Japanese books, albums are opened from right to left by default ( Manga readers and Japanese speakers know what I mean), but you can change this setting (View menu)
+-This translation is definitely not perfect: I am not a native English speaker, and it was really hard to understand all the Japanese menus, dialogs and countless resource strings... !
+-Not all toolbar graphics have been implemented ( there are approx 200 toolbar icons...): only small icons are available in this package.
+
+- uploaded by silverado from [Manga Underground]
+http://www.mydailymanga.com
