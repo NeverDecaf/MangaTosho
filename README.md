@@ -14,11 +14,11 @@ Binaries are available if you are on windows, see [Releases](https://github.com/
 Closing the main window will simply minimize it to tray. Double-click the icon to bring it back. You can also right-click the tray icon for some quick-access options.
 
 ####Series Color Guide
-Blue: All good.
-Red: Parser error, MT needs an update.
-Green: Other error, most likely the series is missing an image/chapter, you can increment "Read" to bypass this
-Purple: licensed.
-Gray: Series has been marked as complete by either you or the site. (Newly added series also appear gray but this is a bug.)
+Blue: All good.  
+Red: Parser error, MT needs an update.  
+Green: Other error, most likely the series is missing an image/chapter, you can increment "Read" to bypass this  
+Purple: licensed.  
+Gray: Series has been marked as complete by either you or the site. (Newly added series also appear gray but this is a bug.)  
 
 All colors will fade based on the amount of time since the last update. The darker the color the longer the time. A light green or red will likely fix itself over time but a darker one indicates a permanent problem.
 
