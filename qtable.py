@@ -410,13 +410,19 @@ class MyTableModel(QAbstractTableModel):
 
     def addSeries(self,url):
         data=self.sql.addSeries(str(url))
-        if data!=None and data!=False:
+        if data == None:
+            QMessageBox.information(self.myparent, 'Series Add Failed','The URL you provided is not valid. Make sure you are linking the series\' "home page" and not a specific chapter or page')
+            #not valid url
+        elif data == False:
+            #series already exists.
+            QMessageBox.information(self.myparent, 'Series Add Failed','You are already reading this series.')
+        else:
             old=self.rowCount(None)
             self.beginInsertRows(QModelIndex(),old,old)
             self.arraydata.append(data)
             self.endInsertRows()
             self.resort()
-            QMessageBox.information(self.myparent, 'Series Added.','New series was added successfully.')
+            QMessageBox.information(self.myparent, 'Series Added','New series was added successfully.')
 
     def updateSeries(self,index):
         #Just do the same as updateAll except with an array of size 1.

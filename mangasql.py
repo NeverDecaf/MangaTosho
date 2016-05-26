@@ -104,7 +104,7 @@ class SQLManager():
         series = parser(url)
         title = series.get_title()
         c = self.conn.cursor()
-        data=(url,title,'N','?','0',series.get_shorthand(),'0',time.time(),'0',time.time())
+        data=(url,title,'N','?',0,series.get_shorthand(),0,time.time(),0,time.time())
         try:
             c.execute("INSERT INTO series VALUES (?,?,?,?,?,?,?,?,?,?)",data)
         except sqlite3.IntegrityError:
