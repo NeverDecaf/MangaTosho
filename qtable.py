@@ -423,6 +423,8 @@ class MyTableModel(QAbstractTableModel):
             self.endInsertRows()
             self.resort()
             QMessageBox.information(self.myparent, 'Series Added','New series was added successfully.')
+            self.updateSeries(self.arraydata.index(data))
+            
 
     def updateSeries(self,index):
         #Just do the same as updateAll except with an array of size 1.

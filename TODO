@@ -5,7 +5,6 @@ this is going to be very long and disorganized (for now, and maybe forever)
 
 maybe add an option to the context menu for renaming
 
-are new chapters possibly not being updated immediatle in the UI? check it out - theyre not. its broken.
 
 what happens if two series have the same name? we need to handle this somehow:
 	each series will have a unique url, but how will we know of conflicting names?
