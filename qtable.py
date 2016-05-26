@@ -459,7 +459,7 @@ class MyTableModel(QAbstractTableModel):
         if errcode==0:
             newdata[self.headerdata.index('UpdateTime')]=time.time()
         newdata[self.headerdata.index('SuccessTime')]=time.time()
-        newdata[erridx]='0'
+        newdata[erridx]=0
         
         for i in range(len(self.arraydata[row])):
             self.arraydata[row][i] = newdata[i]
