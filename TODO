@@ -62,10 +62,7 @@ blue = normal, darkens as time passes without a new chapter
 red = parser error. most likely means an update is needed.
 green = other error. most likely a 404'd image or something of the sort. may need to increment chapter number manually if isn't resolved.
 purple = liscensed. switch to another site.
-gray = complete (but also seems to apply to series that are added but havent had an update yet)
-
-^ thats actually a bug, restarting the program sets them to their proper color (white).
-I can't tell why it defaults to gray, but its a low priority fix.
+gray = complete 
 
 
 you should add a different, very visible, color (purple?) for errors due to 404'd images (NOT ELSEWHERE)
@@ -115,7 +112,6 @@ in this case you can prompt the user to create _2 or cancel the add.
 
 copy the url for a series from the context menu i guess or some other source (ctrl-c)
 
-p.s. the update function is broken (the one accessed via right clikc (and the auto when added one))
 
 
 CONSIDER:
