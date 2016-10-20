@@ -88,7 +88,7 @@ class ParserFetch:
     def updateCreds(self,credentials):
         self.res=[]
         self.req_creds=[]
-        self.parsers = [MangaReader,MangaHere,AnimeA,MangaPanda,DynastyScans,Batoto,MangaPandaNet,MangaPark,MangaTraders]#KissManga, decided to do some stupid js test and their site sucks anyway, MangaFox, banned in the US
+        self.parsers = [MangaReader,MangaHere,AnimeA,MangaPanda,DynastyScans,Batoto,MangaPandaNet,MangaPark,MangaTraders,MangaStream]#KissManga, decided to do some stupid js test and their site sucks anyway, MangaFox, banned in the US
         for parser in list(self.parsers):
             if parser.REQUIRES_CREDENTIALS:
                 for k in credentials:
@@ -194,6 +194,7 @@ class SeriesParser(object):
         #returns a list of all chapters, where each entry is a tuple (number,url)
         nums = self.etree.xpath(self.CHAPTER_NUMS_XPATH)
         urls = self.etree.xpath(self.CHAPTER_URLS_XPATH)
+        print(nums)
         if self.REVERSE:
             nums.reverse()
             urls.reverse()
@@ -589,3 +590,23 @@ class KissManga(SeriesParser):
         for title in titles:
             urls.append(self.CHAPTER_NUMS.findall(unescape(title))[-1])
         return urls
+    
+class MangaStream(SeriesParser):
+    #chapters sometimes dont include numbers, will break on these.
+    #also this isn't really a good site to download from.
+    
+    SITE = ur'http://mangastream.com/' #url of the homepage, just copy paste.
+    ABBR = ur'MS' # abbreviated version of site's name, keep it to 2 letters.
+        
+    SITE_PARSER = re.compile(ur'.*mangastream.com/manga/.*', re.IGNORECASE) # determines whether the given url matches the site's url, used to enfore correct links so include things like /manga/
+    TITLE_XPATH = "//h1/text()" # Get the title of a series from its main page.
+
+    CHAPTER_NUMS_XPATH = "//td/a/text()" # match all chapter numbers as close as you can, basically just get some text containing them.
+    CHAPTER_URLS_XPATH = "//td/a/@href" # match all chapter urls.
+        
+    IMAGE_URL_XPATH = "//a/img/@src" #parses the image url from a page of the series
+    NEXT_URL_XPATH = "//li[@class='next']/a/@href" #parses the link to the next page from a page of the series.
+    
+    CHAPTER_NUMS = re.compile(ur'(\d+\.?\d*)(?:v\d+)?')#match all chapter numbers, replacing this with NAMES won't hurt MUCH but it will cause the GUI to show a name instead of latest ch #
+    
+##    IS_COMPLETE_XPATH = "" # matches if the series has been marked complete by the site. omit if the site has no method of doing this.
