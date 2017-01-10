@@ -22,6 +22,8 @@ if hasattr(sys,'_MEIPASS'):
     os.environ['REQUESTS_CA_BUNDLE'] = os.path.join(basedir , 'requests', 'cacert.pem')
 
 
+WORKING_SITES = ['MangaReader','MangaHere','AnimeA','MangaPanda','DynastyScans','Batoto','MangaPandaNet','MangaPark','MangaStream','MangaSee']#mangasee replaced mangatraders #KissManga, decided to do some stupid js test and their site sucks anyway, MangaFox, banned in the US
+
 ##
 # Removes HTML or XML character references and entities from a text string.
 #
@@ -88,7 +90,8 @@ class ParserFetch:
     def updateCreds(self,credentials):
         self.res=[]
         self.req_creds=[]
-        self.parsers = [MangaReader,MangaHere,AnimeA,MangaPanda,DynastyScans,Batoto,MangaPandaNet,MangaPark,MangaTraders,MangaStream]#KissManga, decided to do some stupid js test and their site sucks anyway, MangaFox, banned in the US
+##        self.parsers = [MangaReader,MangaHere,AnimeA,MangaPanda,DynastyScans,Batoto,MangaPandaNet,MangaPark,MangaTraders,MangaStream]#KissManga, decided to do some stupid js test and their site sucks anyway, MangaFox, banned in the US
+        self.parsers = [globals()[cname] for cname in WORKING_SITES]
         for parser in list(self.parsers):
             if parser.REQUIRES_CREDENTIALS:
                 for k in credentials:
@@ -151,6 +154,9 @@ class SeriesParser(object):
     # note that adding 2 series with the same name but different authors WILL cause a problem. there may or may not be a fix in place but i have yet
     # to encounter this...
 
+    # some sites include all the image urls in one page, set these vars if this is the case and you can easily parse them
+    AIO_IMAGES_RE = None
+
     #private vars
 
     USERNAME = None # will be used if site REQUIRES_CREDENTIALS.
@@ -193,8 +199,9 @@ class SeriesParser(object):
     def get_chapters(self):
         #returns a list of all chapters, where each entry is a tuple (number,url)
         nums = self.etree.xpath(self.CHAPTER_NUMS_XPATH)
+        print nums
         urls = self.etree.xpath(self.CHAPTER_URLS_XPATH)
-        print(nums)
+##        print(nums)
         if self.REVERSE:
             nums.reverse()
             urls.reverse()
@@ -211,7 +218,13 @@ class SeriesParser(object):
         #returns links to every image in the chapter where chapter is the url to the first page
         #uses a new approach where we follow links until the end of the chapter
         number,url = chapter
-            
+
+        #special EZ cases:
+        if self.AIO_IMAGES_RE:
+            html = self.SESSION.get(url).text
+            all_images=re.compile(self.AIO_IMAGES_RE)
+            return [c if c.startswith('http:\\') else urlparse.urljoin(self.SITE,c) for c in [c.replace('\\','') for c in all_images.findall(html)]]
+        
         pieces = urlparse.urlsplit(url)
         url = urlparse.urlunsplit(pieces[:3]+(self.SKIP_MATURE or pieces[3],)+pieces[4:])
 
@@ -320,28 +333,22 @@ class SeriesParser(object):
 ################################################################################
 ################################################################################
 ################################################################################
-        
-class MangaTraders(SeriesParser):
-    SITE = ur'http://mangatraders.org'
-    ABBR = ur'MT'
+
+class MangaSee(SeriesParser):
+    #this is just mangatraders but with online reader
+    SITE = ur'http://mangaseeonline.net'
+    ABBR = ur'MS'
     
-    SITE_PARSER = re.compile(ur'.*mangatraders.org/read-online/.*')
-    TITLE_XPATH = "//link[@rel='alternate']/@title"
+    SITE_PARSER = re.compile(ur'.*mangaseeonline.net/manga/.*')
+    TITLE_XPATH = "//h1[@class='SeriesName']/text()"
 
-    CHAPTER_NUMS_XPATH = "//div[gray]/a/text()" 
-    CHAPTER_URLS_XPATH = "//div[gray]/a/@href"
+    CHAPTER_NUMS_XPATH = "//a/@chapter" 
+    CHAPTER_URLS_XPATH = "//a[@chapter]/@href"
 
-    IS_COMPLETE_XPATH = "//div/text()[preceding-sibling::b[text()='Scanlation Status: '] and starts-with(.,'Completed')]"
+    IS_COMPLETE_XPATH = "//a[@status='Complete']"
+    
 ##    IS_COMPLETE_XPATH = "//div[b[text()='Scanlation Status: '] and contains(.,'Completed')]"
-
-    # this site has a onepage view so it is extremely ez to get images.
-    def get_images(self,chapter):
-        number,url = chapter
-        url = posixpath.dirname(url)
-        html = self.SESSION.get(url).text
-        etree = lxmlhtml.fromstring(html)
-        IMAGE_XPATH = "//p[@class='imagePage']/img/@src"
-        return etree.xpath(IMAGE_XPATH)
+    AIO_IMAGES_RE = ur'(?<=\d":")[^"]*'
     
 class MangaHere(SeriesParser):
     SITE = ur'http://www.mangahere.co/'
@@ -441,12 +448,14 @@ class DynastyScans(SeriesParser):
     IS_COMPLETE_XPATH = "//small[contains(text(),'Completed')]"
 
     REVERSE=False
-    
-    def get_images(self,chapter):
-        number,url = chapter
-        html = self.SESSION.get(url).text
-        all_images=re.compile(ur'(?<="image":")[^"]*')
-        return [urlparse.urljoin(self.SITE,c) for c in all_images.findall(html)]
+
+    AIO_IMAGES_RE = ur'(?<="image":")[^"]*'
+##    
+##    def get_images(self,chapter):
+##        number,url = chapter
+##        html = self.SESSION.get(url).text
+##        all_images=re.compile(ur'(?<="image":")[^"]*')
+##        return [urlparse.urljoin(self.SITE,c) for c in all_images.findall(html)]
     
 class AnimeA(SeriesParser):
     SITE = ur'http://manga.animea.net/'
@@ -508,11 +517,39 @@ class MangaPark(SeriesParser):
 
     IMAGE_URL_XPATH = "//a[@class='img-num']/@href"
     NEXT_URL_XPATH = "//div[@class='page']/span[last()]/a/@href"
-
+    
+######################################################################################
+######################################################################################
 #############################################
 ########### BROKEN PARSERS/SITES ############
 #############################################
+######################################################################################
+######################################################################################
+    
+# went back to their old methods. its a good thing but not compatible with mangatosho.
+class MangaTraders(SeriesParser):
+    SITE = ur'http://mangatraders.org'
+    ABBR = ur'MT'
+    
+    SITE_PARSER = re.compile(ur'.*mangatraders.org/read-online/.*')
+    TITLE_XPATH = "//link[@rel='alternate']/@title"
 
+    CHAPTER_NUMS_XPATH = "//div[gray]/a/text()" 
+    CHAPTER_URLS_XPATH = "//div[gray]/a/@href"
+
+    IS_COMPLETE_XPATH = "//div/text()[preceding-sibling::b[text()='Scanlation Status: '] and starts-with(.,'Completed')]"
+##    IS_COMPLETE_XPATH = "//div[b[text()='Scanlation Status: '] and contains(.,'Completed')]"
+    AIO_IMAGES_XPATH = "//p[@class='imagePage']/img/@src"
+    # this site has a onepage view so it is extremely ez to get images.
+    
+    def get_images(self,chapter):
+        number,url = chapter
+        url = posixpath.dirname(url)
+        html = self.SESSION.get(url).text
+        etree = lxmlhtml.fromstring(html)
+        IMAGE_XPATH = "//p[@class='imagePage']/img/@src"
+        return etree.xpath(IMAGE_XPATH)
+    
 # taken over by russian hackers
 class MangaPandaNet(SeriesParser):
     #mangapanda is pretty much an exact copy of mangareader
@@ -610,3 +647,4 @@ class MangaStream(SeriesParser):
     CHAPTER_NUMS = re.compile(ur'(\d+\.?\d*)(?:v\d+)?')#match all chapter numbers, replacing this with NAMES won't hurt MUCH but it will cause the GUI to show a name instead of latest ch #
     
 ##    IS_COMPLETE_XPATH = "" # matches if the series has been marked complete by the site. omit if the site has no method of doing this.
+
