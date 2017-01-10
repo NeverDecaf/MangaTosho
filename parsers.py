@@ -337,7 +337,7 @@ class SeriesParser(object):
 class MangaSee(SeriesParser):
     #this is just mangatraders but with online reader
     SITE = ur'http://mangaseeonline.net'
-    ABBR = ur'ME'
+    ABBR = ur'SE'
     
     SITE_PARSER = re.compile(ur'.*mangaseeonline.net/manga/.*')
     TITLE_XPATH = "//h1[@class='SeriesName']/text()"
