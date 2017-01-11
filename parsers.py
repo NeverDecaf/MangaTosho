@@ -205,7 +205,7 @@ class SeriesParser(object):
     def get_chapters(self):
         #returns a list of all chapters, where each entry is a tuple (number,url)
         nums = self.etree.xpath(self.CHAPTER_NUMS_XPATH)
-        print nums
+##        print nums
         urls = self.etree.xpath(self.CHAPTER_URLS_XPATH)
 ##        print(nums)
         if self.REVERSE:
