@@ -63,53 +63,51 @@ class ParserFetch:
     def get_valid_sites(self):
         v = []
         ret = ''
-        for parser in self.get_valid_parsers():
-            v.append(parser.SITE+' ('+parser.ABBR+')')
+        for parser in (self.get_valid_parsers() - self._get_req_credentials_sites(self)):
+            v.append(parser.SITE_URL+' ('+parser.ABBR+')')
         ret = '<br/>'.join(v)
-        if self.get_req_credentials_sites():
+        if self._get_req_credentials_sites():
             ret+= '<br/><font color="gray">'
             v=[]
-            for parser in self.get_req_credentials_sites():
-                v.append(parser.SITE+' ('+parser.ABBR+')')
+            for parser in self._get_req_credentials_sites():
+                v.append(parser.SITE_URL+' ('+parser.ABBR+')')
             ret += '<br/>'.join(v) + "</font>"
         return ret
 
     def get_req_credentials_sites(self):
-        return self.req_creds
+        return self.parsers_req_creds
     
     def __init__(self, credentials = {}):
-        self.res=[]
-        self.req_creds=[]
-        self.parsers = WORKING_SITES#[globals()[cname] for cname in WORKING_SITES]
+        self.matchers=[]
+        self.parsers_req_creds=set()
+        self.parsers = set(WORKING_SITES)#[globals()[cname] for cname in WORKING_SITES]
+        for parser in self.parsers:
+            self.matchers.append((parser.SITE_PARSER_RE,parser))
+            if parser.REQUIRES_CREDENTIALS:
+                self.parsers_req_creds.add(parser)
         self.updateCreds(credentials)
         
     def match(self,url):
         #returns the parser class
-        for rex in self.res:
+        for rex in self.matchers:
             if rex[0].match(url):
                 return rex[1]
         return None
     def fetch(self,url):
         #returns an actual parser object
-        for rex in self.res:
+        for rex in self.matchers:
             if rex[0].match(url):
                 return rex[1](url)
         return None
     def updateCreds(self,credentials):
-        for parser in list(self.parsers):
-            if parser.REQUIRES_CREDENTIALS:
-                for k in credentials:
-                    if parser.__name__==k:
-                        if len(credentials[k][0]) and len(credentials[k][1]):
-                            parser.USERNAME = credentials[k][0]
-                            parser.PASSWORD = credentials[k][1]
-                            break
-                else:
-                    self.parsers.remove(parser)
-                    self.req_creds.append(parser)
-        for parser in self.parsers:
-            self.res.append((parser.SITE_PARSER_RE,parser))
-    
+        for parser in self.parsers_req_creds:
+            for k in credentials:
+                if parser.__name__==k:
+                    if len(credentials[k][0]) and len(credentials[k][1]):
+                        parser.USERNAME = credentials[k][0]
+                        parser.PASSWORD = credentials[k][1]
+                        break
+
 class ParserError(Exception):
     pass
 
@@ -416,3 +414,4 @@ for site in root.iter('site'):
             WORKING_SITES.append(type(classname,(BatotoBase,),data))
         else:
             WORKING_SITES.append(type(classname,(SeriesParser,),data))
+            

@@ -167,7 +167,7 @@ class MyWindow(QMainWindow):
                 msg="The URL you provided is not valid.\nSupported sites are as follows:\n"
                 names=[]
                 for parser in self.parserFetcher.get_valid_parsers():
-                    names.append(parser.SITE)
+                    names.append(parser.SITE_URL)
                 msg+=', '.join(names)
                 QMessageBox.information(self, 'Error adding URL',msg)
         #now your challenge is to signal the model and then
