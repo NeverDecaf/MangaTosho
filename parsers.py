@@ -10,7 +10,7 @@ from requests import session
 import requests
 import posixpath
 import sys
-import os
+import os,shutil
 # add the cacert.pem file to the path correctly even if compiled with pyinstaller:
 # Get the base directory
 if getattr( sys , 'frozen' , None ):    # keyword 'frozen' is for setting basedir while in onefile mode in pyinstaller
@@ -53,6 +53,7 @@ def unescape(text):
 # sites than have been abandoned:
 # KissManga (crazy js browser verification, MangaFox (banned in the US), MangaPandaNet (taken by russian hackers), MangaTraders (not suitable for this program)
 WORKING_SITES = []
+PARSER_VERSION = 1.0 # update if this file changes in a way that is incompatible with older parsers.xml
 
 class ParserFetch:
     
@@ -361,36 +362,37 @@ class BatotoBase(SeriesParser):
         response = self.SESSION.post('https://bato.to/forums/index.php', params=self.QUERY_STRING, data=self.FORM_DATA)
         if response.text.find(self.USERNAME)<0:
             raise ParserError('Batoto Login Failed')
-        
-#dynamically create the classes we need.
-    
+
+############################################
+######## Dynamically create classes ########
+############################################
 def children_as_dict(t):
     d={}
     for v in list(t):
         d[v.tag]=v.text
     return d
 def update_parsers(currentversion,targethash):
-    print ('updating parsers')
     currentversion=float(currentversion)
     r=requests.get('https://raw.githubusercontent.com/NeverDecaf/MangaTosho/master/parsers.xml')
-    stringdata = r.text
     with open('parsers.tmp', 'wb') as f:
-        f.write(stringdata)
+        f.write(r.text)
+    #must reload to file to ensure it was written correctly
     with open('parsers.tmp', 'rb') as f:
-        temphash = hashlib.md5(f.read()).hexdigest()
-    print(temphash,targethash)
+        stringdata=f.read()
+        temphash = hashlib.md5(stringdata).hexdigest()
     if temphash==targethash:
         #compare version numbers with simultaneously will test for valid xml
         root = ET.fromstring(stringdata)#.getroot()
         newversion = float(root.find('info').find('version').text)
         if currentversion==newversion:
-            print 'version matches'
-# auto-update the parsers file if possible.
+            shutil.copy('parsers.tmp','parsers.xml')
+            
+# auto-update the parsers xml file if possible.
 try:
     r=requests.get('https://raw.githubusercontent.com/NeverDecaf/MangaTosho/master/parsers.md5')
     targethash = r.text
     if not os.path.exists('parsers.xml'):
-        update_parsers(0,targethash)
+        update_parsers(PARSER_VERSION,targethash)
     else:
         with open('parsers.xml', 'rb') as f:
             stringdata = f.read()
@@ -399,20 +401,16 @@ try:
             currentversion = root.find('info').find('version').text
         if targethash!=currenthash:
             update_parsers(currentversion,targethash)
-        else:
-            print 'parsers up to date'
 except:
     'ignore all exceptions to avoid a program-ending failure'
 
 tree = ET.parse('parsers.xml')
 root = tree.getroot()
-##print root.find('info').find('version').text
-##from pprint import pprint
 for site in root.iter('site'):
     classname = site.attrib['name']
-    #remove None values and convert string booleans to booleans.
+    # remove None values and convert string booleans to booleans.
+    # also create regex object for any key ending with _re
     data={k.upper(): {'True':True,'False':False}.get(v,re.compile(v,re.IGNORECASE) if k=='site_parser_re' else re.compile(v,re.IGNORECASE) if k.endswith('_re') else v) for k, v in children_as_dict(site).items() if v!=None}
-##    pprint(data)
     if classname!='TemplateSite':
         if classname=='Batoto':
             WORKING_SITES.append(type(classname,(BatotoBase,),data))
