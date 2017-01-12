@@ -369,6 +369,7 @@ def children_as_dict(t):
     for v in list(t):
         d[v.tag]=v.text
     return d
+
 def update_parsers(currentversion,targethash):
     currentversion=float(currentversion)
     r=requests.get('https://raw.githubusercontent.com/NeverDecaf/MangaTosho/master/parsers.xml')
@@ -384,7 +385,14 @@ def update_parsers(currentversion,targethash):
         newversion = float(root.find('info').find('version').text)
         if currentversion==newversion:
             shutil.copy('parsers.tmp','parsers.xml')
-            
+
+# need to set working directory for this to work with pyinstaller:
+try:
+    sys._MEIPASS
+    os.chdir(os.path.dirname(sys.argv[0]))
+except:
+    os.chdir(os.path.dirname(os.path.realpath(__file__)))
+    
 # auto-update the parsers xml file if possible.
 try:
     r=requests.get('https://raw.githubusercontent.com/NeverDecaf/MangaTosho/master/parsers.md5')
