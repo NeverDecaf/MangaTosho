@@ -112,7 +112,7 @@
 		<image_url_xpath>//a/img/@src</image_url_xpath> <!-- xpath that matches the image url on a given page of the series -->
 		<next_url_xpath>//li[@class='next']/a/@href</next_url_xpath> <!-- xpath that matches the url of the next page on a given page of the series -->
 		<!-- optional args, delete these if not applicable. -->
-		<chapter_nums_re>(\d+\.?\d*)(?:v\d+)?</chapter_nums_re> <!-- regex used to further refine the results of chapter_nums_xpath, default is typically fine. -->
+		<chapter_nums_re>^(\d+\.?\d*)(?:v\d+)?</chapter_nums_re> <!-- regex used to further refine the results of chapter_nums_xpath, default is typically fine. -->
 	</site>
 	<site name="Batoto">
 		<!-- essential args. you will need most of these. -->
