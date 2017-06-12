@@ -11,6 +11,8 @@ import requests
 import posixpath
 import sys
 import os,shutil
+##import lxml.etree.XPathEvalError as XPathError
+from lxml.etree import XPathEvalError as XPathError
 # add the cacert.pem file to the path correctly even if compiled with pyinstaller:
 # Get the base directory
 if getattr( sys , 'frozen' , None ):    # keyword 'frozen' is for setting basedir while in onefile mode in pyinstaller
@@ -94,7 +96,7 @@ class ParserFetch:
         try:
             self.version_uptodate = self._update_parsers()
         except:
-            raise
+##            raise
             'ignore all exceptions to avoid a program-ending failure. should log them somewhere though.'
         self._generate_parsers()
         self.parsers = set(WORKING_SITES)#[globals()[cname] for cname in WORKING_SITES]
@@ -139,10 +141,10 @@ class ParserFetch:
                 with open('parsers.xml', 'rb') as f:
                     stringdata = f.read()
                     currenthash = hash_no_newline(stringdata)
-                    root = ET.fromstring(stringdata)#.getroot()
-                    currentversion = root.find('info').find('version').text
+##                    root = ET.fromstring(stringdata)#.getroot()
+##                    currentversion = root.find('info').find('version').text
                 if targethash!=currenthash:
-                    return update_parsers(currentversion,targethash)
+                    return update_parsers(PARSER_VERSION,targethash)
                     
     def _generate_parsers(self):
         global WORKING_SITES
@@ -227,7 +229,7 @@ class SeriesParser(object):
         return self.ABBR
     def get_title(self):
         #returns the title of the series
-        title = unescape(self.etree.xpath(self.TITLE_XPATH)[0])
+        title = unescape(self.etree.xpath(self.TITLE_XPATH))
         split = title.split()
         for i in range(len(split)):
             if split[i].isupper() or i==0:
@@ -309,14 +311,13 @@ class SeriesParser(object):
 ##            pictureurl = self.IMAGE_URL.findall(html)[0]
             
             pictureurl = etree.xpath(self.IMAGE_URL_XPATH)
+##            print 'pix is',pictureurl
             if not len(pictureurl):
                 # this means the image wasnt found. either your parser is outdated or you've reached the end of the chapter.
                 if len(images): # just to make sure the parser isnt at fault, only allow if at least one image has been found.
                     break
                 else:
                     raise ParserError('Image Parsing failed on %s, chapter:%s'%(self.get_title(),number))
-            pictureurl = pictureurl[0]
-##            print pictureurl
             if pictureurl in images: #prevents loops
                 break
             images.append(pictureurl)
@@ -328,8 +329,8 @@ class SeriesParser(object):
                     break
             else:
                 try:
-                    nexturl = etree.xpath(self.NEXT_URL_XPATH)[0]
-                except:
+                    nexturl = etree.xpath(self.NEXT_URL_XPATH)
+                except XPathError:
                     nexturl = ''
             if not len(nexturl): #prevents loops
                 break
@@ -358,7 +359,6 @@ class SeriesParser(object):
 
 
 ################################################################################
-    
 class BatotoBase(SeriesParser):    
     HEADERS={'User-Agent':'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/37.0.2062.124 Safari/537.36',
              'Referer':'http://bato.to/reader'}
@@ -372,19 +372,35 @@ class BatotoBase(SeriesParser):
     IMAGE_FIXED_LENGTH = True # if true the image number will be padded with 0s to be the same as the first page (ex: 00001 00010 00015)
     
     JS_TEMPLATE = 'http://bato.to/areader?p=1&id='
+    READER_URL = 'http://bato.to/areader'
 
     def get_images(self,chapter,delay=0):
         self.login()
         number,url = chapter
 
-        fragment = urlparse.urlsplit(url)[4]
-        url = self.JS_TEMPLATE+fragment        
+        chapter_id = urlparse.urlsplit(url)[4]
+##        url = self.JS_TEMPLATE+fragment
+        url = urlparse.urljoin(self.READER_URL,'?id=%s&p=1'%chapter_id)
 
         html = self.SESSION.get(url).text
-        pre,num,suf = self.IMAGE_BASE.findall(html)[0]
-        return [str(i).zfill(len(num) if self.IMAGE_FIXED_LENGTH else 0).join((pre,suf)) for i in range(self.IMAGE_FIRST, int(next(iter(self.IMAGE_LAST.findall(html)),1)) + 1)] # this iter hack is like list.get(0,'fail')
-    
-    AUTH_KEY_XPATH = "//input[@name='auth_key']/@value"
+        etree = lxmlhtml.fromstring(html)
+        # use a set to remove duplicates.
+        seen = set()
+        seen_add = seen.add
+        page_nums = [re.split('[ _]+',a)[-1] for a in etree.xpath(self.BATOTO_PAGES_XPATH) if not (a in seen or seen_add(a))]
+        images=[]
+        for page_num in page_nums:
+            url = urlparse.urljoin(self.READER_URL,'?id=%s&p=%i'%(chapter_id,int(page_num)))
+            html = self.SESSION.get(url).text
+            etree = lxmlhtml.fromstring(html)
+            pictureurl = etree.xpath(self.IMAGE_URL_XPATH)
+            images.append(pictureurl)
+        return images
+##        pre,num,suf = self.IMAGE_BASE.findall(html)[0]
+##        return [str(i).zfill(len(num) if self.IMAGE_FIXED_LENGTH else 0).join((pre,suf)) for i in range(self.IMAGE_FIRST, int(next(iter(self.IMAGE_LAST.findall(html)),1)) + 1)] # this iter hack is like list.get(0,'fail')
+
+            
+    AUTH_KEY_XPATH = "substring(//input[@name='auth_key']/@value,1)"
     LOGGED_IN_XPATH = "//a[text()='Sign Out']"
     
     QUERY_STRING = {
@@ -407,7 +423,7 @@ class BatotoBase(SeriesParser):
         etree = lxmlhtml.fromstring(response.text)
         if etree.xpath(self.LOGGED_IN_XPATH):
             return
-        self.FORM_DATA['auth_key'] = etree.xpath(self.AUTH_KEY_XPATH)[0]
+        self.FORM_DATA['auth_key'] = etree.xpath(self.AUTH_KEY_XPATH)
         response = self.SESSION.post('https://bato.to/forums/index.php', params=self.QUERY_STRING, data=self.FORM_DATA)
         if response.text.find(self.USERNAME)<0:
             raise ParserError('Batoto Login Failed')

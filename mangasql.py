@@ -197,7 +197,11 @@ class SQLManager():
                 updated_count = 0
                 validname = SQLManager.cleanName(data[self.COLUMNS.index('Title')])#[1]=name of series
                 errors=0
-                print 'updating',len(toupdate),'chapters from',data[self.COLUMNS.index('Title')]
+                try:
+                    print 'updating',len(toupdate),'chapters from',data[self.COLUMNS.index('Title')]
+                except:
+                    print 'error encoding series name'
+                    pass # encoding error probably.
                 iindex=0
                 for ch in toupdate:
                     try:

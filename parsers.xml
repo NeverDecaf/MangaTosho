@@ -1,14 +1,14 @@
 <?xml version="1.0"?>
 <sites>
 	<info>
-		<version>1.0</version>
+		<version>1.1</version>
 	</info>
 	<site name="MangaSee">
 		<!-- essential args. must supply all of these -->
 		<site_url>http://mangaseeonline.net</site_url> <!-- url of the main website -->
 		<abbr>SE</abbr> <!-- 2 letter abbreviation of the site's name. -->
 		<site_parser_re>.*mangaseeonline.net/manga/.*</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
-		<title_xpath>//h1[@class='SeriesName']/text()</title_xpath> <!-- xpath that matches the series' title -->
+		<title_xpath>substring(//h1[@class='SeriesName']/text(),1)</title_xpath> <!-- xpath that matches the series' title -->
 		<chapter_nums_xpath>//a/@chapter</chapter_nums_xpath> <!-- xpath that matches all chapter numbers on the main series page -->
 		<chapter_urls_xpath>//a[@chapter]/@href</chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
 		<!-- optional args, delete these if not applicable. -->
@@ -20,11 +20,11 @@
 		<site_url>http://www.mangahere.co/</site_url> <!-- url of the main website -->
 		<abbr>MH</abbr> <!-- 2 letter abbreviation of the site's name. -->
 		<site_parser_re>.*mangahere.co/manga/.*</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
-		<title_xpath>//h1[@class='title']/text()</title_xpath> <!-- xpath that matches the series' title -->
+		<title_xpath>substring(//h1[@class='title']/text(),1)</title_xpath> <!-- xpath that matches the series' title -->
 		<chapter_nums_xpath>//span[@class='left']/a/text()</chapter_nums_xpath> <!-- xpath that matches all chapter numbers on the main series page -->
 		<chapter_urls_xpath>//span[@class='left']/a/@href</chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
-		<image_url_xpath>//img[@id='image']/@src</image_url_xpath> <!-- xpath that matches the image url on a given page of the series -->
-		<next_url_xpath>//a[@onclick='return next_page();']/@href</next_url_xpath> <!-- xpath that matches the url of the next page on a given page of the series -->
+		<image_url_xpath>substring(//img[@id='image']/@src,1)</image_url_xpath> <!-- xpath that matches the image url on a given page of the series -->
+		<next_url_xpath>substring(//a[@onclick='return next_page();']/@href,1)</next_url_xpath> <!-- xpath that matches the url of the next page on a given page of the series -->
 		<!-- optional args, delete these if not applicable. -->
 		<is_complete_xpath>//li[label[text()='Status:'] and text()='Completed']</is_complete_xpath> <!-- xpath that matches if the series has been marked "Complete" -->
 	</site>
@@ -33,7 +33,7 @@
 		<site_url>http://dynasty-scans.com/</site_url> <!-- url of the main website -->
 		<abbr>DS</abbr> <!-- 2 letter abbreviation of the site's name. -->
 		<site_parser_re>.*dynasty-scans.com/series/.*</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
-		<title_xpath>//b/text()</title_xpath> <!-- xpath that matches the series' title -->
+		<title_xpath>substring(//b/text(),1)</title_xpath> <!-- xpath that matches the series' title -->
 		<chapter_nums_xpath>//a[@class='name']/text()</chapter_nums_xpath> <!-- xpath that matches all chapter numbers on the main series page -->
 		<chapter_urls_xpath>//a[@class='name']/@href</chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
 		<!-- optional args, delete these if not applicable. -->
@@ -47,10 +47,10 @@
 		<site_url>http://manga.animea.net/</site_url> <!-- url of the main website -->
 		<abbr>AA</abbr> <!-- 2 letter abbreviation of the site's name. -->
 		<site_parser_re>.*manga.animea.net/.*</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
-		<title_xpath>//h1[@class='mp_title']/text()</title_xpath> <!-- xpath that matches the series' title -->
+		<title_xpath>substring(//h1[@class='mp_title']/text(),1)</title_xpath> <!-- xpath that matches the series' title -->
 		<chapter_nums_xpath>//li[span[@class='float-right date']]/a/text()</chapter_nums_xpath> <!-- xpath that matches all chapter numbers on the main series page -->
 		<chapter_urls_xpath>//li[span[@class='float-right date']]/a/@href</chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
-		<image_url_xpath>//img[@id='scanmr']/@src</image_url_xpath> <!-- xpath that matches the image url on a given page of the series -->
+		<image_url_xpath>substring(//img[@id='scanmr']/@src,1)</image_url_xpath> <!-- xpath that matches the image url on a given page of the series -->
 		<!-- optional args, delete these if not applicable. -->
 		<is_complete_xpath>//li[text()='Status:']/strong[text()='Completed']</is_complete_xpath> <!-- xpath that matches if the series has been marked "Complete" -->
 		<chapter_nums_re>Chapter (\d+\.?\d*)(?:v\d+)?</chapter_nums_re> <!-- regex used to further refine the results of chapter_nums_xpath, default is typically fine. -->
@@ -64,11 +64,11 @@
 		<site_url>http://www.mangareader.net/</site_url> <!-- url of the main website -->
 		<abbr>MR</abbr> <!-- 2 letter abbreviation of the site's name. -->
 		<site_parser_re>.*mangareader.net/.*</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
-		<title_xpath>//h2[@class='aname']/text()</title_xpath> <!-- xpath that matches the series' title -->
+		<title_xpath>substring(//h2[@class='aname']/text(),1)</title_xpath> <!-- xpath that matches the series' title -->
 		<chapter_nums_xpath>//td[div[@class='chico_manga']]/a/text()</chapter_nums_xpath> <!-- xpath that matches all chapter numbers on the main series page -->
 		<chapter_urls_xpath>//td[div[@class='chico_manga']]/a/@href</chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
-		<image_url_xpath>//img[@id='img']/@src</image_url_xpath> <!-- xpath that matches the image url on a given page of the series -->
-		<next_url_xpath>//span[@class='next']/a/@href</next_url_xpath> <!-- xpath that matches the url of the next page on a given page of the series -->
+		<image_url_xpath>substring(//img[@id='img']/@src,1)</image_url_xpath> <!-- xpath that matches the image url on a given page of the series -->
+		<next_url_xpath>substring(//span[@class='next']/a/@href,1)</next_url_xpath> <!-- xpath that matches the url of the next page on a given page of the series -->
 		<!-- optional args, delete these if not applicable. -->
 		<is_complete_xpath>//tr[td[text()='Status:']]/td[text()='Completed']</is_complete_xpath> <!-- xpath that matches if the series has been marked "Complete" -->
 		<reverse>False</reverse> <!-- True if chapters are listed in reverse numerical order (latest chapter first) -->
@@ -79,11 +79,11 @@
 		<site_url>http://www.mangapanda.com/</site_url> <!-- url of the main website -->
 		<abbr>MP</abbr> <!-- 2 letter abbreviation of the site's name. -->
 		<site_parser_re>.*mangapanda.com/.*</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
-		<title_xpath>//h2[@class='aname']/text()</title_xpath> <!-- xpath that matches the series' title -->
+		<title_xpath>substring(//h2[@class='aname']/text(),1)</title_xpath> <!-- xpath that matches the series' title -->
 		<chapter_nums_xpath>//td[div[@class='chico_manga']]/a/text()</chapter_nums_xpath> <!-- xpath that matches all chapter numbers on the main series page -->
 		<chapter_urls_xpath>//td[div[@class='chico_manga']]/a/@href</chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
-		<image_url_xpath>//img[@id='img']/@src</image_url_xpath> <!-- xpath that matches the image url on a given page of the series -->
-		<next_url_xpath>//span[@class='next']/a/@href</next_url_xpath> <!-- xpath that matches the url of the next page on a given page of the series -->
+		<image_url_xpath>substring(//img[@id='img']/@src,1)</image_url_xpath> <!-- xpath that matches the image url on a given page of the series -->
+		<next_url_xpath>substring(//span[@class='next']/a/@href,1)</next_url_xpath> <!-- xpath that matches the url of the next page on a given page of the series -->
 		<!-- optional args, delete these if not applicable. -->
 		<is_complete_xpath>//tr[td[text()='Status:']]/td[text()='Completed']</is_complete_xpath> <!-- xpath that matches if the series has been marked "Complete" -->
 		<reverse>False</reverse> <!-- True if chapters are listed in reverse numerical order (latest chapter first) -->
@@ -93,11 +93,11 @@
 		<site_url>http://mangapark.me/</site_url> <!-- url of the main website -->
 		<abbr>PA</abbr> <!-- 2 letter abbreviation of the site's name. -->
 		<site_parser_re>.*mangapark.me/manga/.*</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
-		<title_xpath>//div[@class='cover']/img/@title</title_xpath> <!-- xpath that matches the series' title -->
+		<title_xpath>substring(//div[@class='cover']/img/@title,1)</title_xpath> <!-- xpath that matches the series' title -->
 		<chapter_nums_xpath>//div[@class='stream']//span/a/text()</chapter_nums_xpath> <!-- xpath that matches all chapter numbers on the main series page -->
 		<chapter_urls_xpath>//div[@class='stream']//span/a/@href</chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
-		<image_url_xpath>//a[@class='img-num']/@href</image_url_xpath> <!-- xpath that matches the image url on a given page of the series -->
-		<next_url_xpath>//div[@class='page']/span[last()]/a/@href</next_url_xpath> <!-- xpath that matches the url of the next page on a given page of the series -->
+		<image_url_xpath>substring(//a[@class='img-num']/@href,1)</image_url_xpath> <!-- xpath that matches the image url on a given page of the series -->
+		<next_url_xpath>substring(//div[@class='page']/span[last()]/a/@href,1)</next_url_xpath> <!-- xpath that matches the url of the next page on a given page of the series -->
 		<!-- optional args, delete these if not applicable. -->
 		<is_complete_xpath>//tr[th[text()='Status']]/td[contains(text(),'Completed')]</is_complete_xpath> <!-- xpath that matches if the series has been marked "Complete" -->
 	</site>
@@ -106,11 +106,11 @@
 		<site_url>http://mangastream.com/</site_url> <!-- url of the main website -->
 		<abbr>MS</abbr> <!-- 2 letter abbreviation of the site's name. -->
 		<site_parser_re>.*mangastream.com/manga/.*</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
-		<title_xpath>//h1/text()</title_xpath> <!-- xpath that matches the series' title -->
+		<title_xpath>substring(//h1/text(),1)</title_xpath> <!-- xpath that matches the series' title -->
 		<chapter_nums_xpath>//td/a/text()</chapter_nums_xpath> <!-- xpath that matches all chapter numbers on the main series page -->
 		<chapter_urls_xpath>//td/a/@href</chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
-		<image_url_xpath>//a/img/@src</image_url_xpath> <!-- xpath that matches the image url on a given page of the series -->
-		<next_url_xpath>//li[@class='next']/a/@href</next_url_xpath> <!-- xpath that matches the url of the next page on a given page of the series -->
+		<image_url_xpath>substring(concat('http:',//a/img/@src), 1 div boolean(//a/img/@src))</image_url_xpath> <!-- xpath that matches the image url on a given page of the series -->
+		<next_url_xpath>substring(//li[@class='next']/a/@href,1)</next_url_xpath> <!-- xpath that matches the url of the next page on a given page of the series -->
 		<!-- optional args, delete these if not applicable. -->
 		<chapter_nums_re>^(\d+\.?\d*)(?:v\d+)?</chapter_nums_re> <!-- regex used to further refine the results of chapter_nums_xpath, default is typically fine. -->
 	</site>
@@ -119,28 +119,32 @@
 		<site_url>http://bato.to/</site_url> <!-- url of the main website -->
 		<abbr>BT</abbr> <!-- 2 letter abbreviation of the site's name. -->
 		<site_parser_re>.*bato.to/comic/_/comics/.*</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
-		<title_xpath>//h1[@class='ipsType_pagetitle']/text()</title_xpath> <!-- xpath that matches the series' title -->
+		<title_xpath>substring(//h1[@class='ipsType_pagetitle']/text(),1)</title_xpath> <!-- xpath that matches the series' title -->
 		<chapter_nums_xpath>//tr[@class='row lang_English chapter_row']/td/a[img]/text()</chapter_nums_xpath> <!-- xpath that matches all chapter numbers on the main series page -->
 		<chapter_urls_xpath>//tr[@class='row lang_English chapter_row']/td/a[img]/@href</chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
+		<image_url_xpath>substring(//div[@id='full_image']//img/@src,1)</image_url_xpath> <!-- xpath that matches the image url on a given page of the series -->
 		<is_complete_xpath>//tr[td[text()='Status:']]/td[text()='Complete']</is_complete_xpath> <!-- xpath that matches if the series has been marked "Complete" -->
 		<!-- optional args, delete these if not applicable. -->
 		<chapter_nums_re>Ch\.(\d+\.?\d*)</chapter_nums_re> <!-- regex used to further refine the results of chapter_nums_xpath, default is typically fine. -->
 		<requires_credentials>True</requires_credentials> <!-- True if the site requires login to access images -->
+		<batoto_pages_xpath>//option[starts-with(text(),'page ')]/text()</batoto_pages_xpath> <!-- regex to match all page numbers for batoto. will be further processed. -->
 	</site>
 	<!-- Copy this template and use it to add a new site.
 	Fields left blank will fall back to their default values, which are fine for most sites. 
 	After updating this file you must convert it with dos2unix to ensure the md5 will match.
-	You can do this in notepad++ Edit>EOL Conversion>UNIX/OSX Format -->
+	You can do this in notepad++ Edit>EOL Conversion>UNIX/OSX Format	
+	Make sure your title, next_url, and image_url xpaths return a string. (use substring(xpath,1))
+	see MangaStream for an example of concatenating with the match.-->
 	<site name="TemplateSite">
 		<!-- essential args. you will need most of these. -->
 		<site_url></site_url> <!-- url of the main website -->
 		<abbr></abbr> <!-- 2 letter abbreviation of the site's name. -->
 		<site_parser_re></site_parser_re> <!-- regex that matches if the given url is a series on this site -->
-		<title_xpath></title_xpath> <!-- xpath that matches the series' title -->
+		<title_xpath>substring(,1)</title_xpath> <!-- xpath that matches the series' title -->
 		<chapter_nums_xpath></chapter_nums_xpath> <!-- xpath that matches all chapter numbers on the main series page -->
 		<chapter_urls_xpath></chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
-		<image_url_xpath></image_url_xpath> <!-- xpath that matches the image url on a given page of the series -->
-		<next_url_xpath></next_url_xpath> <!-- xpath that matches the url of the next page on a given page of the series -->
+		<image_url_xpath>substring(,1)</image_url_xpath> <!-- xpath that matches the image url on a given page of the series -->
+		<next_url_xpath>substring(,1)</next_url_xpath> <!-- xpath that matches the url of the next page on a given page of the series -->
 		<is_complete_xpath></is_complete_xpath> <!-- xpath that matches if the series has been marked "Complete" -->
 		<!-- optional args, delete these if not applicable. -->
 		<chapter_nums_re></chapter_nums_re> <!-- regex used to further refine the results of chapter_nums_xpath, default is typically fine. -->
@@ -153,5 +157,6 @@
 		<!-- The following 2 are a messy solution used only on animeA which no longer exists. -->
 		<page_template_re></page_template_re>
 		<all_pages_re></all_pages_re>
+		<batoto_pages_xpath></batoto_pages_xpath> <!-- regex to match all page numbers for batoto. will be further processed (split). -->
 	</site>
 </sites>
