@@ -75,6 +75,14 @@ class MyWindow(QMainWindow):
 
 
         self.parserFetcher = ParserFetch()
+        if self.parserFetcher.version_mismatch():
+            msg = QMessageBox()
+            msg.setWindowTitle('Version Out of Date')
+            msg.setTextFormat(Qt.RichText)
+            msg.setIcon(QMessageBox.Warning)
+            msg.setText('Parsers will not longer be up-to-date until you update to a newer version of <a href="https://github.com/NeverDecaf/MangaTosho/releases/latest">MangaTosho</a>.')
+            msg.exec_()
+##        QMessageBox.warning(self, 'Version Out of Date','Parsers will not longer be up-to-date until you update to a newer version of MangaTosho. https://github.com/NeverDecaf/MangaTosho/releases/latest')
 
         # create table
         self.table = self.createTable() 

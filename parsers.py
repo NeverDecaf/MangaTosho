@@ -24,6 +24,15 @@ if hasattr(sys,'_MEIPASS'):
     # we should only do this if this is running as an executable.
     os.environ['REQUESTS_CA_BUNDLE'] = os.path.join(basedir , 'requests', 'cacert.pem')
 
+# need to set working directory for this to work with pyinstaller:
+try:
+    sys._MEIPASS
+    os.chdir(os.path.dirname(sys.argv[0]))
+except:
+    os.chdir(os.path.dirname(os.path.realpath(__file__)))
+
+def hash_no_newline(stringdata):
+    return hashlib.md5(stringdata.replace('\n','').replace('\r','')).hexdigest()
 ##
 # Removes HTML or XML character references and entities from a text string.
 #
@@ -53,7 +62,7 @@ def unescape(text):
 # sites than have been abandoned:
 # KissManga (crazy js browser verification, MangaFox (banned in the US), MangaPandaNet (taken by russian hackers), MangaTraders (not suitable for this program)
 WORKING_SITES = []
-PARSER_VERSION = 1.0 # update if this file changes in a way that is incompatible with older parsers.xml
+PARSER_VERSION = 1.1 # update if this file changes in a way that is incompatible with older parsers.xml
 
 class ParserFetch:
     
@@ -78,15 +87,26 @@ class ParserFetch:
         return self.parsers_req_creds
     
     def __init__(self, credentials = {}):
+        global WORKING_SITES
         self.matchers=[]
         self.parsers_req_creds=set()
+        self.version_uptodate = 0
+        try:
+            self.version_uptodate = self._update_parsers()
+        except:
+            raise
+            'ignore all exceptions to avoid a program-ending failure. should log them somewhere though.'
+        self._generate_parsers()
         self.parsers = set(WORKING_SITES)#[globals()[cname] for cname in WORKING_SITES]
         for parser in self.parsers:
             self.matchers.append((parser.SITE_PARSER_RE,parser))
             if parser.REQUIRES_CREDENTIALS:
                 self.parsers_req_creds.add(parser)
         self.updateCreds(credentials)
-        
+
+    def version_mismatch(self):
+        return self.version_uptodate==-1 # we are only interested in whether the version of mangatosho does not match the version of parsers.
+    
     def match(self,url):
         #returns the parser class
         for rex in self.matchers:
@@ -108,6 +128,37 @@ class ParserFetch:
                         parser.PASSWORD = credentials[k][1]
                         break
 
+    def _update_parsers(self):
+        # auto-update the parsers xml file if possible.
+        if not os.path.exists('NO_PARSER_UPDATE'):
+            r=requests.get('https://raw.githubusercontent.com/NeverDecaf/MangaTosho/master/parsers.md5')
+            targethash = r.text
+            if not os.path.exists('parsers.xml'):
+                return update_parsers(PARSER_VERSION,targethash)
+            else:
+                with open('parsers.xml', 'rb') as f:
+                    stringdata = f.read()
+                    currenthash = hash_no_newline(stringdata)
+                    root = ET.fromstring(stringdata)#.getroot()
+                    currentversion = root.find('info').find('version').text
+                if targethash!=currenthash:
+                    return update_parsers(currentversion,targethash)
+                    
+    def _generate_parsers(self):
+        global WORKING_SITES
+        tree = ET.parse('parsers.xml')
+        root = tree.getroot()
+        for site in root.iter('site'):
+            classname = site.attrib['name']
+            # remove None values and convert string booleans to booleans.
+            # also create regex object for any key ending with _re
+            data={k.upper(): {'True':True,'False':False}.get(v,re.compile(v,re.IGNORECASE) if k=='site_parser_re' else re.compile(v,re.IGNORECASE) if k.endswith('_re') else v) for k, v in children_as_dict(site).items() if v!=None}
+            if classname!='TemplateSite':
+                if classname=='Batoto':
+                    WORKING_SITES.append(type(classname,(BatotoBase,),data))
+                else:
+                    WORKING_SITES.append(type(classname,(SeriesParser,),data))
+                
 class ParserError(Exception):
     pass
 
@@ -378,49 +429,14 @@ def update_parsers(currentversion,targethash):
     #must reload to file to ensure it was written correctly
     with open('parsers.tmp', 'rb') as f:
         stringdata=f.read()
-        temphash = hashlib.md5(stringdata).hexdigest()
+        temphash = hash_no_newline(stringdata)
     if temphash==targethash:
         #compare version numbers with simultaneously will test for valid xml
         root = ET.fromstring(stringdata)#.getroot()
         newversion = float(root.find('info').find('version').text)
         if currentversion==newversion:
             shutil.copy('parsers.tmp','parsers.xml')
-
-# need to set working directory for this to work with pyinstaller:
-try:
-    sys._MEIPASS
-    os.chdir(os.path.dirname(sys.argv[0]))
-except:
-    os.chdir(os.path.dirname(os.path.realpath(__file__)))
-    
-# auto-update the parsers xml file if possible.
-try:
-    if not os.path.exists('NO_PARSER_UPDATE'):
-        r=requests.get('https://raw.githubusercontent.com/NeverDecaf/MangaTosho/master/parsers.md5')
-        targethash = r.text
-        if not os.path.exists('parsers.xml'):
-            update_parsers(PARSER_VERSION,targethash)
         else:
-            with open('parsers.xml', 'rb') as f:
-                stringdata = f.read()
-                currenthash = hashlib.md5(stringdata).hexdigest()
-                root = ET.fromstring(stringdata)#.getroot()
-                currentversion = root.find('info').find('version').text
-            if targethash!=currenthash:
-                update_parsers(currentversion,targethash)
-except:
-    'ignore all exceptions to avoid a program-ending failure. should log them somewhere though.'
+            return -1
+    return 0
 
-tree = ET.parse('parsers.xml')
-root = tree.getroot()
-for site in root.iter('site'):
-    classname = site.attrib['name']
-    # remove None values and convert string booleans to booleans.
-    # also create regex object for any key ending with _re
-    data={k.upper(): {'True':True,'False':False}.get(v,re.compile(v,re.IGNORECASE) if k=='site_parser_re' else re.compile(v,re.IGNORECASE) if k.endswith('_re') else v) for k, v in children_as_dict(site).items() if v!=None}
-    if classname!='TemplateSite':
-        if classname=='Batoto':
-            WORKING_SITES.append(type(classname,(BatotoBase,),data))
-        else:
-            WORKING_SITES.append(type(classname,(SeriesParser,),data))
-            
