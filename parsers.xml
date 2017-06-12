@@ -129,7 +129,8 @@
 	</site>
 	<!-- Copy this template and use it to add a new site.
 	Fields left blank will fall back to their default values, which are fine for most sites. 
-	After updating this file you must convert it with dos2unix to ensure the md5 will match.-->
+	After updating this file you must convert it with dos2unix to ensure the md5 will match.
+	You can do this in notepad++ Edit>EOL Conversion>UNIX/OSX Format -->
 	<site name="TemplateSite">
 		<!-- essential args. you will need most of these. -->
 		<site_url></site_url> <!-- url of the main website -->

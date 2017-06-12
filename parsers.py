@@ -395,20 +395,21 @@ except:
     
 # auto-update the parsers xml file if possible.
 try:
-    r=requests.get('https://raw.githubusercontent.com/NeverDecaf/MangaTosho/master/parsers.md5')
-    targethash = r.text
-    if not os.path.exists('parsers.xml'):
-        update_parsers(PARSER_VERSION,targethash)
-    else:
-        with open('parsers.xml', 'rb') as f:
-            stringdata = f.read()
-            currenthash = hashlib.md5(stringdata).hexdigest()
-            root = ET.fromstring(stringdata)#.getroot()
-            currentversion = root.find('info').find('version').text
-        if targethash!=currenthash:
-            update_parsers(currentversion,targethash)
+    if not os.path.exists('NO_PARSER_UPDATE'):
+        r=requests.get('https://raw.githubusercontent.com/NeverDecaf/MangaTosho/master/parsers.md5')
+        targethash = r.text
+        if not os.path.exists('parsers.xml'):
+            update_parsers(PARSER_VERSION,targethash)
+        else:
+            with open('parsers.xml', 'rb') as f:
+                stringdata = f.read()
+                currenthash = hashlib.md5(stringdata).hexdigest()
+                root = ET.fromstring(stringdata)#.getroot()
+                currentversion = root.find('info').find('version').text
+            if targethash!=currenthash:
+                update_parsers(currentversion,targethash)
 except:
-    'ignore all exceptions to avoid a program-ending failure'
+    'ignore all exceptions to avoid a program-ending failure. should log them somewhere though.'
 
 tree = ET.parse('parsers.xml')
 root = tree.getroot()
