@@ -371,7 +371,7 @@ class BatotoBase(SeriesParser):
     IMAGE_FIRST = 1 # the first image is numbered 1, this will probably be true for every site but we'll leave the option to change it here.
     IMAGE_FIXED_LENGTH = True # if true the image number will be padded with 0s to be the same as the first page (ex: 00001 00010 00015)
     
-    JS_TEMPLATE = 'http://bato.to/areader?p=1&id='
+##    JS_TEMPLATE = 'http://bato.to/areader?p=1&id='
     READER_URL = 'http://bato.to/areader'
 
     def get_images(self,chapter,delay=0):
@@ -390,6 +390,7 @@ class BatotoBase(SeriesParser):
         page_nums = [re.split('[ _]+',a)[-1] for a in etree.xpath(self.BATOTO_PAGES_XPATH) if not (a in seen or seen_add(a))]
         images=[]
         for page_num in page_nums:
+            time.sleep(delay)
             url = urlparse.urljoin(self.READER_URL,'?id=%s&p=%i'%(chapter_id,int(page_num)))
             html = self.SESSION.get(url).text
             etree = lxmlhtml.fromstring(html)

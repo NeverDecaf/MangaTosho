@@ -200,7 +200,7 @@ class SQLManager():
                 try:
                     print 'updating',len(toupdate),'chapters from',data[self.COLUMNS.index('Title')]
                 except:
-                    print 'error encoding series name'
+                    print 'error encoding series name for printing, still updating normally.'
                     pass # encoding error probably.
                 iindex=0
                 for ch in toupdate:
