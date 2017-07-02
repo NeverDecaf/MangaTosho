@@ -415,7 +415,7 @@ class BatotoBase(SeriesParser):
     def get_chapters(self):
         if not self.etree.xpath(self.LOGGED_IN_XPATH):
             self.login()
-        SeriesParser.get_chapters(self)
+        return SeriesParser.get_chapters(self)
             
     AUTH_KEY_XPATH = "substring(//input[@name='auth_key']/@value,1)"
     LOGGED_IN_XPATH = "//a[text()='Sign Out']"
