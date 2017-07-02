@@ -82,7 +82,6 @@ class MyWindow(QMainWindow):
             msg.setIcon(QMessageBox.Warning)
             msg.setText('Parsers will not longer be up-to-date until you update to a newer version of <a href="https://github.com/NeverDecaf/MangaTosho/releases/latest">MangaTosho</a>.')
             msg.exec_()
-##        QMessageBox.warning(self, 'Version Out of Date','Parsers will not longer be up-to-date until you update to a newer version of MangaTosho. https://github.com/NeverDecaf/MangaTosho/releases/latest')
 
         # create table
         self.table = self.createTable() 
@@ -367,7 +366,7 @@ class Worker(QThread):
                     err,data = self.sql.updateSeries(datum)
         ##            print 'error code',err
                     if err>0:
-                        self.emit(SIGNAL("errorRow(PyQt_PyObject,PyQt_PyObject)"),datum,err)
+                        self.emit(SIGNAL("errorRow(PyQt_PyObject,PyQt_PyObject,PyQt_PyObject)"),datum,err,data)
                     elif len(data):
                         self.emit(SIGNAL("updateRow(PyQt_PyObject,PyQt_PyObject,PyQt_PyObject)"),datum,data,err)
                     else:
@@ -451,7 +450,7 @@ class MyTableModel(QAbstractTableModel):
         self.thread = Worker([self.arraydata[index]],self.sql,self.headerdata,self.lock)
         
         self.connect(self.thread, SIGNAL("updateRow(PyQt_PyObject,PyQt_PyObject,PyQt_PyObject)"),self.updateRow)
-        self.connect(self.thread, SIGNAL("errorRow(PyQt_PyObject,PyQt_PyObject)"),self.errorRow)
+        self.connect(self.thread, SIGNAL("errorRow(PyQt_PyObject,PyQt_PyObject,PyQt_PyObject)"),self.errorRow)
         #no need for a finished() signal as we only want to run this once.
 ##        self.connect(self.thread, SIGNAL("finished()"),self.waitThenUpdate)
         
@@ -465,7 +464,7 @@ class MyTableModel(QAbstractTableModel):
         self.thread = Worker(self.arraydata,self.sql,self.headerdata,self.lock)
         
         self.connect(self.thread, SIGNAL("updateRow(PyQt_PyObject,PyQt_PyObject,PyQt_PyObject)"),self.updateRow)
-        self.connect(self.thread, SIGNAL("errorRow(PyQt_PyObject,PyQt_PyObject)"),self.errorRow)
+        self.connect(self.thread, SIGNAL("errorRow(PyQt_PyObject,PyQt_PyObject,PyQt_PyObject)"),self.errorRow)
         self.connect(self.thread, SIGNAL("finished()"),self.waitThenUpdate)
         
         self.thread.start()
@@ -497,11 +496,13 @@ class MyTableModel(QAbstractTableModel):
     def getUnread(self,index):
         return self.arraydata[index.row()][self.headerdata.index('Unread')]
 
-    def errorRow(self,data,errcode):
+    def errorRow(self,data,errcode,errmsg=['']):
+        #errmsg is an array of messages (len 1 though)
         row=self.arraydata.index(data)
         idx = self.createIndex(row,0)
         idx2 = self.createIndex(row,len(self.headerdata)-1)
         self.arraydata[row][self.headerdata.index('Error')] = errcode
+        self.arraydata[row][self.headerdata.index('Error Message')] = errmsg[0]
         self.emit(SIGNAL("dataChanged(QModelIndex, QModelIndex)"), idx,idx2)
         self.sql.changeSeries(self.arraydata[row])
 
@@ -637,8 +638,16 @@ class MyTableModel(QAbstractTableModel):
             mod=min(180,(time.time()-self.arraydata[row][self.headerdata.index('UpdateTime')])/(34560*2))#divide into days,  added *2 to give it way more time.
             color = QColor(255-mod,255-mod,255) # shades of blue
             return QBrush(color)
+        elif role == Qt.ToolTipRole:
+            row = index.row()
+            error_msg=self.arraydata[row][self.headerdata.index('Error Message')]
+            if not error_msg:
+                return 'Updated %i days ago'%((time.time()-self.arraydata[row][self.headerdata.index('UpdateTime')])//86400)
+            else:
+                return error_msg # this could be None but it won't break.
+        
         elif role != Qt.DisplayRole: 
-            return QVariant() 
+            return QVariant()
         return QVariant(self.arraydata[index.row()][index.column()])
 
     def headerData(self, col, orientation, role):

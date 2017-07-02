@@ -266,7 +266,9 @@ class SeriesParser(object):
         urls = [urlparse.urljoin(self.MAIN_URL,x) for x in urls]
 
         if len(nums)!=len(urls):
-            raise ParserError('Chapter Numbers and URLS do not match in '+self.get_title()+' (%i nums vs %i urls, site:%s)'%(len(nums),len(urls),type(self).__name__))
+            e = ParserError('Chapter Numbers and URLS do not match in '+self.get_title()+' (%i nums vs %i urls, site:%s)'%(len(nums),len(urls),type(self).__name__))
+            e.display = 'Error parsing chapter list'
+            raise e
             return False
         return nums,zip(nums,urls)
     
@@ -306,7 +308,9 @@ class SeriesParser(object):
                 page_list.next() #pop off the first item as it will be accessed already.
                 
             if self.LICENSED_CHECK_RE!=None and self.LICENSED_CHECK_RE.match(html)!=None:
-                raise LicensedError('Series '+self.get_title()+' is licensed.')
+                e = LicensedError('Series '+self.get_title()+' is licensed.')
+                e.display = 'Series is licensed'
+                raise e
             
 ##            pictureurl = self.IMAGE_URL.findall(html)[0]
             
@@ -317,7 +321,9 @@ class SeriesParser(object):
                 if len(images): # just to make sure the parser isnt at fault, only allow if at least one image has been found.
                     break
                 else:
-                    raise ParserError('Image Parsing failed on %s, chapter:%s'%(self.get_title(),number))
+                    e = ParserError('Image Parsing failed on %s, chapter:%s'%(self.get_title(),number))
+                    e.display="Failed parsing images for Ch.%s"%number
+                    raise e
             if pictureurl in images: #prevents loops
                 break
             images.append(pictureurl)
@@ -427,7 +433,9 @@ class BatotoBase(SeriesParser):
         self.FORM_DATA['auth_key'] = etree.xpath(self.AUTH_KEY_XPATH)
         response = self.SESSION.post('https://bato.to/forums/index.php', params=self.QUERY_STRING, data=self.FORM_DATA)
         if response.text.find(self.USERNAME)<0:
-            raise ParserError('Batoto Login Failed')
+            e = ParserError('Batoto Login Failed')
+            e.display = 'Batoto login failed'
+            raise e
 
 ############################################
 ######## Dynamically create classes ########

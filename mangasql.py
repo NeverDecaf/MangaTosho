@@ -37,7 +37,7 @@ def is_number(s):
         return False
     
 class SQLManager():
-    COLUMNS = ['Url', 'Title', 'Read', 'Chapters', 'Unread', 'Site', 'Complete', 'UpdateTime', 'Error', 'SuccessTime']
+    COLUMNS = ['Url', 'Title', 'Read', 'Chapters', 'Unread', 'Site', 'Complete', 'UpdateTime', 'Error', 'SuccessTime', 'Error Message']
     
     def __init__(self, parserFetch):
         self.conn = sqlite3.connect('manga.db')
@@ -50,6 +50,10 @@ class SQLManager():
         c.execute('''CREATE TABLE IF NOT EXISTS site_info
                      (name text PRIMARY KEY, username text DEFAULT '', password text DEFAULT '')''')
         c.execute('''INSERT OR IGNORE INTO user_settings (id, readercmd) VALUES (0,'')''')
+        try:
+            c.execute('''ALTER TABLE series ADD COLUMN error_msg text''')
+        except sqlite3.OperationalError:
+            pass # col exists
         c.executemany('''INSERT OR IGNORE INTO site_info (name) VALUES (?)''',[(site.__name__,) for site in parserFetch.get_req_credentials_sites()])
         self.conn.commit()
         c.close()
@@ -173,6 +177,7 @@ class SQLManager():
     def updateSeries(self,data):
         try:
             errtype = 1
+            errmsg = ''
             data=list(data)
             series = self.parserFetch.fetch(data[self.COLUMNS.index('Url')])
             nums,chapters = series.get_chapters()
@@ -255,6 +260,7 @@ class SQLManager():
                     except parsers.LicensedError, e:
                         errors+=1
                         errtype=3
+                        errmsg=e.display
                         logging.exception('Type 3-M (Licensed) ('+data[1]+' c.'+str(ch[0])+' p.'+str(iindex)+'): '+str(e))
                         break
 ##                    except urllib2.HTTPError, e:
@@ -262,14 +268,18 @@ class SQLManager():
                         errors+=1
                         if e.response.status_code==403: # mangareader and their tricks
                             errtype=3
+                            errmsg='Error 403, likely licensed'
                             logging.exception('Type 3 (Licensed) ('+data[1]+' c.'+str(ch[0])+' p.'+str(iindex)+'): '+str(e))
                             break
                         else:
+                            errmsg='HTTP Error %s on Ch.%s Page %s'%(e.response.status_code,ch[0],iindex)
                             logging.exception('Type 1 ('+data[1]+' c.'+str(ch[0])+' p.'+str(iindex)+'): '+str(e))
                             break
                     except Exception as e:
                         errors+=1
+                        errmsg='Error on Ch.%s Page %s'%(ch[0],iindex)
                         logging.exception('Type 1 ('+data[1]+' c.'+str(ch[0])+' p.'+str(iindex)+'): '+str(e))
+                        errmsg=e.display
                         break
                     
 ##                print 'finished with',errors,'errors'
@@ -280,20 +290,25 @@ class SQLManager():
                         if time.time() - AUTO_COMPLETE > data[self.COLUMNS.index('UpdateTime')]:
                             data[self.COLUMNS.index('Complete')] = int(series.is_complete())
                     except:
+                        errmsg = 'Failure parsing series completion'
                         logging.exception('Type 2 ('+data[self.COLUMNS.index('Title')]+'): Failure parsing series completion '+str(e))
-                        return 2,[] # err type 2 is a severe parser error
+                        return 2,[errmsg] # err type 2 is a severe parser error
                     if updated_count>0: # if no chapters have been updated, we don't want to change the update time
                         return 0,data
                     else:
                         return -1,data
                 else:
                     #return error type
-                    return errtype,[] # type 1 is a generic parser error
+                    return errtype,[errmsg] # type 1 is a generic parser error
     ##        return False
             return 0,[]
         except Exception as e:
+            if hasattr(e, 'display'):
+                errmsg = e.display
+            else:
+                errmsg = type(e).__name__
             logging.exception('Type 2 ('+data[self.COLUMNS.index('Title')]+'): '+str(e))
-            return 2,[] # err type 2 is a severe parser error
+            return 2,[errmsg] # err type 2 is a severe parser error
                 
             
     def getSeries(self):
@@ -308,7 +323,7 @@ class SQLManager():
     def changeSeries(self,data):
         # REPLACE the data into the db.
         c = self.conn.cursor()
-        c.execute("REPLACE INTO series VALUES (?,?,?,?,?,?,?,?,?,?)",data)
+        c.execute("REPLACE INTO series VALUES (?,?,?,?,?,?,?,?,?,?,?)",data)
         self.conn.commit()
         c.close()
         

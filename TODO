@@ -6,14 +6,6 @@ color chooser for the 3 status colors
 
 
 
-
-
-
-
-
-
-
-
 this is going to be very long and disorganized (for now, and maybe forever)
 (most of these things are probably already implemented/fixed or irrelevant.)
 
@@ -52,7 +44,7 @@ save window maximized state when closed? doesnt seem possible
 maybe quit out after one error?
 to keep it from hanging on an update with many chapters that will all error. - should be implemented already
 
-
+legend can probably be color coded with html
 
 
 ======================================
@@ -95,14 +87,8 @@ that thing above about skipping one 404'd image per chapter???
 
 
 ============================================
-
--add legend
-
--separate parser into multiple files for ez update/additions.
-make a new dir for this.
-exe should look for outer dir first before falling back on bundled ones.
-
 tooltip error on mouseover
+right click ->get url
 
 
 add feature to strip off chapter when adding and passing a url that contains the chapter instead of the base series.
