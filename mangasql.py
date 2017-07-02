@@ -175,6 +175,8 @@ class SQLManager():
     # this method is extremely outdated and terribly coded BUT it still works somehow so we just leave it alone. Everything around it has changed drastically so it could probably be cut down
     # to much, much fewer lines of code. (And more readable)
     def updateSeries(self,data):
+        working_chapter = None
+        working_page = None
         try:
             errtype = 1
             errmsg = ''
@@ -272,12 +274,12 @@ class SQLManager():
                             logging.exception('Type 3 (Licensed) ('+data[1]+' c.'+str(ch[0])+' p.'+str(iindex)+'): '+str(e))
                             break
                         else:
-                            errmsg='HTTP Error %s on Ch.%s Page %s'%(e.response.status_code,ch[0],iindex)
+                            errmsg='HTTP Error %s on Ch.%g Page %g'%(e.response.status_code,ch[0],iindex)
                             logging.exception('Type 1 ('+data[1]+' c.'+str(ch[0])+' p.'+str(iindex)+'): '+str(e))
                             break
                     except Exception as e:
                         errors+=1
-                        errmsg='Error on Ch.%s Page %s'%(ch[0],iindex)
+                        errmsg='Error on Ch.%g Page %g'%(ch[0],iindex)
                         logging.exception('Type 1 ('+data[1]+' c.'+str(ch[0])+' p.'+str(iindex)+'): '+str(e))
                         errmsg=e.display
                         break
@@ -303,10 +305,11 @@ class SQLManager():
     ##        return False
             return 0,[]
         except Exception as e:
+            errmsg = 'Error downloading:'
             if hasattr(e, 'display'):
-                errmsg = e.display
+                errmsg+= e.display
             else:
-                errmsg = type(e).__name__
+                errmsg+= type(e).__name__
             logging.exception('Type 2 ('+data[self.COLUMNS.index('Title')]+'): '+str(e))
             return 2,[errmsg] # err type 2 is a severe parser error
                 

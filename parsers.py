@@ -249,8 +249,13 @@ class SeriesParser(object):
         # since this is a messy one liner heres what it does if you come back to look at this later:
         # if CHAPTER_NUMS_RE matches the number, simply use the number it matches, otherwise take the previous number and add .01 then use that instead.
         # finally, map them all with %g to truncate the .0 from whole numbers.
-        floatnumbers = reduce(lambda x,y: x+[float(self.CHAPTER_NUMS_RE.findall(y)[-1])] if self.CHAPTER_NUMS_RE.search(y) else x+[(x[-1]*100.0+1.0)/100.0], [[float(self.CHAPTER_NUMS_RE.findall(nums[0])[-1])]]+nums[1:] if self.CHAPTER_NUMS_RE.search(nums[0]) else [[0]]+nums[1:])
-        if len(floatnumbers)==1 or floatnumbers[-1] >= 1.0: # if there are no legit numbers then we don't want to return this UNLESS there is only one chapter, then we assume it is a oneshot with no number and allow it.
+        floatnumbers = reduce(lambda x,y: x+[float(self.CHAPTER_NUMS_RE.findall(y)[-1])]
+                              if self.CHAPTER_NUMS_RE.search(y)
+                              else x+[(x[-1]*100.0+1.0)/100.0],
+                              [[float(self.CHAPTER_NUMS_RE.findall(nums[0])[-1])]]+nums[1:]
+                              if self.CHAPTER_NUMS_RE.search(nums[0])
+                              else [[0]]+nums[1:])
+        if len(floatnumbers)==1 or sorted(floatnumbers)[-1] >= 1.0: # if there are no legit numbers then we don't want to return this UNLESS there is only one chapter, then we assume it is a oneshot with no number and allow it.
             return map(lambda x:'{0:g}'.format(x), floatnumbers)
         return []
     def get_chapters(self):
@@ -258,7 +263,6 @@ class SeriesParser(object):
         nums = self.etree.xpath(self.CHAPTER_NUMS_XPATH)
 ##        print nums
         urls = self.etree.xpath(self.CHAPTER_URLS_XPATH)
-##        print(nums)
         if self.REVERSE:
             nums.reverse()
             urls.reverse()
@@ -322,7 +326,7 @@ class SeriesParser(object):
                     break
                 else:
                     e = ParserError('Image Parsing failed on %s, chapter:%s'%(self.get_title(),number))
-                    e.display="Failed parsing images for Ch.%s"%number
+                    e.display="Failed parsing images for Ch.%g"%number
                     raise e
             if pictureurl in images: #prevents loops
                 break
@@ -380,12 +384,14 @@ class BatotoBase(SeriesParser):
 ##    JS_TEMPLATE = 'http://bato.to/areader?p=1&id='
     READER_URL = 'http://bato.to/areader'
 
+    LOGGED_IN = False
+
     def get_images(self,chapter,delay=0):
-        self.login()
+        # currently batoto does not require a login when accessing the reader, it is only needed for fetching the chapter list.
+##        self.login()
         number,url = chapter
 
         chapter_id = urlparse.urlsplit(url)[4]
-##        url = self.JS_TEMPLATE+fragment
         url = urlparse.urljoin(self.READER_URL,'?id=%s&p=1'%chapter_id)
 
         html = self.SESSION.get(url).text
@@ -406,6 +412,10 @@ class BatotoBase(SeriesParser):
 ##        pre,num,suf = self.IMAGE_BASE.findall(html)[0]
 ##        return [str(i).zfill(len(num) if self.IMAGE_FIXED_LENGTH else 0).join((pre,suf)) for i in range(self.IMAGE_FIRST, int(next(iter(self.IMAGE_LAST.findall(html)),1)) + 1)] # this iter hack is like list.get(0,'fail')
 
+    def get_chapters(self):
+        if not self.etree.xpath(self.LOGGED_IN_XPATH):
+            self.login()
+        SeriesParser.get_chapters(self)
             
     AUTH_KEY_XPATH = "substring(//input[@name='auth_key']/@value,1)"
     LOGGED_IN_XPATH = "//a[text()='Sign Out']"
@@ -424,18 +434,27 @@ class BatotoBase(SeriesParser):
         }
     
     def login(self):
-        self.FORM_DATA['ips_username'] = self.USERNAME
-        self.FORM_DATA['ips_password']= self.PASSWORD
-        response = self.SESSION.get(ur'https://bato.to/forums/')
-        etree = lxmlhtml.fromstring(response.text)
-        if etree.xpath(self.LOGGED_IN_XPATH):
-            return
-        self.FORM_DATA['auth_key'] = etree.xpath(self.AUTH_KEY_XPATH)
-        response = self.SESSION.post('https://bato.to/forums/index.php', params=self.QUERY_STRING, data=self.FORM_DATA)
-        if response.text.find(self.USERNAME)<0:
-            e = ParserError('Batoto Login Failed')
-            e.display = 'Batoto login failed'
-            raise e
+        tries = 0
+        max_tries = 3
+        e = None
+        while tries<max_tries:
+            self.FORM_DATA['ips_username'] = self.USERNAME
+            self.FORM_DATA['ips_password']= self.PASSWORD
+            response = self.SESSION.get(ur'https://bato.to/forums/')
+            etree = lxmlhtml.fromstring(response.text)
+            if etree.xpath(self.LOGGED_IN_XPATH):
+                return True
+            self.FORM_DATA['auth_key'] = etree.xpath(self.AUTH_KEY_XPATH)
+            response = self.SESSION.post('https://bato.to/forums/index.php', params=self.QUERY_STRING, data=self.FORM_DATA)
+            if response.text.find(self.USERNAME)<0:
+                e = ParserError('Batoto Login Failed')
+                e.display = 'Batoto login failed'
+            else:
+                self.LOGGED_IN = True
+                return True
+            tries += 1
+        raise e
+##        return False # an alternative
 
 ############################################
 ######## Dynamically create classes ########
