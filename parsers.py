@@ -74,13 +74,13 @@ class ParserFetch:
     def get_valid_sites(self):
         v = []
         ret = ''
-        for parser in (self.get_valid_parsers() - self._get_req_credentials_sites(self)):
+        for parser in (self.get_valid_parsers() - self.get_req_credentials_sites()):
             v.append(parser.SITE_URL+' ('+parser.ABBR+')')
         ret = '<br/>'.join(v)
-        if self._get_req_credentials_sites():
+        if self.get_req_credentials_sites():
             ret+= '<br/><font color="gray">'
             v=[]
-            for parser in self._get_req_credentials_sites():
+            for parser in self.get_req_credentials_sites():
                 v.append(parser.SITE_URL+' ('+parser.ABBR+')')
             ret += '<br/>'.join(v) + "</font>"
         return ret
