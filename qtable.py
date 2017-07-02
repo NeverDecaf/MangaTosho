@@ -503,6 +503,8 @@ class MyTableModel(QAbstractTableModel):
         idx2 = self.createIndex(row,len(self.headerdata)-1)
         self.arraydata[row][self.headerdata.index('Error')] = errcode
         self.arraydata[row][self.headerdata.index('Error Message')] = errmsg[0]
+        if errcode<1:
+            self.arraydata[row][self.headerdata.index('SuccessTime')]=time.time()
         self.emit(SIGNAL("dataChanged(QModelIndex, QModelIndex)"), idx,idx2)
         self.sql.changeSeries(self.arraydata[row])
 

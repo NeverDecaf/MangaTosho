@@ -305,7 +305,7 @@ class SQLManager():
     ##        return False
             return 0,[]
         except Exception as e:
-            errmsg = 'Error downloading:'
+            errmsg = 'Error downloading: '
             if hasattr(e, 'display'):
                 errmsg+= e.display
             else:
