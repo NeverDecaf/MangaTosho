@@ -471,13 +471,13 @@ class MyTableModel(QAbstractTableModel):
         #use QTimer to call this again after a break
 
     def updateRow(self,olddata,newdata,errcode):
-        erridx = self.headerdata.index('Error')
         row=self.arraydata.index(olddata)
 
         if errcode==0:
             newdata[self.headerdata.index('UpdateTime')]=time.time()
         newdata[self.headerdata.index('SuccessTime')]=time.time()
-        newdata[erridx]=0
+        newdata[self.headerdata.index('Error')]=0
+        newdata[self.headerdata.index('Error Message')] = None
         
         for i in range(len(self.arraydata[row])):
             self.arraydata[row][i] = newdata[i]
@@ -642,12 +642,10 @@ class MyTableModel(QAbstractTableModel):
             return QBrush(color)
         elif role == Qt.ToolTipRole:
             row = index.row()
-            error_msg=self.arraydata[row][self.headerdata.index('Error Message')]
-            if not error_msg:
-                return 'Updated %i days ago'%((time.time()-self.arraydata[row][self.headerdata.index('UpdateTime')])//86400)
+            if self.arraydata[row][self.headerdata.index('Error')]>0:
+                return self.arraydata[row][self.headerdata.index('Error Message')]
             else:
-                return error_msg # this could be None but it won't break.
-        
+                return 'Updated %i days ago'%((time.time()-self.arraydata[row][self.headerdata.index('UpdateTime')])//86400)        
         elif role != Qt.DisplayRole: 
             return QVariant()
         return QVariant(self.arraydata[index.row()][index.column()])

@@ -102,15 +102,17 @@ class SQLManager():
         return cmd[0][0]
         
     def addSeries(self,url):
-        parser=self.parserFetch.match(url)
-        if parser==None:
+        series = self.parserFetch.fetch(url)
+##        parser=self.parserFetch.match(url)
+        if series==None:
             return None
-        series = parser(url)
+        
+##        series = parser(url)
         title = series.get_title()
         c = self.conn.cursor()
         data=(url,title,'N','?',0,series.get_shorthand(),0,time.time(),0,time.time())
         try:
-            c.execute("INSERT INTO series VALUES (?,?,?,?,?,?,?,?,?,?)",data)
+            c.execute("INSERT INTO series VALUES (?,?,?,?,?,?,?,?,?,?,?)",data)
         except sqlite3.IntegrityError:
             self.conn.commit()
             c.close()
@@ -183,6 +185,8 @@ class SQLManager():
             data=list(data)
             series = self.parserFetch.fetch(data[self.COLUMNS.index('Url')])
             nums,chapters = series.get_chapters()
+            if not len(chapters):
+                return errtype,['Parser Error: No chapters found.'] # type 1 is a generic parser error
 ##            if chapters[-1][0]!=data[3] or data[2]!=chapters[-1][0]: #[3]=latest != newlatest or last_read != newlatest, this makes more work but gives us 100% accuracy so we must
             if chapters[-1][0]!=data[self.COLUMNS.index('Chapters')] or data[self.COLUMNS.index('Read')]!=chapters[-1][0]:
                 data[self.COLUMNS.index('Chapters')] = chapters[-1][0] #update our latest chapter
@@ -274,12 +278,12 @@ class SQLManager():
                             logging.exception('Type 3 (Licensed) ('+data[1]+' c.'+str(ch[0])+' p.'+str(iindex)+'): '+str(e))
                             break
                         else:
-                            errmsg='HTTP Error %s on Ch.%g Page %g'%(e.response.status_code,ch[0],iindex)
+                            errmsg='HTTP Error %s on Ch.%g Page %g'%(e.response.status_code,float(ch[0]),iindex)
                             logging.exception('Type 1 ('+data[1]+' c.'+str(ch[0])+' p.'+str(iindex)+'): '+str(e))
                             break
                     except Exception as e:
                         errors+=1
-                        errmsg='Error on Ch.%g Page %g'%(ch[0],iindex)
+                        errmsg='Error on Ch.%g Page %g'%(float(ch[0]),iindex)
                         logging.exception('Type 1 ('+data[1]+' c.'+str(ch[0])+' p.'+str(iindex)+'): '+str(e))
                         errmsg=e.display
                         break

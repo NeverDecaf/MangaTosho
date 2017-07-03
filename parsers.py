@@ -67,6 +67,7 @@ WORKING_SITES = []
 PARSER_VERSION = 1.1 # update if this file changes in a way that is incompatible with older parsers.xml
 
 class ParserFetch:
+    ''' you should only get parsers through the fetch() method, otherwise they will not use the correct session object '''
     
     def get_valid_parsers(self):
         return self.parsers
@@ -101,7 +102,7 @@ class ParserFetch:
         self._generate_parsers()
         self.parsers = set(WORKING_SITES)#[globals()[cname] for cname in WORKING_SITES]
         for parser in self.parsers:
-            self.matchers.append((parser.SITE_PARSER_RE,parser))
+            self.matchers.append((parser.SITE_PARSER_RE,parser,session()))
             if parser.REQUIRES_CREDENTIALS:
                 self.parsers_req_creds.add(parser)
         self.updateCreds(credentials)
@@ -110,6 +111,7 @@ class ParserFetch:
         return self.version_uptodate==-1 # we are only interested in whether the version of mangatosho does not match the version of parsers.
     
     def match(self,url):
+        ' do NOT use to get usable parser objects. use fetch instead. '
         #returns the parser class
         for rex in self.matchers:
             if rex[0].match(url):
@@ -119,7 +121,7 @@ class ParserFetch:
         #returns an actual parser object
         for rex in self.matchers:
             if rex[0].match(url):
-                return rex[1](url)
+                return rex[1](url,rex[2]) # initiate with shared session
         return None
     def updateCreds(self,credentials):
         for parser in self.parsers_req_creds:
@@ -223,6 +225,7 @@ class SeriesParser(object):
 
     def login(self):
         #log in to the site if authentication is required
+        # this should check to see if you are logged in before attempting a login because session objects are shared.
         return
     def get_shorthand(self):
         #returns an abbreviated version of hte site's name
@@ -351,7 +354,7 @@ class SeriesParser(object):
 ##            print 'next url is',url
         return images
     
-    def __init__(self,url):
+    def __init__(self,url,sessionobj=None):
         #loads the html from the series page, also checks to ensure the site is valid
         #note if this returns False you cannot use this object.
         pieces = urlparse.urlsplit(url)
@@ -360,8 +363,10 @@ class SeriesParser(object):
         if self.SITE_PARSER_RE.match(url)==None:
             self.VALID=False
             return
-        if not self.SESSION:
+        if not sessionobj:
             self.SESSION = session()
+        else:
+            self.SESSION = sessionobj
         self.SESSION.headers.update(self.HEADERS)
         self.login()
         self.HTML = self.SESSION.get(url).text
@@ -412,10 +417,10 @@ class BatotoBase(SeriesParser):
 ##        pre,num,suf = self.IMAGE_BASE.findall(html)[0]
 ##        return [str(i).zfill(len(num) if self.IMAGE_FIXED_LENGTH else 0).join((pre,suf)) for i in range(self.IMAGE_FIRST, int(next(iter(self.IMAGE_LAST.findall(html)),1)) + 1)] # this iter hack is like list.get(0,'fail')
 
-    def get_chapters(self):
-        if not self.etree.xpath(self.LOGGED_IN_XPATH):
-            self.login()
-        return SeriesParser.get_chapters(self)
+##    def get_chapters(self):
+##        if not self.etree.xpath(self.LOGGED_IN_XPATH):
+##            self._login()
+##        return SeriesParser.get_chapters(self)
             
     AUTH_KEY_XPATH = "substring(//input[@name='auth_key']/@value,1)"
     LOGGED_IN_XPATH = "//a[text()='Sign Out']"
@@ -432,8 +437,10 @@ class BatotoBase(SeriesParser):
         'anonymous': u'1',
         'referer': u'https://bato.to/forums',
         }
-    
-    def login(self):
+
+    # we won't override login() here because we dont need it to download images, just to get the chapter list
+    # bato.to is a slow site so we want to minimize the number of requests we make 
+    def _login(self):
         tries = 0
         max_tries = 3
         e = None
@@ -446,15 +453,29 @@ class BatotoBase(SeriesParser):
                 return True
             self.FORM_DATA['auth_key'] = etree.xpath(self.AUTH_KEY_XPATH)
             response = self.SESSION.post('https://bato.to/forums/index.php', params=self.QUERY_STRING, data=self.FORM_DATA)
-            if response.text.find(self.USERNAME)<0:
-                e = ParserError('Batoto Login Failed')
-                e.display = 'Batoto login failed'
-            else:
+##            f=open('batoto.html','w')
+##            f.write(response.text)
+##            f.close()
+            etree = lxmlhtml.fromstring(response.text)
+            if etree.xpath(self.LOGGED_IN_XPATH):
                 self.LOGGED_IN = True
                 return True
+            else:
+                e = ParserError('Batoto Login Failed')
+                e.display = 'Batoto login failed'
             tries += 1
+            print(tries)
         raise e
 ##        return False # an alternative
+    
+    def __init__(self,url,sessionobj=None):
+        retval = SeriesParser.__init__(self,url,sessionobj)
+        if self.VALID and not self.etree.xpath(self.LOGGED_IN_XPATH):
+            self._login()
+            retval = SeriesParser.__init__(self,url,self.SESSION)
+##        with open('batoto.html','wb') as f:
+##            f.write(self.HTML.encode('utf8'))
+        return retval
 
 ############################################
 ######## Dynamically create classes ########
