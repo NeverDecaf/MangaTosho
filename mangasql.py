@@ -110,7 +110,7 @@ class SQLManager():
 ##        series = parser(url)
         title = series.get_title()
         c = self.conn.cursor()
-        data=(url,title,'N','?',0,series.get_shorthand(),0,time.time(),0,time.time())
+        data=(url,title,'N','?',0,series.get_shorthand(),0,time.time(),0,time.time(),'')
         try:
             c.execute("INSERT INTO series VALUES (?,?,?,?,?,?,?,?,?,?,?)",data)
         except sqlite3.IntegrityError:
@@ -184,6 +184,8 @@ class SQLManager():
             errmsg = ''
             data=list(data)
             series = self.parserFetch.fetch(data[self.COLUMNS.index('Url')])
+            if not series:
+                return 4,['Parser Error: Site no longer supported.']
             nums,chapters = series.get_chapters()
             if not len(chapters):
                 return errtype,['Parser Error: No chapters found.'] # type 1 is a generic parser error
@@ -211,8 +213,10 @@ class SQLManager():
                 try:
                     print 'updating',len(toupdate),'chapters from',data[self.COLUMNS.index('Title')]
                 except:
-                    print 'error encoding series name for printing, still updating normally.'
-                    pass # encoding error probably.
+                    try:
+                        print data[self.COLUMNS.index('Title')].encode('utf8')
+                    except:
+                        print 'could not encode name'
                 iindex=0
                 for ch in toupdate:
                     try:
@@ -302,7 +306,7 @@ class SQLManager():
                     if updated_count>0: # if no chapters have been updated, we don't want to change the update time
                         return 0,data
                     else:
-                        return -1,data
+                        return -1,data # -1 is just a successful update with no new chapters added.
                 else:
                     #return error type
                     return errtype,[errmsg] # type 1 is a generic parser error
@@ -310,6 +314,7 @@ class SQLManager():
             return 0,[]
         except Exception as e:
             errmsg = 'Error downloading: '
+            
             if hasattr(e, 'display'):
                 errmsg+= e.display
             else:

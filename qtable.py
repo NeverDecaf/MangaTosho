@@ -168,6 +168,7 @@ class MyWindow(QMainWindow):
                         \n- Blue - Normal.\
                         \n- Gray - Series marked as complete.\
                         \n- Purple - Series is licensed and not available on this site.\
+                        \n- Orange - Site no longer supported.\
                         \nThe more saturation, the longer that state has persisted. Dark red/green series need attention; you may need to change sites or skip a chapter for these series.')
     def tips(self):
         QMessageBox.information(self, 'Some Useful Tips','- Try to avoid MangaPark, they commonly have multiple "Versions" of a series which means 2x filesize and/or chapters out of order or missing everywhere.\
@@ -364,13 +365,12 @@ class Worker(QThread):
                     if complete:
                         continue
                     err,data = self.sql.updateSeries(datum)
-        ##            print 'error code',err
                     if err>0:
                         self.emit(SIGNAL("errorRow(PyQt_PyObject,PyQt_PyObject,PyQt_PyObject)"),datum,err,data)
                     elif len(data):
                         self.emit(SIGNAL("updateRow(PyQt_PyObject,PyQt_PyObject,PyQt_PyObject)"),datum,data,err)
                     else:
-                        self.emit(SIGNAL("errorRow(PyQt_PyObject,PyQt_PyObject)"),datum,0)
+                        self.emit(SIGNAL("errorRow(PyQt_PyObject,PyQt_PyObject,PyQt_PyObject)"),datum,0,[''])
 ##                    self.lock.unlock()
                 except:
                     fh=open('CRITICAL ERROR SEARCH QTABLE FOR THIS LINE','wb')
@@ -429,7 +429,7 @@ class MyTableModel(QAbstractTableModel):
     def addSeries(self,url):
         data=self.sql.addSeries(str(url))
         if data == None:
-            QMessageBox.information(self.myparent, 'Series Add Failed','The URL you provided is not valid. Make sure you are linking the series\' "home page" and not a specific chapter or page')
+            QMessageBox.information(self.myparent, 'Series Add Failed','The URL you provided is not valid. Make sure you are linking the series page/chapter list and not a specific chapter or page')
             #not valid url
         elif data == False:
             #series already exists.
@@ -457,7 +457,7 @@ class MyTableModel(QAbstractTableModel):
         self.thread.start()
 
     def waitThenUpdate(self):
-        QTimer.singleShot(60*60*1000,self.updateAll)#update hourly. may want to increase or scale based on # of series
+        QTimer.singleShot(60*60*1000,self.updateAll)#update after 1h. may want to increase or scale based on # of series
         
     def updateAll(self):
         #create the business thread
@@ -496,7 +496,7 @@ class MyTableModel(QAbstractTableModel):
     def getUnread(self,index):
         return self.arraydata[index.row()][self.headerdata.index('Unread')]
 
-    def errorRow(self,data,errcode,errmsg=['']):
+    def errorRow(self,data,errcode,errmsg):
         #errmsg is an array of messages (len 1 though)
         row=self.arraydata.index(data)
         idx = self.createIndex(row,0)
@@ -636,6 +636,11 @@ class MyTableModel(QAbstractTableModel):
                 if error==3:
 ##                    return QBrush(QColor(255,100,100))
                     return QBrush(QColor(150,50,255)) # purple
+                if error==3:
+##                    return QBrush(QColor(255,100,100))
+                    return QBrush(QColor(150,50,255)) # purple
+                if error==4:
+                    return QBrush(QColor(225, 155, 25)) # orange
             # for last updated, let's scale it a little longer since some series take a while to update
             mod=min(180,(time.time()-self.arraydata[row][self.headerdata.index('UpdateTime')])/(34560*2))#divide into days,  added *2 to give it way more time.
             color = QColor(255-mod,255-mod,255) # shades of blue

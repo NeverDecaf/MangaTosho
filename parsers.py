@@ -251,13 +251,15 @@ class SeriesParser(object):
         # now we just fill in the missing chapters (assumed to be extras, etc.) (use the numbering system .01 .02 .03 to avoid conflict)
         # since this is a messy one liner heres what it does if you come back to look at this later:
         # if CHAPTER_NUMS_RE matches the number, simply use the number it matches, otherwise take the previous number and add .01 then use that instead.
+        # HOWEVER, if the parsed number already exists in the list, add .01 to the prev instead.
         # finally, map them all with %g to truncate the .0 from whole numbers.
-        floatnumbers = reduce(lambda x,y: x+[float(self.CHAPTER_NUMS_RE.findall(y)[-1])]
-                              if self.CHAPTER_NUMS_RE.search(y)
-                              else x+[(x[-1]*100.0+1.0)/100.0],
-                              [[float(self.CHAPTER_NUMS_RE.findall(nums[0])[-1])]]+nums[1:]
-                              if self.CHAPTER_NUMS_RE.search(nums[0])
-                              else [[0]]+nums[1:])
+        
+        # the list passed to reduce is just nums with the first element parsed with CHAPTER_NUMS_RE or 0 if parsing fails.
+        floatnumbers = reduce(lambda x,y:
+                              x+[float(self.CHAPTER_NUMS_RE.findall(y)[-1])] if self.CHAPTER_NUMS_RE.search(y) and (float(self.CHAPTER_NUMS_RE.findall(y)[-1]) not in x)
+                                  else x+[(x[-1]*100.0+1.0)/100.0],
+                              [[float(self.CHAPTER_NUMS_RE.findall(nums[0])[-1])]]+nums[1:] if self.CHAPTER_NUMS_RE.search(nums[0])
+                                else [[0]]+nums[1:])
         if len(floatnumbers)==1 or sorted(floatnumbers)[-1] >= 1.0: # if there are no legit numbers then we don't want to return this UNLESS there is only one chapter, then we assume it is a oneshot with no number and allow it.
             return map(lambda x:'{0:g}'.format(x), floatnumbers)
         return []
