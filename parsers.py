@@ -260,13 +260,13 @@ class SeriesParser(object):
                                   else x+[(x[-1]*100.0+1.0)/100.0],
                               [[float(self.CHAPTER_NUMS_RE.findall(nums[0])[-1])]]+nums[1:] if self.CHAPTER_NUMS_RE.search(nums[0])
                                 else [[0]]+nums[1:])
-        if len(floatnumbers)==1 or sorted(floatnumbers)[-1] >= 1.0: # if there are no legit numbers then we don't want to return this UNLESS there is only one chapter, then we assume it is a oneshot with no number and allow it.
+        if len(floatnumbers)==1 or sorted(floatnumbers)[-1] >= 1.0 or self.CHAPTER_NUMS_RE.search(nums[0]): # if there are no legit numbers then we don't want to return this UNLESS there is only one chapter, then we assume it is a oneshot with no number and allow it.
+            # added this third clause to handle series with all chapters labeled chapter 0 (gon on mangahere)
             return map(lambda x:'{0:g}'.format(x), floatnumbers)
         return []
     def get_chapters(self):
         #returns a list of all chapters, where each entry is a tuple (number,url)
         nums = self.etree.xpath(self.CHAPTER_NUMS_XPATH)
-##        print nums
         urls = self.etree.xpath(self.CHAPTER_URLS_XPATH)
         if self.REVERSE:
             nums.reverse()

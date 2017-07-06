@@ -23,8 +23,8 @@ if os.path.exists('DEBUG_TEST'):
 ######takeown + zip, utlility functions################
 #######################################################
 #YMMV, this probably doesnt even help.
-def takeown(self, func, path, excinfo):
-    os.chmod(path, stat.S_IWRITE)
+def takeown(func, path, excinfo):
+    os.chmod(path, stat.S_IWUSR | stat.S.IWGRP | stat.S_IWOTH) # give write permissions to everyone
     func(path)
 ##    if not os.access(path,os.W_OK):
 ##        os.chmod(path, 0777)#whatever just go full 777 stat.S_IWUSR) # nah, dont.
@@ -61,7 +61,7 @@ class SQLManager():
         self.getCredentials() # to update the parserfetch correctly.
         
         if LOGGING:
-            logging.basicConfig(level=logging.DEBUG, filename='Series_Errors.log')
+            logging.basicConfig(level=logging.ERROR, filename='Series_Errors.log')
         else:
             logging.basicConfig(level=logging.DEBUG, stream=StringIO())
             logging.disable(logging.ERROR)
@@ -289,7 +289,10 @@ class SQLManager():
                         errors+=1
                         errmsg='Error on Ch.%g Page %g'%(float(ch[0]),iindex)
                         logging.exception('Type 1 ('+data[1]+' c.'+str(ch[0])+' p.'+str(iindex)+'): '+str(e))
-                        errmsg=e.display
+                        if hasattr(e, 'display'):
+                            errmsg=e.display
+                        else:
+                            errmsg+= type(e).__name__
                         break
                     
 ##                print 'finished with',errors,'errors'

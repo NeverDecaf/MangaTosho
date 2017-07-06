@@ -168,8 +168,8 @@ class MyWindow(QMainWindow):
                         \n- Blue - Normal.\
                         \n- Gray - Series marked as complete.\
                         \n- Purple - Series is licensed and not available on this site.\
-                        \n- Orange - Site no longer supported.\
-                        \nThe more saturation, the longer that state has persisted. Dark red/green series need attention; you may need to change sites or skip a chapter for these series.')
+                        \n- Yellow - Site no longer supported.\
+                        \nThe more saturation, the longer that state has persisted. Dark red/green series need attention; you may need to change sites or skip a chapter for these series.\nMouse over an errored series for details.')
     def tips(self):
         QMessageBox.information(self, 'Some Useful Tips','- Try to avoid MangaPark, they commonly have multiple "Versions" of a series which means 2x filesize and/or chapters out of order or missing everywhere.\
                         \n- MangaFox has removed access to all their series from the US. Most urls can be directly converted by replacing mangafox with mangahere.\
@@ -640,7 +640,7 @@ class MyTableModel(QAbstractTableModel):
 ##                    return QBrush(QColor(255,100,100))
                     return QBrush(QColor(150,50,255)) # purple
                 if error==4:
-                    return QBrush(QColor(225, 155, 25)) # orange
+                    return QBrush(QColor(255, 255, 130)) # yellow
             # for last updated, let's scale it a little longer since some series take a while to update
             mod=min(180,(time.time()-self.arraydata[row][self.headerdata.index('UpdateTime')])/(34560*2))#divide into days,  added *2 to give it way more time.
             color = QColor(255-mod,255-mod,255) # shades of blue
