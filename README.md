@@ -1,9 +1,9 @@
 # MangaTosho
 
-####What is this?
+#### What is this?
 A auto-download and organization tool for manga series. Add urls for series, MT will auto-download new chapters and keep track of your progress letting you easily see and read new chapters with a double-click
 
-####How to Use
+#### How to Use
 Binaries are available if you are on windows, see [Releases](https://github.com/NeverDecaf/MangaTosho/releases/latest).
 
 * Double click a series to read starting from the latest unread chapter.
@@ -13,7 +13,7 @@ Binaries are available if you are on windows, see [Releases](https://github.com/
 
 Closing the main window will simply minimize it to tray. Double-click the icon to bring it back. You can also right-click the tray icon for some quick-access options.
 
-####Series Color Guide
+#### Series Color Guide
 Blue: All good.  
 Red: Parser error, MT needs an update.  
 Green: Other error, most likely the series is missing an image/chapter, you can increment "Read" to bypass this  
@@ -22,7 +22,7 @@ Gray: Series has been marked as complete by either you or the site. (Newly added
 
 All colors will fade based on the amount of time since the last update. The darker the color the longer the time. A light green or red will likely fix itself over time but a darker one indicates a permanent problem.
 
-######Known Bugs
+###### Known Bugs
 * Readme sucks.
 * New series are gray when they shouldn't be.
 * Update option does nothing, series aren't updated immediately after being added. (can restart if you need the update immediately)
