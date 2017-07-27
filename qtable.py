@@ -636,9 +636,6 @@ class MyTableModel(QAbstractTableModel):
                 if error==3:
 ##                    return QBrush(QColor(255,100,100))
                     return QBrush(QColor(150,50,255)) # purple
-                if error==3:
-##                    return QBrush(QColor(255,100,100))
-                    return QBrush(QColor(150,50,255)) # purple
                 if error==4:
                     return QBrush(QColor(255, 255, 130)) # yellow
             # for last updated, let's scale it a little longer since some series take a while to update
