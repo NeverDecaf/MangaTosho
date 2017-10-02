@@ -11,6 +11,7 @@ import requests
 import posixpath
 import sys
 import os,shutil
+import urllib
 ##import lxml.etree.XPathEvalError as XPathError
 from lxml.etree import XPathEvalError as XPathError
 # add the cacert.pem file to the path correctly even if compiled with pyinstaller:
@@ -64,7 +65,7 @@ def unescape(text):
 # sites than have been abandoned:
 # KissManga (crazy js browser verification, MangaFox (banned in the US), MangaPandaNet (taken by russian hackers), MangaTraders (not suitable for this program)
 WORKING_SITES = []
-PARSER_VERSION = 1.1 # update if this file changes in a way that is incompatible with older parsers.xml
+PARSER_VERSION = 1.2 # update if this file changes in a way that is incompatible with older parsers.xml
 
 class ParserFetch:
     ''' you should only get parsers through the fetch() method, otherwise they will not use the correct session object '''
@@ -383,10 +384,10 @@ class BatotoBase(SeriesParser):
     # =======EVERYTHING BELOW HERE IS BATOTO SPECIFIC DUE TO LOGIN REQUIREMENT=========
 
     # These 3 are used for sites where all *image* (not page) urls can be obtained from the first page. actually this is only for batoto.
-    IMAGE_BASE = re.compile(ur'<img src=[\'"](http://img.bato.to/comics/\d\d[^\'"]*?)(\d+)(\.[^\'"]{3,4})') # 3 parts, prefix, iterative number, and suffix (extension) [0] [1] [2]
-    IMAGE_LAST = re.compile(ur'page (\d*)</option>\s*</select>') # the number of the final page/image in the chapter.
-    IMAGE_FIRST = 1 # the first image is numbered 1, this will probably be true for every site but we'll leave the option to change it here.
-    IMAGE_FIXED_LENGTH = True # if true the image number will be padded with 0s to be the same as the first page (ex: 00001 00010 00015)
+##    IMAGE_BASE = re.compile(ur'<img src=[\'"](http://img.bato.to/comics/\d\d[^\'"]*?)(\d+)(\.[^\'"]{3,4})') # 3 parts, prefix, iterative number, and suffix (extension) [0] [1] [2]
+##    IMAGE_LAST = re.compile(ur'page (\d*)</option>\s*</select>') # the number of the final page/image in the chapter.
+##    IMAGE_FIRST = 1 # the first image is numbered 1, this will probably be true for every site but we'll leave the option to change it here.
+##    IMAGE_FIXED_LENGTH = True # if true the image number will be padded with 0s to be the same as the first page (ex: 00001 00010 00015)
     
 ##    JS_TEMPLATE = 'http://bato.to/areader?p=1&id='
     READER_URL = 'http://bato.to/areader'
@@ -420,12 +421,16 @@ class BatotoBase(SeriesParser):
 ##        return [str(i).zfill(len(num) if self.IMAGE_FIXED_LENGTH else 0).join((pre,suf)) for i in range(self.IMAGE_FIRST, int(next(iter(self.IMAGE_LAST.findall(html)),1)) + 1)] # this iter hack is like list.get(0,'fail')
 
 ##    def get_chapters(self):
-##        if not self.etree.xpath(self.LOGGED_IN_XPATH):
+##        if not self.etree.xpath(self.BT_LOGGED_IN_XPATH):
 ##            self._login()
 ##        return SeriesParser.get_chapters(self)
             
-    AUTH_KEY_XPATH = "substring(//input[@name='auth_key']/@value,1)"
-    LOGGED_IN_XPATH = "//a[text()='Sign Out']"
+##    AUTH_KEY_XPATH = "substring(//input[@name='auth_key']/@value,1)"
+##    BT_LOGGED_IN_XPATH = "//div[@class='logged_in']"
+##    "//meta[@content='Error']"
+##    "//link[@rel='canonical']"
+##    LOGIN_FAILED_XPATH = "//p[@class='ipsType_sectiontitle']" # only used to display error message
+##    BT_LOGIN_URL = ur'https://bato.to/forums/index.php'
     
     QUERY_STRING = {
         'app':'core',
@@ -437,44 +442,89 @@ class BatotoBase(SeriesParser):
     FORM_DATA = {
         'rememberMe': u'1',
         'anonymous': u'1',
-        'referer': u'https://bato.to/forums',
+        # do NOT add this referer field or you will get a 403. add it to headers instead.
+##        'referer': u'https://bato.to/forums',
+##        'referer': u'https://bato.to/forums/index.php?app=core&module=global&section=login',
         }
 
     # we won't override login() here because we dont need it to download images, just to get the chapter list
     # bato.to is a slow site so we want to minimize the number of requests we make 
     def _login(self):
         tries = 0
-        max_tries = 3
+        max_tries = 2
         e = None
+        self.FORM_DATA['ips_username'] = self.USERNAME
+        self.FORM_DATA['ips_password']= self.PASSWORD
+##        self.FORM_DATA['referer']=self.MAIN_URL
+        # this url is the key to avoiding 403 errors when attempting logins (if already logged in)
+        referer_url = u'?'.join((self.BT_LOGIN_URL,urllib.urlencode({i:self.QUERY_STRING[i] for i in self.QUERY_STRING if i!='do'})))
+##        print(referer_url)
+##        referer_url=ur'https://bato.to/forums/index.php?app=core&module=global&section=login'
+##        print(self.BT_AUTH_KEY_XPATH)
+##        print(self.BT_LOGGED_IN_XPATH)
+##        print(self.BT_LOGIN_FAILED_XPATH)
+        
+##        self.FORM_DATA['auth_key'] = self.etree.xpath(self.BT_AUTH_KEY_XPATH)
         while tries<max_tries:
-            self.FORM_DATA['ips_username'] = self.USERNAME
-            self.FORM_DATA['ips_password']= self.PASSWORD
-            response = self.SESSION.get(ur'https://bato.to/forums/')
+
+
+            # no need to verify login because this method will only be called if NOT already logged in.
+            response = self.SESSION.get(referer_url)
             etree = lxmlhtml.fromstring(response.text)
-            if etree.xpath(self.LOGGED_IN_XPATH):
-                return True
-            self.FORM_DATA['auth_key'] = etree.xpath(self.AUTH_KEY_XPATH)
-            response = self.SESSION.post('https://bato.to/forums/index.php', params=self.QUERY_STRING, data=self.FORM_DATA)
+            self.FORM_DATA['auth_key'] = etree.xpath(self.BT_AUTH_KEY_XPATH)
+
+
+            time.sleep(.25) # small break between requests
+##            if etree.xpath(self.BT_LOGGED_IN_XPATH):
+##                self.LOGGED_IN = True
+##                print('already logged in')
+##                return True
+
+##            print('attempting login@',self.BT_LOGIN_URL)
+##            print(self.FORM_DATA)
+##            print(self.QUERY_STRING)
+##            self.FORM_DATA['auth_key'] = etree.xpath(self.BT_AUTH_KEY_XPATH)
+            response = self.SESSION.post(self.BT_LOGIN_URL, params=self.QUERY_STRING, data=self.FORM_DATA, headers={'referer': referer_url})
 ##            f=open('batoto.html','w')
 ##            f.write(response.text)
 ##            f.close()
             etree = lxmlhtml.fromstring(response.text)
-            if etree.xpath(self.LOGGED_IN_XPATH):
+##            print('result of post:',response.status_code)
+            if etree.xpath(self.BT_LOGGED_IN_XPATH) and not etree.xpath(self.BT_LOGIN_FAILED_XPATH):
+                
+##                print('login successful')
+##                with open('login.html','wb') as f:
+##                    f.write(response.text.encode('utf8'))
                 self.LOGGED_IN = True
                 return True
             else:
+##                print('temp fail')
+##                with open('login.html','wb') as f:
+##                    f.write(response.text.encode('utf8'))
                 e = ParserError('Batoto Login Failed')
                 e.display = 'Batoto login failed'
             tries += 1
-            print(tries)
+##            print(tries)
+            time.sleep(2)
+##            if tries<max_tries:
+##                time.sleep(1)
+##                response = self.SESSION.get(self.BT_LOGIN_URL)
+##                etree = lxmlhtml.fromstring(response.text)
+##                self.FORM_DATA['auth_key'] = etree.xpath(self.BT_AUTH_KEY_XPATH)
+##                time.sleep(1)
+            
+##        print('login failed')
         raise e
 ##        return False # an alternative
     
     def __init__(self,url,sessionobj=None):
         retval = SeriesParser.__init__(self,url,sessionobj)
-        if self.VALID and not self.etree.xpath(self.LOGGED_IN_XPATH):
+        if self.VALID and not self.etree.xpath(self.BT_LOGGED_IN_XPATH):
+##            print('additional login required')
+##            print('session object is',self.SESSION)
             self._login()
             retval = SeriesParser.__init__(self,url,self.SESSION)
+##        print(self.etree.xpath(self.BT_LOGGED_IN_XPATH))
 ##        with open('batoto.html','wb') as f:
 ##            f.write(self.HTML.encode('utf8'))
         return retval
