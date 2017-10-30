@@ -292,7 +292,9 @@ class SeriesParser(object):
         if self.AIO_IMAGES_RE:
             html = self.SESSION.get(url).text
             all_images=re.compile(self.AIO_IMAGES_RE)
-            return [c if c.startswith('http:\\') else urlparse.urljoin(self.SITE_URL,c) for c in [c.replace('\\','') for c in all_images.findall(html)]]
+            with open('adifiosf.html','w') as f:
+                f.write(html.encode('utf8'))
+            return [c if c.startswith('http://') else urlparse.urljoin(self.SITE_URL,c) for c in [c.replace('\\','') for c in all_images.findall(html)]]
         
         pieces = urlparse.urlsplit(url)
         url = urlparse.urlunsplit(pieces[:3]+(self.SKIP_MATURE or pieces[3],)+pieces[4:])
