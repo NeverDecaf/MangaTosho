@@ -117,6 +117,19 @@
 		<bt_login_failed_xpath>//p[@class='ipsType_sectiontitle']</bt_login_failed_xpath>
 		<bt_login_url>https://bato.to/forums/index.php</bt_login_url>
 	</site>
+	<site name="MangaKakalot">
+		<!-- essential args. you will need most of these. -->
+		<site_url>http://mangakakalot.com/</site_url> <!-- url of the main website -->
+		<abbr>MK</abbr> <!-- 2 letter abbreviation of the site's name. -->
+		<site_parser_re>.*mangakakalot.com/manga/.+</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
+		<title_xpath>substring(//h1/text(),1)</title_xpath> <!-- xpath that matches the series' title -->
+		<chapter_nums_xpath>//div[@class='row']/span/a/@title</chapter_nums_xpath> <!-- xpath that matches all chapter numbers on the main series page -->
+		<chapter_urls_xpath>//div[@class='row']/span/a[@title]/@href</chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
+		<is_complete_xpath>//li[text()="Status : Completed"]</is_complete_xpath> <!-- xpath that matches if the series has been marked "Complete" -->
+		<!-- optional args, delete these if not applicable. -->
+		<chapter_nums_re><![CDATA[chapter (\d+\.?\d*)(?:v\d+)?]]></chapter_nums_re> <!-- regex used to further refine the results of chapter_nums_xpath, default is typically fine. -->
+		<aio_images_re><![CDATA[(?<=<img src=")([^"]*)(?=" alt="[^"]*chapter \d[^"]*page \d[^"]*")]]></aio_images_re> <!-- regex to match all image urls if the site includes them all on one page. -->
+	</site>
 	<!-- Copy this template and use it to add a new site.
 	Fields left blank will fall back to their default values, which are fine for most sites. 
 	After updating this file you must convert it with dos2unix to ensure the md5 will match.
@@ -139,7 +152,7 @@
 		<skip_mature></skip_mature> <!-- fragment added to the url to skip mature warnings (example: ?skip=1) -->
 		<licensed_check_re></licensed_check_re> <!-- regex that matches if series is licensed -->
 		<requires_credentials></requires_credentials> <!-- True if the site requires login to access images -->
-		<reverse></reverse> <!-- True if chapters are listed in reverse numerical order (latest chapter first) -->
+		<reverse></reverse> <!-- True if chapters are listed in reverse numerical order (latest chapter first) this is True by default. -->
 		<author_re></author_re> <!-- regex to remove author name from a series title for more uniform and clean series names. -->
 		<aio_images_re></aio_images_re> <!-- regex to match all image urls if the site includes them all on one page. -->
 		<!-- The following 2 are a messy solution used only on animeA which no longer exists. -->
