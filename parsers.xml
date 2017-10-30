@@ -5,9 +5,9 @@
 	</info>
 	<site name="MangaSee">
 		<!-- essential args. must supply all of these -->
-		<site_url>http://mangaseeonline.net</site_url> <!-- url of the main website -->
+		<site_url>http://mangaseeonline.us</site_url> <!-- url of the main website -->
 		<abbr>SE</abbr> <!-- 2 letter abbreviation of the site's name. -->
-		<site_parser_re>.*mangaseeonline.net/manga/.*</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
+		<site_parser_re>.*mangaseeonline.us/manga/.*</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
 		<title_xpath>substring(//h1[@class='SeriesName']/text(),1)</title_xpath> <!-- xpath that matches the series' title -->
 		<chapter_nums_xpath>//a/@chapter</chapter_nums_xpath> <!-- xpath that matches all chapter numbers on the main series page -->
 		<chapter_urls_xpath>//a[@chapter]/@href</chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
