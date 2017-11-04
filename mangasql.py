@@ -7,7 +7,7 @@ import shutil
 import zipfile
 import logging
 from PIL import Image
-from StringIO import StringIO
+from io import StringIO
 from requests import session
 from requests import exceptions
 DELAY=5 # seconds between chapters, to keep from getting banned.
@@ -80,7 +80,7 @@ class SQLManager():
 
     def setCredentials(self, credentials):
         c = self.conn.cursor()
-        flat = [(k,v[0],v[1]) for k,v in credentials.items()]
+        flat = [(k,v[0],v[1]) for k,v in list(credentials.items())]
         cmd = "REPLACE INTO site_info (name,username,password) VALUES ("+','.join(['?']*len(flat))+")"
         c.executemany("REPLACE INTO site_info VALUES (?,?,?)",flat)
         self.conn.commit()
@@ -211,12 +211,12 @@ class SQLManager():
                 validname = SQLManager.cleanName(data[self.COLUMNS.index('Title')])#[1]=name of series
                 errors=0
                 try:
-                    print 'updating',len(toupdate),'chapters from',data[self.COLUMNS.index('Title')]
+                    print('updating',len(toupdate),'chapters from',data[self.COLUMNS.index('Title')])
                 except:
                     try:
-                        print data[self.COLUMNS.index('Title')].encode('utf8')
+                        print(data[self.COLUMNS.index('Title')].encode('utf8'))
                     except:
-                        print 'could not encode name'
+                        print('could not encode name')
                 iindex=0
                 for ch in toupdate:
                     try:
@@ -250,7 +250,7 @@ class SQLManager():
                                     
                                     filename = os.path.join(tempdir,str(iindex)+os.path.splitext(image)[1])
                                     img = Image.open(StringIO(response.content))
-                                    img.save(os.path.splitext(filename)[0]+ur'.'+img.format)
+                                    img.save(os.path.splitext(filename)[0]+r'.'+img.format)
                                     iindex+=1
                                     
                                 except:
@@ -267,7 +267,7 @@ class SQLManager():
                             time.sleep(DELAY)
                         unread_count+=1
                         
-                    except parsers.LicensedError, e:
+                    except parsers.LicensedError as e:
                         errors+=1
                         errtype=3
                         errmsg=e.display
