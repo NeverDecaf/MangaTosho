@@ -1,14 +1,27 @@
 import re
+
 import operator
+
 import os
+
 import sys
-from PyQt4.QtCore import * 
-from PyQt4.QtGui import * 
+
+from PyQt5.QtCore import *
+
+from PyQt5.QtGui import *
+
+from PyQt5.QtWidgets import *
+
 from mangasql import SQLManager
+
 import time
+
 import subprocess
+
 from qtrayico import Systray
+
 from parsers import ParserFetch
+
 
 def isfloat(string):
     try:
@@ -30,18 +43,17 @@ class trayIcon(Systray):
     def __init__(self,window):
         super(trayIcon,self).__init__(window)
     def createActions(self):
-        from PyQt4 import QtGui, QtCore
+        from PyQt5 import QtCore, QtGui, QtWidgets
         self.actions=[]
 
-        self.addAction= QtGui.QAction(self.tr("&Add Series"), self)
-        self.connect(self.addAction, QtCore.SIGNAL("triggered()"),self.main_window.addevent)
+        self.addAction= QtWidgets.QAction(self.tr("&Add Series"), self)
+        self.addAction.triggered.connect(self.main_window.addevent)
 
-        self.readerAction= QtGui.QAction(self.tr("&Open Reader"), self)
-        self.connect(self.readerAction, QtCore.SIGNAL("triggered()"),self.main_window.openreader)
+        self.readerAction= QtWidgets.QAction(self.tr("&Open Reader"), self)
+        self.readerAction.triggered.connect(self.main_window.openreader)
         
-        self.quitAction = QtGui.QAction(self.tr("&Quit"), self)
-        QtCore.QObject.connect(self.quitAction, QtCore.SIGNAL("triggered()"),
-        QtGui.qApp, QtCore.SLOT("quit()"))
+        self.quitAction = QtWidgets.QAction(self.tr("&Quit"), self)
+        self.quitAction.triggered.connect(QtWidgets.QApplication.quit)
         
         self.actions.append(self.addAction)
         self.actions.append(self.readerAction)
@@ -49,7 +61,8 @@ class trayIcon(Systray):
 
 MMCE=resource_path("!MMCE_Win32\MMCE_Win32.exe")
 def main():
-    from PyQt4 import QtGui
+    from PyQt5 import QtGui
+
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
     w = MyWindow()
@@ -70,6 +83,12 @@ def resource_path(relative_path):
     return os.path.join(base_path, relative_path)
         
 class MyWindow(QMainWindow): 
+    addSeries = pyqtSignal('QString')
+    updateSeries = pyqtSignal(int)
+    removeSeries = pyqtSignal(QModelIndex, int)
+    rollbackSeries = pyqtSignal(QModelIndex)
+    completeSeries = pyqtSignal(QModelIndex)
+
     def __init__(self, *args): 
         QMainWindow.__init__(self, *args) 
 
@@ -90,27 +109,27 @@ class MyWindow(QMainWindow):
         menubar = self.menuBar()
 
         self.saddAction=QAction(self.tr("&Add Series"), self)
-        self.connect(self.saddAction, SIGNAL("triggered()"),self.addevent)
+        self.saddAction.triggered.connect(self.addevent)
         
         fileMenu = menubar.addMenu('&File')
         fileMenu.addAction(self.saddAction)
 
         self.readerAction=QAction(self.tr("&Change Reader"), self)
-        self.connect(self.readerAction, SIGNAL("triggered()"),self.changeReaderEvent)
+        self.readerAction.triggered.connect(self.changeReaderEvent)
         fileMenu.addAction(self.readerAction)
 
         self.credsAction= QAction(self.tr("&Add Credentials"), self)
-        self.connect(self.credsAction, SIGNAL("triggered()"),self.addCredentials)
+        self.credsAction.triggered.connect(self.addCredentials)
         fileMenu.addAction(self.credsAction)
 
         self.sinfoAction=QAction(self.tr("&Supported Sites"), self)
-        self.connect(self.sinfoAction, SIGNAL("triggered()"),self.sinfoevent)
+        self.sinfoAction.triggered.connect(self.sinfoevent)
 
         self.tipsAction=QAction(self.tr("&Tips"), self)
-        self.connect(self.tipsAction, SIGNAL("triggered()"),self.tips)
+        self.tipsAction.triggered.connect(self.tips)
 
         self.legendAction=QAction(self.tr("&Color Legend"), self)
-        self.connect(self.legendAction, SIGNAL("triggered()"),self.colorLegend)
+        self.legendAction.triggered.connect(self.colorLegend)
         
         helpMenu = menubar.addMenu('&Help')
         helpMenu.addAction(self.sinfoAction)
@@ -119,8 +138,7 @@ class MyWindow(QMainWindow):
 ##        helpMenu.addAction(self.MFConvertAction)
         
         self.quitAction = QAction(("&Quit"), self)
-        QObject.connect(self.quitAction, SIGNAL("triggered()"),
-            qApp, SLOT("quit()"))
+        self.quitAction.triggered.connect(QApplication.quit)
         fileMenu.addAction(self.quitAction)
 
         
@@ -181,7 +199,7 @@ class MyWindow(QMainWindow):
         reply = QInputDialog.getText(self, self.tr("Enter URL"), self.tr("URL"))
         if reply[1]:
             if self.parserFetcher.match(reply[0])!=None:
-                self.emit(SIGNAL("addSeries(QString)"),reply[0])
+                self.addSeries.emit(reply[0])
             else:
                 msg="The URL you provided is not valid.\nSupported sites are as follows:\n"
                 names=[]
@@ -278,12 +296,12 @@ class MyWindow(QMainWindow):
 ##        tv.setColumnHidden(header.index('Error'),True)
 ##        tv.setColumnHidden(header.index('SuccessTime'),True)
         
-        self.connect(self, SIGNAL("addSeries(QString)"),tm.addSeries)
-        self.connect(self, SIGNAL("updateSeries(int)"),tm.updateSeries)
-        self.connect(self, SIGNAL("removeSeries(QModelIndex,int)"),tm.removeSeries)
-        self.connect(self, SIGNAL("rollbackSeries(QModelIndex)"),tm.rollbackSeries)
-        self.connect(self, SIGNAL("completeSeries(QModelIndex)"),tm.completeSeries)
-        self.connect(tv,SIGNAL("customContextMenuRequested(QPoint)"),self.alart)
+        self.addSeries['QString'].connect(tm.addSeries)
+        self.updateSeries[int].connect(tm.updateSeries)
+        self.removeSeries[QModelIndex, int].connect(tm.removeSeries)
+        self.rollbackSeries[QModelIndex].connect(tm.rollbackSeries)
+        self.completeSeries[QModelIndex].connect(tm.completeSeries)
+        tv.customContextMenuRequested[QPoint].connect(self.alart)
         
         #initial sort
         tv.sortByColumn(header.index('Title'),Qt.AscendingOrder)
@@ -296,7 +314,7 @@ class MyWindow(QMainWindow):
         globalpos = self.tv.viewport().mapToGlobal(pos)
         localpos=self.right_menu.exec_(globalpos)
         if self.updateAction==localpos:
-            self.emit(SIGNAL("updateSeries(int)"),self.tv.indexAt(pos).row())
+            self.updateSeries.emit(self.tv.indexAt(pos).row())
         if self.removeAction==localpos:
             title = self.tm.getTitle(self.tv.indexAt(pos)) # this line does not obey the signal-slot methodology
             reply = QMessageBox.question(self, 'Careful!',
@@ -306,7 +324,7 @@ class MyWindow(QMainWindow):
                 removeData = QMessageBox.question(self, 'Careful!',
                         "Do you also wish to remove all data associated\nwith the series (all downloaded chapters)?", QMessageBox.Yes | 
                         QMessageBox.No, QMessageBox.No)
-                self.emit(SIGNAL("removeSeries(QModelIndex,int)"),self.tv.indexAt(pos),removeData)
+                self.removeSeries.emit(self.tv.indexAt(pos), removeData)
         if self.rollbackAction==localpos:
             title = self.tm.getTitle(self.tv.indexAt(pos)) # this line does not obey the signal-slot methodology
             unread = self.tm.getUnread(self.tv.indexAt(pos))
@@ -321,7 +339,7 @@ class MyWindow(QMainWindow):
                 "This will delete the latest chapter of "+title+" and decrement the last read chapter by 1.\nAre you sure you wish to do this?", QMessageBox.Yes | 
                 QMessageBox.No, QMessageBox.No)
                 if reply==QMessageBox.Yes:
-                    self.emit(SIGNAL("rollbackSeries(QModelIndex)"),self.tv.indexAt(pos))
+                    self.rollbackSeries.emit(self.tv.indexAt(pos))
         if self.completeAction==localpos:
             title = self.tm.getTitle(self.tv.indexAt(pos)) # this line does not obey the signal-slot methodology
             complete = self.tm.getComplete(self.tv.indexAt(pos))
@@ -330,9 +348,9 @@ class MyWindow(QMainWindow):
                 "Are you sure want to mark the series: "+title+" as complete?\nDoing so means the series will no longer be updated in any way.\n(This action can be reversed.)", QMessageBox.Yes | 
                 QMessageBox.No, QMessageBox.No)
                 if reply==QMessageBox.Yes:
-                    self.emit(SIGNAL("completeSeries(QModelIndex)"),self.tv.indexAt(pos))
+                    self.completeSeries.emit(self.tv.indexAt(pos))
             else:
-                self.emit(SIGNAL("completeSeries(QModelIndex)"),self.tv.indexAt(pos))
+                self.completeSeries.emit(self.tv.indexAt(pos))
         
 class RightClickMenu(QMenu):
     def __init__(self, removeAction, parent=None):
@@ -348,6 +366,8 @@ def is_number(s):
         return False
     
 class Worker(QThread):
+    errorRow = pyqtSignal('PyQt_PyObject', 'PyQt_PyObject', 'PyQt_PyObject')
+    updateRow = pyqtSignal('PyQt_PyObject', 'PyQt_PyObject', 'PyQt_PyObject')
 
     def __init__(self, data, sqlmanager, headerdata, lock, parent = None):
         QThread.__init__(self, parent)
@@ -366,11 +386,11 @@ class Worker(QThread):
                         continue
                     err,data = self.sql.updateSeries(datum)
                     if err>0:
-                        self.emit(SIGNAL("errorRow(PyQt_PyObject,PyQt_PyObject,PyQt_PyObject)"),datum,err,data)
+                        self.errorRow.emit(datum, err, data)
                     elif len(data):
-                        self.emit(SIGNAL("updateRow(PyQt_PyObject,PyQt_PyObject,PyQt_PyObject)"),datum,data,err)
+                        self.updateRow.emit(datum, data, err)
                     else:
-                        self.emit(SIGNAL("errorRow(PyQt_PyObject,PyQt_PyObject,PyQt_PyObject)"),datum,0,[''])
+                        self.errorRow.emit(datum, 0, [''])
 ##                    self.lock.unlock()
                 except:
                     fh=open('CRITICAL ERROR SEARCH QTABLE FOR THIS LINE','wb')
@@ -379,6 +399,10 @@ class Worker(QThread):
                     self.lock.unlock()
 
 class MyTableModel(QAbstractTableModel): 
+    dataChanged = pyqtSignal(QModelIndex, QModelIndex)
+    layoutAboutToBeChanged = pyqtSignal()
+    layoutChanged = pyqtSignal()
+
     def __init__(self, headerdata, parserFetch, parent=None, *args): 
         """ datain: a list of lists
             headerdata: a list of strings
@@ -449,8 +473,8 @@ class MyTableModel(QAbstractTableModel):
         #create the business thread
         self.thread = Worker([self.arraydata[index]],self.sql,self.headerdata,self.lock)
         
-        self.connect(self.thread, SIGNAL("updateRow(PyQt_PyObject,PyQt_PyObject,PyQt_PyObject)"),self.updateRow)
-        self.connect(self.thread, SIGNAL("errorRow(PyQt_PyObject,PyQt_PyObject,PyQt_PyObject)"),self.errorRow)
+        self.thread.updateRow['PyQt_PyObject', 'PyQt_PyObject', 'PyQt_PyObject'].connect(self.updateRow)
+        self.thread.errorRow['PyQt_PyObject', 'PyQt_PyObject', 'PyQt_PyObject'].connect(self.errorRow)
         #no need for a finished() signal as we only want to run this once.
 ##        self.connect(self.thread, SIGNAL("finished()"),self.waitThenUpdate)
         
@@ -462,10 +486,9 @@ class MyTableModel(QAbstractTableModel):
     def updateAll(self):
         #create the business thread
         self.thread = Worker(self.arraydata,self.sql,self.headerdata,self.lock)
-        
-        self.connect(self.thread, SIGNAL("updateRow(PyQt_PyObject,PyQt_PyObject,PyQt_PyObject)"),self.updateRow)
-        self.connect(self.thread, SIGNAL("errorRow(PyQt_PyObject,PyQt_PyObject,PyQt_PyObject)"),self.errorRow)
-        self.connect(self.thread, SIGNAL("finished()"),self.waitThenUpdate)
+        self.thread.updateRow['PyQt_PyObject', 'PyQt_PyObject', 'PyQt_PyObject'].connect(self.updateRow)
+        self.thread.errorRow['PyQt_PyObject', 'PyQt_PyObject', 'PyQt_PyObject'].connect(self.errorRow)
+        self.thread.finished.connect(self.waitThenUpdate)
         
         self.thread.start()
         #use QTimer to call this again after a break
@@ -483,7 +506,7 @@ class MyTableModel(QAbstractTableModel):
             self.arraydata[row][i] = newdata[i]
         idx = self.createIndex(row,0)
         idx2 = self.createIndex(row,len(self.headerdata)-1)
-        self.emit(SIGNAL("dataChanged(QModelIndex, QModelIndex)"), idx,idx2)
+        self.dataChanged.emit(idx, idx2)
         self.resort()
         self.sql.changeSeries(newdata)
 
@@ -505,14 +528,14 @@ class MyTableModel(QAbstractTableModel):
         self.arraydata[row][self.headerdata.index('Error Message')] = errmsg[0]
         if errcode<1:
             self.arraydata[row][self.headerdata.index('SuccessTime')]=time.time()
-        self.emit(SIGNAL("dataChanged(QModelIndex, QModelIndex)"), idx,idx2)
+        self.dataChanged.emit(idx, idx2)
         self.sql.changeSeries(self.arraydata[row])
 
     def setData(self, index, value, role=Qt.EditRole, user=False):
         if not user and not value.toDouble()[1]: # enforces float values for chapter num
             return False
         self.arraydata[index.row()][index.column()] = str(value.toString())
-        self.emit(SIGNAL("dataChanged(QModelIndex, QModelIndex)"), index,index)
+        self.dataChanged.emit(index, index)
         self.sql.changeSeries(self.arraydata[index.row()])
         self.resort()
         return True
@@ -538,7 +561,7 @@ class MyTableModel(QAbstractTableModel):
             last_read = int(self.arraydata[index.row()][self.headerdata.index('Read')])
             self.arraydata[index.row()][self.headerdata.index('Read')] = last_read-1
             self.sql.rollbackSeries(url,last_read,title)
-            self.emit(SIGNAL("dataChanged(QModelIndex, QModelIndex)"), idx,idx2)
+            self.dataChanged.emit(idx, idx2)
         except:
             pass
         
@@ -551,7 +574,7 @@ class MyTableModel(QAbstractTableModel):
             completion_status = int(self.arraydata[index.row()][self.headerdata.index('Complete')])
             self.arraydata[index.row()][self.headerdata.index('Complete')] = completion_status ^ 1
             self.sql.completeSeries(url,completion_status^1)
-            self.emit(SIGNAL("dataChanged(QModelIndex, QModelIndex)"), idx,idx2)
+            self.dataChanged.emit(idx, idx2)
         except:
             pass
         
@@ -566,7 +589,7 @@ class MyTableModel(QAbstractTableModel):
         self.arraydata[index.row()][self.current_col] = self.arraydata[index.row()][self.total_col]
         idx = self.createIndex(index.row(),0)
         idx2 = self.createIndex(index.row(),len(self.headerdata)-1)
-        self.emit(SIGNAL('dataChanged(QModelIndex, QModelIndex)'),idx,idx2)
+        self.dataChanged.emit(idx, idx2)
         self.sql.changeSeries(self.arraydata[index.row()])
 
         sdir=SQLManager.cleanName(self.arraydata[index.row()][self.headerdata.index('Title')])#name of series
@@ -671,7 +694,7 @@ class MyTableModel(QAbstractTableModel):
         self.sortAction()
         
     def sortAction(self):
-        self.emit(SIGNAL("layoutAboutToBeChanged()"))
+        self.layoutAboutToBeChanged.emit()
 ##        self.arraydata = sorted(self.arraydata, key=operator.itemgetter(self.second_sort_column))
 ##        if self.second_sort_order == Qt.DescendingOrder:
 ##            self.arraydata.reverse()
@@ -686,7 +709,7 @@ class MyTableModel(QAbstractTableModel):
 ##        self.arraydata = sorted(self.arraydata, key=lambda x: (float(x[self.sort_column]),self.title_col))
         if self.sort_order == Qt.DescendingOrder:
             self.arraydata.reverse()
-        self.emit(SIGNAL("layoutChanged()"))
+        self.layoutChanged.emit()
 
 
 class inputdialogdemo(QWidget):
@@ -735,7 +758,8 @@ class inputdialogdemo(QWidget):
          
 class SettingsDialog(QDialog):
     def __init__(self,initialSettings, parent=None):
-        from PyQt4.QtCore import Qt
+        from PyQt5.QtCore import Qt
+
         super(SettingsDialog, self).__init__(parent)
         self.result=None
         self.setWindowTitle(self.tr("Credentials"))
@@ -767,8 +791,8 @@ class SettingsDialog(QDialog):
         confirmLayout.addWidget(self.saveButton,0,0)
         confirmLayout.addWidget(self.cancelButton,0,1)
         
-        self.connect(self.cancelButton,SIGNAL("released()"),self.close)
-        self.connect(self.saveButton,SIGNAL("released()"),self.saveValues)
+        self.cancelButton.released.connect(self.close)
+        self.saveButton.released.connect(self.saveValues)
 
         mainLayout.addWidget(top)
         mainLayout.addWidget(bottom)
@@ -795,6 +819,7 @@ class SettingsDialog(QDialog):
 if __name__ == "__main__":
     # chdir to the correct directory to ensure configs, etc. are loaded correctly.
     import os,sys
+
     try:
         sys._MEIPASS
         os.chdir(os.path.dirname(sys.argv[0]))
