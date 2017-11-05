@@ -124,7 +124,14 @@ class ParserFetch:
         #returns an actual parser object
         for rex in self.matchers:
             if rex[0].match(url):
-                return rex[1](url,rex[2]) # initiate with shared session
+                try:
+                    parser = rex[1](url,rex[2]) # initiate with shared session
+                    if parser.VALID:
+                        return parser
+                    else:
+                        return None
+                except requests.exceptions.InvalidSchema:
+                    return None
         return None
     def updateCreds(self,credentials):
         for parser in self.parsers_req_creds:
@@ -227,6 +234,7 @@ class SeriesParser(object):
     SESSION=None
 
     UA = None
+    TITLE = None
 
     def login(self):
         #log in to the site if authentication is required
@@ -237,13 +245,16 @@ class SeriesParser(object):
         return self.ABBR
     def get_title(self):
         #returns the title of the series
+        if self.TITLE:
+            return self.TITLE
         title = unescape(self.etree.xpath(self.TITLE_XPATH))
         split = title.split()
         for i in range(len(split)):
             if split[i].isupper() or i==0:
                 split[i]=split[i].capitalize()
         ret = r' '.join(split)
-        return self.AUTHOR_RE.sub(r'',ret)
+        self.TITLE = self.AUTHOR_RE.sub(r'',ret)
+        return self.TITLE
     def is_complete(self):
         return not not self.etree.xpath(self.IS_COMPLETE_XPATH)
     def extrapolate_nums(self, nums):
@@ -392,6 +403,8 @@ class SeriesParser(object):
         self.login()
         self.HTML = self.SESSION.get(url).content
         self.etree = lxmlhtml.fromstring(self.HTML)
+        if not self.get_title():
+            self.VALID=False
 
 
 ################################################################################
