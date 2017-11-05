@@ -7,7 +7,7 @@ import shutil
 import zipfile
 import logging
 from PIL import Image
-from io import StringIO
+from io import BytesIO
 from requests import session
 from requests import exceptions
 DELAY=5 # seconds between chapters, to keep from getting banned.
@@ -63,7 +63,7 @@ class SQLManager():
         if LOGGING:
             logging.basicConfig(level=logging.ERROR, filename='Series_Errors.log')
         else:
-            logging.basicConfig(level=logging.DEBUG, stream=StringIO())
+            logging.basicConfig(level=logging.DEBUG, stream=BytesIO())
             logging.disable(logging.ERROR)
 
     def updateParserCredentials(self,creds):
@@ -249,7 +249,7 @@ class SQLManager():
                                     response.raise_for_status()#raise error code if occured
                                     
                                     filename = os.path.join(tempdir,str(iindex)+os.path.splitext(image)[1])
-                                    img = Image.open(StringIO(response.content))
+                                    img = Image.open(BytesIO(response.content))
                                     img.save(os.path.splitext(filename)[0]+r'.'+img.format)
                                     iindex+=1
                                     
