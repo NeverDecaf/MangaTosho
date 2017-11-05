@@ -1,27 +1,41 @@
 import re
-
+
+
 import operator
-
+
+
 import os
-
+
+
 import sys
-
+
+
 from PyQt5.QtCore import *
-
+
+
 from PyQt5.QtGui import *
-
+
+
 from PyQt5.QtWidgets import *
-
+
+
 from mangasql import SQLManager
-
+
+import mangasql
+
+
 import time
-
+
+
 import subprocess
-
+
+
 from qtrayico import Systray
-
+
+
 from parsers import ParserFetch
-
+
+
 
 def isfloat(string):
     try:
@@ -62,7 +76,8 @@ class trayIcon(Systray):
 MMCE=resource_path("!MMCE_Win32\MMCE_Win32.exe")
 def main():
     from PyQt5 import QtGui
-
+
+
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
     w = MyWindow()
@@ -392,6 +407,7 @@ class Worker(QThread):
                     else:
                         self.errorRow.emit(datum, 0, [''])
 ##                    self.lock.unlock()
+                    time.sleep(mangasql.DELAY) # sleep between series (same delay as between chapters)
                 except:
                     fh=open('CRITICAL ERROR SEARCH QTABLE FOR THIS LINE','wb')
                     fh.close()
@@ -759,7 +775,8 @@ class inputdialogdemo(QWidget):
 class SettingsDialog(QDialog):
     def __init__(self,initialSettings, parent=None):
         from PyQt5.QtCore import Qt
-
+
+
         super(SettingsDialog, self).__init__(parent)
         self.result=None
         self.setWindowTitle(self.tr("Credentials"))
@@ -819,7 +836,8 @@ class SettingsDialog(QDialog):
 if __name__ == "__main__":
     # chdir to the correct directory to ensure configs, etc. are loaded correctly.
     import os,sys
-
+
+
     try:
         sys._MEIPASS
         os.chdir(os.path.dirname(sys.argv[0]))

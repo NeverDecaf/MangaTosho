@@ -11,6 +11,7 @@ import requests
 import posixpath
 import sys
 import os,shutil
+from fake_useragent import UserAgent
 import urllib.request, urllib.parse, urllib.error
 ##import lxml.etree.XPathEvalError as XPathError
 from lxml.etree import XPathEvalError as XPathError
@@ -138,7 +139,7 @@ class ParserFetch:
         # auto-update the parsers xml file if possible.
         if not os.path.exists('NO_PARSER_UPDATE'):
             r=requests.get('https://raw.githubusercontent.com/NeverDecaf/MangaTosho/master/parsers.md5')
-            targethash = r.text
+            targethash = r.content
             if not os.path.exists('parsers.xml'):
                 return update_parsers(PARSER_VERSION,targethash)
             else:
@@ -146,7 +147,7 @@ class ParserFetch:
                     stringdata = f.read()
                     currenthash = hash_no_newline(stringdata)
 ##                    root = ET.fromstring(stringdata)#.getroot()
-##                    currentversion = root.find('info').find('version').text
+##                    currentversion = root.find('info').find('version').content
                 if targethash!=currenthash:
                     return update_parsers(PARSER_VERSION,targethash)
                     
@@ -225,6 +226,8 @@ class SeriesParser(object):
     
     SESSION=None
 
+    UA = None
+
     def login(self):
         #log in to the site if authentication is required
         # this should check to see if you are logged in before attempting a login because session objects are shared.
@@ -291,7 +294,7 @@ class SeriesParser(object):
 
         #special EZ cases:
         if self.AIO_IMAGES_RE:
-            html = self.SESSION.get(url).text
+            html = self.SESSION.get(url).content
             all_images=re.compile(self.AIO_IMAGES_RE)
             return [c if c.startswith('http://') else urllib.parse.urljoin(self.SITE_URL,c) for c in [c.replace('\\','') for c in all_images.findall(html)]]
         
@@ -306,7 +309,7 @@ class SeriesParser(object):
         
         while posixpath.dirname(urllib.parse.urlsplit(url)[2]) == chapter_path:
 ##            print 'reading',url
-            html = self.SESSION.get(url).text
+            html = self.SESSION.get(url).content
 
             #we should be able to remove html once we replace everyting with xpath
             etree = lxmlhtml.fromstring(html)
@@ -333,7 +336,7 @@ class SeriesParser(object):
                     break
                 else:
                     e = ParserError('Image Parsing failed on %s, chapter:%s'%(self.get_title(),number))
-                    e.display="Failed parsing images for Ch.%g"%number
+                    e.display="Failed parsing images for Ch.%s"%number
                     raise e
             if pictureurl in images: #prevents loops
                 break
@@ -357,10 +360,19 @@ class SeriesParser(object):
                 chapter_path = posixpath.dirname(urllib.parse.urlsplit(url)[2])
 ##            print 'next url is',url
         return images
+
+    def _cycle_UA(self):
+        self.HEADERS['User-Agent'] = self.UA.random
     
     def __init__(self,url,sessionobj=None):
         #loads the html from the series page, also checks to ensure the site is valid
         #note if this returns False you cannot use this object.
+        # create a random user agent
+        if not self.UA:
+            self.UA = UserAgent()
+        self._cycle_UA()
+        if not 'Referer' in self.HEADERS:
+            self.HEADERS['Referer'] = self.SITE_URL
         pieces = urllib.parse.urlsplit(url)
         url = urllib.parse.urlunsplit(pieces[:3]+(self.SKIP_MATURE or pieces[3],)+pieces[4:])
         self.MAIN_URL = url
@@ -371,9 +383,14 @@ class SeriesParser(object):
             self.SESSION = session()
         else:
             self.SESSION = sessionobj
+        adapter = requests.adapters.HTTPAdapter(max_retries=1)
+        self.SESSION.mount('https://', adapter)
+        self.SESSION.mount('http://', adapter)
+        
+        self.SESSION.keep_alive = False
         self.SESSION.headers.update(self.HEADERS)
         self.login()
-        self.HTML = self.SESSION.get(url).text
+        self.HTML = self.SESSION.get(url).content
         self.etree = lxmlhtml.fromstring(self.HTML)
 
 
@@ -381,7 +398,7 @@ class SeriesParser(object):
 class BatotoBase(SeriesParser):    
     HEADERS={'User-Agent':'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/37.0.2062.124 Safari/537.36',
              'Referer':'http://bato.to/reader'}
-    
+
     # =======EVERYTHING BELOW HERE IS BATOTO SPECIFIC DUE TO LOGIN REQUIREMENT=========
 
     # These 3 are used for sites where all *image* (not page) urls can be obtained from the first page. actually this is only for batoto.
@@ -389,7 +406,7 @@ class BatotoBase(SeriesParser):
 ##    IMAGE_LAST = re.compile(ur'page (\d*)</option>\s*</select>') # the number of the final page/image in the chapter.
 ##    IMAGE_FIRST = 1 # the first image is numbered 1, this will probably be true for every site but we'll leave the option to change it here.
 ##    IMAGE_FIXED_LENGTH = True # if true the image number will be padded with 0s to be the same as the first page (ex: 00001 00010 00015)
-    
+
 ##    JS_TEMPLATE = 'http://bato.to/areader?p=1&id='
     READER_URL = 'http://bato.to/areader'
 
@@ -403,7 +420,7 @@ class BatotoBase(SeriesParser):
         chapter_id = urllib.parse.urlsplit(url)[4]
         url = urllib.parse.urljoin(self.READER_URL,'?id=%s&p=1'%chapter_id)
 
-        html = self.SESSION.get(url).text
+        html = self.SESSION.get(url).content
         etree = lxmlhtml.fromstring(html)
         # use a set to remove duplicates.
         seen = set()
@@ -413,7 +430,7 @@ class BatotoBase(SeriesParser):
         for page_num in page_nums:
             time.sleep(delay)
             url = urllib.parse.urljoin(self.READER_URL,'?id=%s&p=%i'%(chapter_id,int(page_num)))
-            html = self.SESSION.get(url).text
+            html = self.SESSION.get(url).content
             etree = lxmlhtml.fromstring(html)
             pictureurl = etree.xpath(self.IMAGE_URL_XPATH)
             images.append(pictureurl)
@@ -425,7 +442,7 @@ class BatotoBase(SeriesParser):
 ##        if not self.etree.xpath(self.BT_LOGGED_IN_XPATH):
 ##            self._login()
 ##        return SeriesParser.get_chapters(self)
-            
+
 ##    AUTH_KEY_XPATH = "substring(//input[@name='auth_key']/@value,1)"
 ##    BT_LOGGED_IN_XPATH = "//div[@class='logged_in']"
 ##    "//meta[@content='Error']"
@@ -471,7 +488,7 @@ class BatotoBase(SeriesParser):
 
             # no need to verify login because this method will only be called if NOT already logged in.
             response = self.SESSION.get(referer_url)
-            etree = lxmlhtml.fromstring(response.text)
+            etree = lxmlhtml.fromstring(response.content)
             self.FORM_DATA['auth_key'] = etree.xpath(self.BT_AUTH_KEY_XPATH)
 
 
@@ -487,21 +504,21 @@ class BatotoBase(SeriesParser):
 ##            self.FORM_DATA['auth_key'] = etree.xpath(self.BT_AUTH_KEY_XPATH)
             response = self.SESSION.post(self.BT_LOGIN_URL, params=self.QUERY_STRING, data=self.FORM_DATA, headers={'referer': referer_url})
 ##            f=open('batoto.html','w')
-##            f.write(response.text)
+##            f.write(response.content)
 ##            f.close()
-            etree = lxmlhtml.fromstring(response.text)
+            etree = lxmlhtml.fromstring(response.content)
 ##            print('result of post:',response.status_code)
             if etree.xpath(self.BT_LOGGED_IN_XPATH) and not etree.xpath(self.BT_LOGIN_FAILED_XPATH):
                 
 ##                print('login successful')
 ##                with open('login.html','wb') as f:
-##                    f.write(response.text.encode('utf8'))
+##                    f.write(response.content.encode('utf8'))
                 self.LOGGED_IN = True
                 return True
             else:
 ##                print('temp fail')
 ##                with open('login.html','wb') as f:
-##                    f.write(response.text.encode('utf8'))
+##                    f.write(response.content.encode('utf8'))
                 e = ParserError('Batoto Login Failed')
                 e.display = 'Batoto login failed'
             tries += 1
@@ -510,7 +527,7 @@ class BatotoBase(SeriesParser):
 ##            if tries<max_tries:
 ##                time.sleep(1)
 ##                response = self.SESSION.get(self.BT_LOGIN_URL)
-##                etree = lxmlhtml.fromstring(response.text)
+##                etree = lxmlhtml.fromstring(response.content)
 ##                self.FORM_DATA['auth_key'] = etree.xpath(self.BT_AUTH_KEY_XPATH)
 ##                time.sleep(1)
             
@@ -543,7 +560,7 @@ def update_parsers(currentversion,targethash):
     currentversion=float(currentversion)
     r=requests.get('https://raw.githubusercontent.com/NeverDecaf/MangaTosho/master/parsers.xml')
     with open('parsers.tmp', 'wb') as f:
-        f.write(r.text)
+        f.write(r.content)
     #must reload to file to ensure it was written correctly
     with open('parsers.tmp', 'rb') as f:
         stringdata=f.read()
@@ -551,7 +568,7 @@ def update_parsers(currentversion,targethash):
     if temphash==targethash:
         #compare version numbers with simultaneously will test for valid xml
         root = ET.fromstring(stringdata)#.getroot()
-        newversion = float(root.find('info').find('version').text)
+        newversion = float(root.find('info').find('version').content)
         if currentversion==newversion:
             shutil.copy('parsers.tmp','parsers.xml')
         else:

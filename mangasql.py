@@ -184,6 +184,7 @@ class SQLManager():
             errmsg = ''
             data=list(data)
             series = self.parserFetch.fetch(data[self.COLUMNS.index('Url')])
+                
             if not series:
                 return 4,['Parser Error: Site no longer supported.']
             nums,chapters = series.get_chapters()
