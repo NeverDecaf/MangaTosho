@@ -485,8 +485,10 @@ class MyTableModel(QAbstractTableModel):
         #use QTimer to call this again after a break
 
     def updateRow(self,olddata,newdata,errcode):
-        row=self.arraydata.index(olddata)
-
+        try:
+            row=self.arraydata.index(olddata)
+        except ValueError:
+            return
         if errcode==0:
             newdata[self.headerdata.index('UpdateTime')]=time.time()
         newdata[self.headerdata.index('SuccessTime')]=time.time()
@@ -512,7 +514,10 @@ class MyTableModel(QAbstractTableModel):
 
     def errorRow(self,data,errcode,errmsg):
         #errmsg is an array of messages (len 1 though)
-        row=self.arraydata.index(data)
+        try:
+            row=self.arraydata.index(data)
+        except ValueError:
+            return
         idx = self.createIndex(row,0)
         idx2 = self.createIndex(row,len(self.headerdata)-1)
         self.arraydata[row][self.headerdata.index('Error')] = errcode
