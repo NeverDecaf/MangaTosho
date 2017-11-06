@@ -1,41 +1,16 @@
 import re
-
-
 import operator
-
-
 import os
-
-
 import sys
-
-
 from PyQt5.QtCore import *
-
-
 from PyQt5.QtGui import *
-
-
 from PyQt5.QtWidgets import *
-
-
 from mangasql import SQLManager
-
 import mangasql
-
-
 import time
-
-
 import subprocess
-
-
 from qtrayico import Systray
-
-
 from parsers import ParserFetch
-
-
 
 def isfloat(string):
     try:
