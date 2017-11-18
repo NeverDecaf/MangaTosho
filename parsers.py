@@ -37,6 +37,8 @@ except:
     os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
 def hash_no_newline(stringdata):
+    #got easier in python 3 thanks to universal newline mode being the default.
+    return hashlib.md5(stringdata).hexdigest()
     return hashlib.md5(stringdata.replace('\n','').replace('\r','')).hexdigest()
 ##
 # Removes HTML or XML character references and entities from a text string.
