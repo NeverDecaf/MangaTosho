@@ -148,7 +148,7 @@ class ParserFetch:
         # auto-update the parsers xml file if possible.
         if not os.path.exists('NO_PARSER_UPDATE'):
             r=requests.get('https://raw.githubusercontent.com/NeverDecaf/MangaTosho/master/parsers.md5')
-            targethash = r.content
+            targethash = r.text
             if not os.path.exists('parsers.xml'):
                 return update_parsers(PARSER_VERSION,targethash)
             else:
@@ -496,7 +496,7 @@ def update_parsers(currentversion,targethash):
     if temphash==targethash:
         #compare version numbers with simultaneously will test for valid xml
         root = ET.fromstring(stringdata)#.getroot()
-        newversion = float(root.find('info').find('version').content)
+        newversion = float(root.find('info').find('version').text)
         if currentversion==newversion:
             shutil.copy('parsers.tmp','parsers.xml')
         else:
