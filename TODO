@@ -1,3 +1,9 @@
+you need to use blockSignals all throughout your pyqt widgets to prevent race conditions.
+
+deleting a series while it is being updated causes a crash (in python 3)
+to test this start a blank db, add a series then quickly delete it.
+after the update mt will crash
+
 top prio for next version:
 popup when a new release appears on github (with a [] never show this again)
 reduce the fade rate of colors. everything is too dark still. maybe 1 month until fading instead of 1 week

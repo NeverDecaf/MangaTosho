@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <sites>
 	<info>
-		<version>1.2</version>
+		<version>1.3</version>
 	</info>
 	<site name="MangaSee">
 		<!-- essential args. must supply all of these -->
@@ -90,7 +90,7 @@
 		<site_url>http://mangastream.com/</site_url> <!-- url of the main website -->
 		<abbr>MS</abbr> <!-- 2 letter abbreviation of the site's name. -->
 		<site_parser_re>.*mangastream.com/manga/.*</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
-		<title_xpath>substring(//h1/text(),1)</title_xpath> <!-- xpath that matches the series' title -->
+		<title_xpath>substring(//div[@class='content']/h1/text(),1)</title_xpath> <!-- xpath that matches the series' title -->
 		<chapter_nums_xpath>//td/a/text()</chapter_nums_xpath> <!-- xpath that matches all chapter numbers on the main series page -->
 		<chapter_urls_xpath>//td/a/@href</chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
 		<image_url_xpath>substring(concat('http:',//a/img/@src), 1 div boolean(//a/img/@src))</image_url_xpath> <!-- xpath that matches the image url on a given page of the series -->

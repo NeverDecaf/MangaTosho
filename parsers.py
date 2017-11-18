@@ -2,18 +2,20 @@ import re
 from lxml import html as lxmlhtml
 import xml.etree.ElementTree as ET
 import hashlib
-import urlparse
-import htmlentitydefs
-from StringIO import StringIO
+import urllib.parse
+import html.entities
+from io import StringIO
 import time
 from requests import session
 import requests
 import posixpath
 import sys
 import os,shutil
-import urllib
+from fake_useragent import UserAgent
+import urllib.request, urllib.parse, urllib.error
 ##import lxml.etree.XPathEvalError as XPathError
 from lxml.etree import XPathEvalError as XPathError
+from functools import reduce
 # add the cacert.pem file to the path correctly even if compiled with pyinstaller:
 # Get the base directory
 if getattr( sys , 'frozen' , None ):    # keyword 'frozen' is for setting basedir while in onefile mode in pyinstaller
@@ -48,24 +50,24 @@ def unescape(text):
             # character reference
             try:
                 if text[:3] == "&#x":
-                    return unichr(int(text[3:-1], 16))
+                    return chr(int(text[3:-1], 16))
                 else:
-                    return unichr(int(text[2:-1]))
+                    return chr(int(text[2:-1]))
             except ValueError:
                 pass
         else:
             # named entity
             try:
-                text = unichr(htmlentitydefs.name2codepoint[text[1:-1].lower()])
+                text = chr(html.entities.name2codepoint[text[1:-1].lower()])
             except KeyError:
                 pass
         return text # leave as is
-    return re.sub(ur"&#?\w+;", fixup, text)
+    return re.sub(r"&#?\w+;", fixup, text)
 
 # sites than have been abandoned:
 # KissManga (crazy js browser verification, MangaFox (banned in the US), MangaPandaNet (taken by russian hackers), MangaTraders (not suitable for this program)
 WORKING_SITES = []
-PARSER_VERSION = 1.2 # update if this file changes in a way that is incompatible with older parsers.xml
+PARSER_VERSION = 1.3 # update if this file changes in a way that is incompatible with older parsers.xml
 
 class ParserFetch:
     ''' you should only get parsers through the fetch() method, otherwise they will not use the correct session object '''
@@ -122,7 +124,14 @@ class ParserFetch:
         #returns an actual parser object
         for rex in self.matchers:
             if rex[0].match(url):
-                return rex[1](url,rex[2]) # initiate with shared session
+                try:
+                    parser = rex[1](url,rex[2]) # initiate with shared session
+                    if parser.VALID:
+                        return parser
+                    else:
+                        return None
+                except requests.exceptions.InvalidSchema:
+                    return None
         return None
     def updateCreds(self,credentials):
         for parser in self.parsers_req_creds:
@@ -137,7 +146,7 @@ class ParserFetch:
         # auto-update the parsers xml file if possible.
         if not os.path.exists('NO_PARSER_UPDATE'):
             r=requests.get('https://raw.githubusercontent.com/NeverDecaf/MangaTosho/master/parsers.md5')
-            targethash = r.text
+            targethash = r.content
             if not os.path.exists('parsers.xml'):
                 return update_parsers(PARSER_VERSION,targethash)
             else:
@@ -145,7 +154,7 @@ class ParserFetch:
                     stringdata = f.read()
                     currenthash = hash_no_newline(stringdata)
 ##                    root = ET.fromstring(stringdata)#.getroot()
-##                    currentversion = root.find('info').find('version').text
+##                    currentversion = root.find('info').find('version').content
                 if targethash!=currenthash:
                     return update_parsers(PARSER_VERSION,targethash)
                     
@@ -157,7 +166,7 @@ class ParserFetch:
             classname = site.attrib['name']
             # remove None values and convert string booleans to booleans.
             # also create regex object for any key ending with _re
-            data={k.upper(): {'True':True,'False':False}.get(v,re.compile(v,re.IGNORECASE) if k=='site_parser_re' else re.compile(v,re.IGNORECASE) if k.endswith('_re') else v) for k, v in children_as_dict(site).items() if v!=None}
+            data={k.upper(): {'True':True,'False':False}.get(v,re.compile(v,re.IGNORECASE) if k=='site_parser_re' else re.compile(v,re.IGNORECASE) if k.endswith('_re') else v) for k, v in list(children_as_dict(site).items()) if v!=None}
             if classname!='TemplateSite':
                 if classname=='Batoto':
                     WORKING_SITES.append(type(classname,(BatotoBase,),data))
@@ -171,59 +180,72 @@ class LicensedError(Exception):
     pass
 
 class SeriesParser(object):
+    # these class vars should NEVER be edited by methods of this class or any subclass, doing so may break parsers.
+    #required args
     SITE_URL=''#url of the home site.
+    ABBR='' # abbreviated version of site's name, 2 letters
     SITE_PARSER_RE='' # determines whether the given url matches the site's url
     TITLE_XPATH = ''#xpath to fetch the series title. will be "cleaned" and formatted for uniformity.
-    
-    ABBR='' # abbreviated version of site's name
-
     CHAPTER_NUMS_XPATH = '' #hopefully the site has formatted it well, most likely not.
-    CHAPTER_NUMS_RE = re.compile(ur'(\d+\.?\d*)(?:v\d+)? *\Z')#match all chapter numbers, replacing this with NAMES won't hurt MUCH but it will cause the GUI to show a name instead of latest ch #
     CHAPTER_URLS_XPATH = ''
-
     IMAGE_URL_XPATH ='' #parses the image url from a page of the series
     NEXT_URL_XPATH ='' #parses the link to the next page from a page of the series.
+    IS_COMPLETE_XPATH = '/is/not/complete/must/override/this' # if this matches, it indicates the series has been marked complete by the site (and should no longer be parsed to save resources)
+    CHAPTER_NUMS_RE = re.compile(r'(\d+\.?\d*)(?:v\d+)? *\Z')#match all chapter numbers, replacing this with NAMES won't hurt MUCH but it will cause the GUI to show a name instead of latest ch #
 
     #optional args:
-
     SKIP_MATURE = '' #url fragment added to skip mature content block (ex: skip=1)
-
     LICENSED_CHECK_RE = None # checks if series has been licensed
-
     REQUIRES_CREDENTIALS = False # if login credentials are required to use this site.
-
-
-    REVERSE =True#indicates if the chapters are listed in reverse order, will be true for most sites
-
-    IS_COMPLETE_XPATH = '/is/not/complete/must/override/this' # if this matches, it indicates the series has been marked complete by the site (and should no longer be parsed to save resources)
-
-##    FIRST_CHAPTER = '' #added to url path for the first chapter to make it "equal". for example, mangasite.com/mangas/mango/4/2 is page 2 while mangasite.com/mangas/mango/4 might be page 1. FIRST_CHAPTER = '1' will make it mangasite.com/mangas/mango/4/1
-
+    REVERSE =True #indicates if the chapters are listed in reverse order, will be true for most sites
+    AUTHOR_RE = re.compile(r' \(.*?\)\Z') # matches the author if included in the title, this regex is used to remove the author for cleaner series names
+    # note that adding 2 series with the same name but different authors WILL cause a problem. there may or may not be a fix in place but i have yet to encounter this
+    AIO_IMAGES_RE = None # some sites include all the image urls in one page, if so this RE matches all the image urls
     # these 2 are used for sites with iterative page numbers, we can get a list of all pages of a chapter without jumping from one to the next.
     # this is currently only used for animeA so look there for more details.
     PAGE_TEMPLATE_RE = None # matches a prefix and suffix for the url [0] [1]
     ALL_PAGES_RE = None # matches a list of all page numbers that will be sandwiched between page_template
 
-    AUTHOR_RE = re.compile(ur' \(.*?\)\Z') # matches the author if included in the title, this regex is used to remove the author for cleaner series names
-    # note that adding 2 series with the same name but different authors WILL cause a problem. there may or may not be a fix in place but i have yet
-    # to encounter this...
-
-    # some sites include all the image urls in one page, set these vars if this is the case and you can easily parse them
-    AIO_IMAGES_RE = None
-
-
-    # not site defined:
-
-    #note these headers are only (currently) used when downloading images.
-    HEADERS={'User-Agent':'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/37.0.2062.124 Safari/537.36'} # old one was not working always, this one should be more up to date.
-    
-    USERNAME = None # will be used if site REQUIRES_CREDENTIALS.
+    # will be used if site REQUIRES_CREDENTIALS, use class vars so we can set before creating an instance.
+    USERNAME = None 
     PASSWORD = None
 
-    VALID=True # is set to false if the given url doesnt match the sites url
-    
-    SESSION=None
-
+    def __init__(self,url,sessionobj=None):
+        #loads the html from the series page, also checks to ensure the site is valid
+        #note if this returns False you cannot use this object.
+        self.VALID=True # is set to false if the given url doesnt match the sites url
+        self.UA = None
+        self.TITLE = None
+        self.HEADERS={}
+        # create a random user agent
+        if not self.UA:
+            self.UA = UserAgent(fallback='Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/37.0.2062.124 Safari/537.36')
+        self._cycle_UA()
+        if not 'Referer' in self.HEADERS:
+            self.HEADERS['Referer'] = self.SITE_URL
+        pieces = urllib.parse.urlsplit(url)
+        url = urllib.parse.urlunsplit(pieces[:3]+(self.SKIP_MATURE or pieces[3],)+pieces[4:])
+        self.MAIN_URL = url
+        if self.SITE_PARSER_RE.match(url)==None:
+            self.VALID=False
+            return
+        if not sessionobj:
+            self.SESSION = session()
+        else:
+            self.SESSION = sessionobj
+        adapter = requests.adapters.HTTPAdapter(max_retries=1)
+        self.SESSION.mount('https://', adapter)
+        self.SESSION.mount('http://', adapter)
+        
+        self.SESSION.keep_alive = False
+        self.SESSION.headers.update(self.HEADERS)
+        self.login()
+        self.HTML = self.SESSION.get(url).text
+        self.etree = lxmlhtml.fromstring(self.HTML)
+        if not self.get_title():
+            self.VALID=False
+    def _cycle_UA(self):
+        self.HEADERS['User-Agent'] = self.UA.random
     def login(self):
         #log in to the site if authentication is required
         # this should check to see if you are logged in before attempting a login because session objects are shared.
@@ -233,13 +255,16 @@ class SeriesParser(object):
         return self.ABBR
     def get_title(self):
         #returns the title of the series
+        if self.TITLE:
+            return self.TITLE
         title = unescape(self.etree.xpath(self.TITLE_XPATH))
         split = title.split()
         for i in range(len(split)):
             if split[i].isupper() or i==0:
                 split[i]=split[i].capitalize()
-        ret = ur' '.join(split)
-        return self.AUTHOR_RE.sub(ur'',ret)
+        ret = r' '.join(split)
+        self.TITLE = self.AUTHOR_RE.sub(r'',ret)
+        return self.TITLE
     def is_complete(self):
         return not not self.etree.xpath(self.IS_COMPLETE_XPATH)
     def extrapolate_nums(self, nums):
@@ -263,7 +288,7 @@ class SeriesParser(object):
                                 else [[0]]+nums[1:])
         if len(floatnumbers)==1 or sorted(floatnumbers)[-1] >= 1.0 or self.CHAPTER_NUMS_RE.search(nums[0]): # if there are no legit numbers then we don't want to return this UNLESS there is only one chapter, then we assume it is a oneshot with no number and allow it.
             # added this third clause to handle series with all chapters labeled chapter 0 (gon on mangahere)
-            return map(lambda x:'{0:g}'.format(x), floatnumbers)
+            return ['{0:g}'.format(x) for x in floatnumbers]
         return []
     def get_chapters(self):
         #returns a list of all chapters, where each entry is a tuple (number,url)
@@ -273,14 +298,14 @@ class SeriesParser(object):
             nums.reverse()
             urls.reverse()
         nums = self.extrapolate_nums(nums)
-        urls = [urlparse.urljoin(self.MAIN_URL,x) for x in urls]
+        urls = [urllib.parse.urljoin(self.MAIN_URL,x) for x in urls]
 
         if len(nums)!=len(urls):
             e = ParserError('Chapter Numbers and URLS do not match in '+self.get_title()+' (%i nums vs %i urls, site:%s)'%(len(nums),len(urls),type(self).__name__))
             e.display = 'Error parsing chapter list'
             raise e
             return False
-        return nums,zip(nums,urls)
+        return nums,list(zip(nums,urls))
     
     def get_images(self,chapter,delay=0):
         self.login()
@@ -292,10 +317,10 @@ class SeriesParser(object):
         if self.AIO_IMAGES_RE:
             html = self.SESSION.get(url).text
             all_images=re.compile(self.AIO_IMAGES_RE)
-            return [c if c.startswith('http://') else urlparse.urljoin(self.SITE_URL,c) for c in [c.replace('\\','') for c in all_images.findall(html)]]
+            return [c if c.startswith('http://') else urllib.parse.urljoin(self.SITE_URL,c) for c in [c.replace('\\','') for c in all_images.findall(html)]]
         
-        pieces = urlparse.urlsplit(url)
-        url = urlparse.urlunsplit(pieces[:3]+(self.SKIP_MATURE or pieces[3],)+pieces[4:])
+        pieces = urllib.parse.urlsplit(url)
+        url = urllib.parse.urlunsplit(pieces[:3]+(self.SKIP_MATURE or pieces[3],)+pieces[4:])
 
         images=[]
         pagebase = None
@@ -303,7 +328,7 @@ class SeriesParser(object):
         chapter_path = posixpath.dirname(pieces[2])
         first_chapter = 1 # first chapter sometimes has a slightly different url so we will refresh it after the first page.
         
-        while posixpath.dirname(urlparse.urlsplit(url)[2]) == chapter_path:
+        while posixpath.dirname(urllib.parse.urlsplit(url)[2]) == chapter_path:
 ##            print 'reading',url
             html = self.SESSION.get(url).text
 
@@ -315,7 +340,7 @@ class SeriesParser(object):
             if pagebase==None and self.PAGE_TEMPLATE_RE!=None:
                 pagebase = self.PAGE_TEMPLATE_RE.findall(html)[0]
                 page_list = iter(self.ALL_PAGES_RE.findall(html))
-                page_list.next() #pop off the first item as it will be accessed already.
+                next(page_list) #pop off the first item as it will be accessed already.
                 
             if self.LICENSED_CHECK_RE!=None and self.LICENSED_CHECK_RE.match(html)!=None:
                 e = LicensedError('Series '+self.get_title()+' is licensed.')
@@ -332,7 +357,7 @@ class SeriesParser(object):
                     break
                 else:
                     e = ParserError('Image Parsing failed on %s, chapter:%s'%(self.get_title(),number))
-                    e.display="Failed parsing images for Ch.%g"%number
+                    e.display="Failed parsing images for Ch.%s"%number
                     raise e
             if pictureurl in images: #prevents loops
                 break
@@ -350,37 +375,16 @@ class SeriesParser(object):
                     nexturl = ''
             if not len(nexturl): #prevents loops
                 break
-            url = urlparse.urljoin(url,nexturl)#join the url to correctly follow relative urls
+            url = urllib.parse.urljoin(url,nexturl)#join the url to correctly follow relative urls
             if first_chapter:
                 first_chapter = 0
-                chapter_path = posixpath.dirname(urlparse.urlsplit(url)[2])
+                chapter_path = posixpath.dirname(urllib.parse.urlsplit(url)[2])
 ##            print 'next url is',url
         return images
-    
-    def __init__(self,url,sessionobj=None):
-        #loads the html from the series page, also checks to ensure the site is valid
-        #note if this returns False you cannot use this object.
-        pieces = urlparse.urlsplit(url)
-        url = urlparse.urlunsplit(pieces[:3]+(self.SKIP_MATURE or pieces[3],)+pieces[4:])
-        self.MAIN_URL = url
-        if self.SITE_PARSER_RE.match(url)==None:
-            self.VALID=False
-            return
-        if not sessionobj:
-            self.SESSION = session()
-        else:
-            self.SESSION = sessionobj
-        self.SESSION.headers.update(self.HEADERS)
-        self.login()
-        self.HTML = self.SESSION.get(url).text
-        self.etree = lxmlhtml.fromstring(self.HTML)
 
 
 ################################################################################
-class BatotoBase(SeriesParser):    
-    HEADERS={'User-Agent':'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/37.0.2062.124 Safari/537.36',
-             'Referer':'http://bato.to/reader'}
-    
+class BatotoBase(SeriesParser):
     # =======EVERYTHING BELOW HERE IS BATOTO SPECIFIC DUE TO LOGIN REQUIREMENT=========
 
     # These 3 are used for sites where all *image* (not page) urls can be obtained from the first page. actually this is only for batoto.
@@ -388,7 +392,7 @@ class BatotoBase(SeriesParser):
 ##    IMAGE_LAST = re.compile(ur'page (\d*)</option>\s*</select>') # the number of the final page/image in the chapter.
 ##    IMAGE_FIRST = 1 # the first image is numbered 1, this will probably be true for every site but we'll leave the option to change it here.
 ##    IMAGE_FIXED_LENGTH = True # if true the image number will be padded with 0s to be the same as the first page (ex: 00001 00010 00015)
-    
+
 ##    JS_TEMPLATE = 'http://bato.to/areader?p=1&id='
     READER_URL = 'http://bato.to/areader'
 
@@ -399,8 +403,8 @@ class BatotoBase(SeriesParser):
 ##        self.login()
         number,url = chapter
 
-        chapter_id = urlparse.urlsplit(url)[4]
-        url = urlparse.urljoin(self.READER_URL,'?id=%s&p=1'%chapter_id)
+        chapter_id = urllib.parse.urlsplit(url)[4]
+        url = urllib.parse.urljoin(self.READER_URL,'?id=%s&p=1'%chapter_id)
 
         html = self.SESSION.get(url).text
         etree = lxmlhtml.fromstring(html)
@@ -411,27 +415,13 @@ class BatotoBase(SeriesParser):
         images=[]
         for page_num in page_nums:
             time.sleep(delay)
-            url = urlparse.urljoin(self.READER_URL,'?id=%s&p=%i'%(chapter_id,int(page_num)))
+            url = urllib.parse.urljoin(self.READER_URL,'?id=%s&p=%i'%(chapter_id,int(page_num)))
             html = self.SESSION.get(url).text
             etree = lxmlhtml.fromstring(html)
             pictureurl = etree.xpath(self.IMAGE_URL_XPATH)
             images.append(pictureurl)
         return images
-##        pre,num,suf = self.IMAGE_BASE.findall(html)[0]
-##        return [str(i).zfill(len(num) if self.IMAGE_FIXED_LENGTH else 0).join((pre,suf)) for i in range(self.IMAGE_FIRST, int(next(iter(self.IMAGE_LAST.findall(html)),1)) + 1)] # this iter hack is like list.get(0,'fail')
 
-##    def get_chapters(self):
-##        if not self.etree.xpath(self.BT_LOGGED_IN_XPATH):
-##            self._login()
-##        return SeriesParser.get_chapters(self)
-            
-##    AUTH_KEY_XPATH = "substring(//input[@name='auth_key']/@value,1)"
-##    BT_LOGGED_IN_XPATH = "//div[@class='logged_in']"
-##    "//meta[@content='Error']"
-##    "//link[@rel='canonical']"
-##    LOGIN_FAILED_XPATH = "//p[@class='ipsType_sectiontitle']" # only used to display error message
-##    BT_LOGIN_URL = ur'https://bato.to/forums/index.php'
-    
     QUERY_STRING = {
         'app':'core',
         'module':'global',
@@ -440,8 +430,8 @@ class BatotoBase(SeriesParser):
         }
     
     FORM_DATA = {
-        'rememberMe': u'1',
-        'anonymous': u'1',
+        'rememberMe': '1',
+        'anonymous': '1',
         # do NOT add this referer field or you will get a 403. add it to headers instead.
 ##        'referer': u'https://bato.to/forums',
 ##        'referer': u'https://bato.to/forums/index.php?app=core&module=global&section=login',
@@ -455,78 +445,32 @@ class BatotoBase(SeriesParser):
         e = None
         self.FORM_DATA['ips_username'] = self.USERNAME
         self.FORM_DATA['ips_password']= self.PASSWORD
-##        self.FORM_DATA['referer']=self.MAIN_URL
         # this url is the key to avoiding 403 errors when attempting logins (if already logged in)
-        referer_url = u'?'.join((self.BT_LOGIN_URL,urllib.urlencode({i:self.QUERY_STRING[i] for i in self.QUERY_STRING if i!='do'})))
-##        print(referer_url)
-##        referer_url=ur'https://bato.to/forums/index.php?app=core&module=global&section=login'
-##        print(self.BT_AUTH_KEY_XPATH)
-##        print(self.BT_LOGGED_IN_XPATH)
-##        print(self.BT_LOGIN_FAILED_XPATH)
-        
-##        self.FORM_DATA['auth_key'] = self.etree.xpath(self.BT_AUTH_KEY_XPATH)
+        referer_url = '?'.join((self.BT_LOGIN_URL,urllib.parse.urlencode({i:self.QUERY_STRING[i] for i in self.QUERY_STRING if i!='do'})))
         while tries<max_tries:
-
-
             # no need to verify login because this method will only be called if NOT already logged in.
             response = self.SESSION.get(referer_url)
             etree = lxmlhtml.fromstring(response.text)
             self.FORM_DATA['auth_key'] = etree.xpath(self.BT_AUTH_KEY_XPATH)
-
-
             time.sleep(.25) # small break between requests
-##            if etree.xpath(self.BT_LOGGED_IN_XPATH):
-##                self.LOGGED_IN = True
-##                print('already logged in')
-##                return True
-
-##            print('attempting login@',self.BT_LOGIN_URL)
-##            print(self.FORM_DATA)
-##            print(self.QUERY_STRING)
-##            self.FORM_DATA['auth_key'] = etree.xpath(self.BT_AUTH_KEY_XPATH)
             response = self.SESSION.post(self.BT_LOGIN_URL, params=self.QUERY_STRING, data=self.FORM_DATA, headers={'referer': referer_url})
-##            f=open('batoto.html','w')
-##            f.write(response.text)
-##            f.close()
             etree = lxmlhtml.fromstring(response.text)
-##            print('result of post:',response.status_code)
             if etree.xpath(self.BT_LOGGED_IN_XPATH) and not etree.xpath(self.BT_LOGIN_FAILED_XPATH):
-                
-##                print('login successful')
-##                with open('login.html','wb') as f:
-##                    f.write(response.text.encode('utf8'))
                 self.LOGGED_IN = True
                 return True
             else:
-##                print('temp fail')
-##                with open('login.html','wb') as f:
-##                    f.write(response.text.encode('utf8'))
                 e = ParserError('Batoto Login Failed')
                 e.display = 'Batoto login failed'
             tries += 1
-##            print(tries)
             time.sleep(2)
-##            if tries<max_tries:
-##                time.sleep(1)
-##                response = self.SESSION.get(self.BT_LOGIN_URL)
-##                etree = lxmlhtml.fromstring(response.text)
-##                self.FORM_DATA['auth_key'] = etree.xpath(self.BT_AUTH_KEY_XPATH)
-##                time.sleep(1)
-            
-##        print('login failed')
         raise e
-##        return False # an alternative
     
     def __init__(self,url,sessionobj=None):
+        self.HEADERS={'Referer':'http://bato.to/reader'}
         retval = SeriesParser.__init__(self,url,sessionobj)
         if self.VALID and not self.etree.xpath(self.BT_LOGGED_IN_XPATH):
-##            print('additional login required')
-##            print('session object is',self.SESSION)
             self._login()
             retval = SeriesParser.__init__(self,url,self.SESSION)
-##        print(self.etree.xpath(self.BT_LOGGED_IN_XPATH))
-##        with open('batoto.html','wb') as f:
-##            f.write(self.HTML.encode('utf8'))
         return retval
 
 ############################################
@@ -542,7 +486,7 @@ def update_parsers(currentversion,targethash):
     currentversion=float(currentversion)
     r=requests.get('https://raw.githubusercontent.com/NeverDecaf/MangaTosho/master/parsers.xml')
     with open('parsers.tmp', 'wb') as f:
-        f.write(r.text)
+        f.write(r.content)
     #must reload to file to ensure it was written correctly
     with open('parsers.tmp', 'rb') as f:
         stringdata=f.read()
@@ -550,7 +494,7 @@ def update_parsers(currentversion,targethash):
     if temphash==targethash:
         #compare version numbers with simultaneously will test for valid xml
         root = ET.fromstring(stringdata)#.getroot()
-        newversion = float(root.find('info').find('version').text)
+        newversion = float(root.find('info').find('version').content)
         if currentversion==newversion:
             shutil.copy('parsers.tmp','parsers.xml')
         else:
