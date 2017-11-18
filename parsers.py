@@ -218,13 +218,15 @@ class SeriesParser(object):
         self.VALID=True # is set to false if the given url doesnt match the sites url
         self.UA = None
         self.TITLE = None
-        self.HEADERS={}
         # create a random user agent
         if not self.UA:
             self.UA = UserAgent(fallback='Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/37.0.2062.124 Safari/537.36')
         self._cycle_UA()
-        if not 'Referer' in self.HEADERS:
-            self.HEADERS['Referer'] = self.SITE_URL
+        try:
+            if not 'Referer' in self.HEADERS:
+                self.HEADERS['Referer'] = self.SITE_URL
+        except NameError:
+            self.HEADERS = {}
         pieces = urllib.parse.urlsplit(url)
         url = urllib.parse.urlunsplit(pieces[:3]+(self.SKIP_MATURE or pieces[3],)+pieces[4:])
         self.MAIN_URL = url
@@ -468,11 +470,12 @@ class BatotoBase(SeriesParser):
         raise e
     
     def __init__(self,url,sessionobj=None):
-        self.HEADERS={'Referer':'http://bato.to/reader'}
-        retval = SeriesParser.__init__(self,url,sessionobj)
+        self.HEADERS={'Referer':'http://bato.to/reader',
+                      'X-Requested-With':'XMLHttpRequest'}
+        retval = super().__init__(url,sessionobj)
         if self.VALID and not self.etree.xpath(self.BT_LOGGED_IN_XPATH):
             self._login()
-            retval = SeriesParser.__init__(self,url,self.SESSION)
+            retval = super().__init__(url,self.SESSION)
         return retval
 
 ############################################
