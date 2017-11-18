@@ -226,7 +226,7 @@ class SeriesParser(object):
             if not 'Referer' in self.HEADERS:
                 self.HEADERS['Referer'] = self.SITE_URL
         except NameError:
-            self.HEADERS = {}
+            self.HEADERS = {'Referer':self.SITE_URL}
         pieces = urllib.parse.urlsplit(url)
         url = urllib.parse.urlunsplit(pieces[:3]+(self.SKIP_MATURE or pieces[3],)+pieces[4:])
         self.MAIN_URL = url
