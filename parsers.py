@@ -219,14 +219,14 @@ class SeriesParser(object):
         self.UA = None
         self.TITLE = None
         # create a random user agent
-        if not self.UA:
-            self.UA = UserAgent(fallback='Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/37.0.2062.124 Safari/537.36')
-        self._cycle_UA()
         try:
             if not 'Referer' in self.HEADERS:
                 self.HEADERS['Referer'] = self.SITE_URL
-        except NameError:
+        except AttributeError:
             self.HEADERS = {'Referer':self.SITE_URL}
+        if not self.UA:
+            self.UA = UserAgent(fallback='Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/37.0.2062.124 Safari/537.36')
+        self._cycle_UA()
         pieces = urllib.parse.urlsplit(url)
         url = urllib.parse.urlunsplit(pieces[:3]+(self.SKIP_MATURE or pieces[3],)+pieces[4:])
         self.MAIN_URL = url

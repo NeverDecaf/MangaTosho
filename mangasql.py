@@ -10,6 +10,7 @@ from PIL import Image
 from io import BytesIO
 from requests import session
 from requests import exceptions
+from requests.packages.urllib3.exceptions import NewConnectionError
 DELAY=5 # seconds between chapters, to keep from getting banned.
 LOGGING=False # If true, will log individual series errors to Series_Errors.log
 ALLOWED_IMAGE_ERRORS_PER_CHAPTER = 0 # I don't like this one bit. Should be 0. If you don't care about missing images increase this.
@@ -316,7 +317,7 @@ class SQLManager():
                     return errtype,[errmsg] # type 1 is a generic parser error
     ##        return False
             return 0,[]
-        except requests.packabes.urllib3.exceptions.NewConnectionError as e:
+        except NewConnectionError as e:
             if 'Errno 11004' in str(e):
                 ''' this means we don't have internet access (most likely)
                     11004 is getaddrinfo failed '''
