@@ -316,6 +316,12 @@ class SQLManager():
                     return errtype,[errmsg] # type 1 is a generic parser error
     ##        return False
             return 0,[]
+        except requests.packabes.urllib3.exceptions.NewConnectionError as e:
+            if 'Errno 11004' in str(e):
+                ''' this means we don't have internet access (most likely)
+                    11004 is getaddrinfo failed '''
+                logging.exception('Type 1-nointernet ('+data[1]+' c.'+str(ch[0])+' p.'+str(iindex)+'): '+str(e))
+                return 1,['No Internet Connection']
         except Exception as e:
             errmsg = 'Error downloading: '
             
