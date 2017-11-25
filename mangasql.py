@@ -15,8 +15,6 @@ from requests.packages.urllib3.exceptions import NewConnectionError
 DELAY=5 # seconds between chapters, to keep from getting banned.
 LOGGING=False # If true, will log individual series errors to Series_Errors.log
 ALLOWED_IMAGE_ERRORS_PER_CHAPTER = 0 # I don't like this one bit. Should be 0. If you don't care about missing images increase this.
-ONE_MONTH = 2592000 # seconds.
-AUTO_COMPLETE = ONE_MONTH * 3 # seconds before a series claimed to be complete by the site is marked as completed (in the db).
 
 if os.path.exists('DEBUG_TEST'):
     LOGGING=True
@@ -304,7 +302,7 @@ class SQLManager():
                     data[self.COLUMNS.index('Unread')] = unread_count
                     data[self.COLUMNS.index('Error')] = 0 #set error to 0
                     try:
-                        if time.time() - AUTO_COMPLETE > data[self.COLUMNS.index('UpdateTime')]:
+                        if time.time() - series.AUTO_COMPLETE_TIME > data[self.COLUMNS.index('UpdateTime')]:
                             data[self.COLUMNS.index('Complete')] = int(series.is_complete())
                     except:
                         errmsg = 'Failure parsing series completion'

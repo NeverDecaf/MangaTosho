@@ -141,7 +141,7 @@
 		<chapter_urls_xpath>//div[@class='gdtm'][1]/div/a/@href</chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
 		<image_url_xpath>substring(//img[@id='img']/@src,1)</image_url_xpath> <!-- xpath that matches the image url on a given page of the series -->
 		<next_url_xpath>substring(//a[@id="next"]/@href,1)</next_url_xpath> <!-- xpath that matches the url of the next page on a given page of the series -->
-		<is_complete_xpath>substring('True',1)</is_complete_xpath> <!-- xpath that matches if the series has been marked "Complete" -->
+		<is_complete_xpath>/*/text()[1]</is_complete_xpath> <!-- xpath that matches if the series has been marked "Complete" -->
 		<!-- optional args, delete these if not applicable. -->
 		<requires_credentials>True</requires_credentials> <!-- True if the site requires login to access images -->
 		<author_re>cantremoveauthornamesoritwillbreak</author_re> <!-- regex to remove author name from a series title for more uniform and clean series names. -->

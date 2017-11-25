@@ -217,6 +217,7 @@ class SeriesParser(object):
     PASSWORD = None
 
     IMAGE_DOWNLOAD_DELAY = (0,0) # delay to use when downloading images, for sites with a rate limit
+    AUTO_COMPLETE_TIME = 2592000 * 3 # 3 months before a series claimed to be complete by the site is marked as completed (in the db).
 
     def __init__(self,url,sessionobj=None):
         #loads the html from the series page, also checks to ensure the site is valid
@@ -483,6 +484,7 @@ class ExBase(SeriesParser):
     EX_DELAY = (2,3)
     IMAGE_DOWNLOAD_DELAY = (3,5)
 
+    AUTO_COMPLETE_TIME = -1
     # define these in the xml (and NOT here)
 ##    EX_LOGIN_URL='https://forums.e-hentai.org/index.php?act=Login&CODE=01'
 ##    SAD_PANDA = 'ceddf54195d034fab64a7d20c9b0c530'
