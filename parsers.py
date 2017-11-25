@@ -69,7 +69,7 @@ def unescape(text):
 # sites than have been abandoned:
 # KissManga (crazy js browser verification, MangaFox (banned in the US), MangaPandaNet (taken by russian hackers), MangaTraders (not suitable for this program)
 WORKING_SITES = []
-PARSER_VERSION = 1.4 # update if this file changes in a way that is incompatible with older parsers.xml
+PARSER_VERSION = 1.5 # update if this file changes in a way that is incompatible with older parsers.xml
 
 class ParserFetch:
     ''' you should only get parsers through the fetch() method, otherwise they will not use the correct session object '''
@@ -218,31 +218,35 @@ class SeriesParser(object):
         self.VALID=True # is set to false if the given url doesnt match the sites url
         self.UA = None
         self.TITLE = None
-        # create a random user agent
-        try:
-            if not 'Referer' in self.HEADERS:
-                self.HEADERS['Referer'] = self.SITE_URL
-        except AttributeError:
-            self.HEADERS = {'Referer':self.SITE_URL}
-        if not self.UA:
-            self.UA = UserAgent(fallback='Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/37.0.2062.124 Safari/537.36')
-        self._cycle_UA()
         pieces = urllib.parse.urlsplit(url)
         url = urllib.parse.urlunsplit(pieces[:3]+(self.SKIP_MATURE or pieces[3],)+pieces[4:])
         self.MAIN_URL = url
         if self.SITE_PARSER_RE.match(url)==None:
             self.VALID=False
             return
+        # create a random user agent
         if not sessionobj:
             self.SESSION = session()
         else:
             self.SESSION = sessionobj
-        adapter = requests.adapters.HTTPAdapter(max_retries=1)
-        self.SESSION.mount('https://', adapter)
-        self.SESSION.mount('http://', adapter)
-        
-        self.SESSION.keep_alive = False
-        self.SESSION.headers.update(self.HEADERS)
+        if sessionobj and hasattr(sessionobj,'init'):
+            'session already exists and has been set up'
+        else:
+            try:
+                if not 'Referer' in self.HEADERS:
+                    self.HEADERS['Referer'] = self.SITE_URL
+            except AttributeError:
+                self.HEADERS = {'Referer':self.SITE_URL}
+            if not self.UA:
+                self.UA = UserAgent(fallback='Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/37.0.2062.124 Safari/537.36')
+            self._cycle_UA()
+            adapter = requests.adapters.HTTPAdapter(max_retries=1)
+            self.SESSION.mount('https://', adapter)
+            self.SESSION.mount('http://', adapter)
+            
+            self.SESSION.keep_alive = False
+            self.SESSION.headers.update(self.HEADERS)
+            self.SESSION.init = True
         self.login()
         self.HTML = self.SESSION.get(url).text
         self.etree = lxmlhtml.fromstring(self.HTML)
@@ -389,26 +393,12 @@ class SeriesParser(object):
 
 ################################################################################
 class BatotoBase(SeriesParser):
-    # =======EVERYTHING BELOW HERE IS BATOTO SPECIFIC DUE TO LOGIN REQUIREMENT=========
-
-    # These 3 are used for sites where all *image* (not page) urls can be obtained from the first page. actually this is only for batoto.
-##    IMAGE_BASE = re.compile(ur'<img src=[\'"](http://img.bato.to/comics/\d\d[^\'"]*?)(\d+)(\.[^\'"]{3,4})') # 3 parts, prefix, iterative number, and suffix (extension) [0] [1] [2]
-##    IMAGE_LAST = re.compile(ur'page (\d*)</option>\s*</select>') # the number of the final page/image in the chapter.
-##    IMAGE_FIRST = 1 # the first image is numbered 1, this will probably be true for every site but we'll leave the option to change it here.
-##    IMAGE_FIXED_LENGTH = True # if true the image number will be padded with 0s to be the same as the first page (ex: 00001 00010 00015)
-
-##    JS_TEMPLATE = 'http://bato.to/areader?p=1&id='
-    READER_URL = 'http://bato.to/areader'
-
-    LOGGED_IN = False
-
     def get_images(self,chapter,delay=0):
         # currently batoto does not require a login when accessing the reader, it is only needed for fetching the chapter list.
-##        self.login()
         number,url = chapter
 
         chapter_id = urllib.parse.urlsplit(url)[4]
-        url = urllib.parse.urljoin(self.READER_URL,'?id=%s&p=1'%chapter_id)
+        url = urllib.parse.urljoin(self.BT_READER_URL,'?id=%s&p=1'%chapter_id)
 
         html = self.SESSION.get(url).text
         etree = lxmlhtml.fromstring(html)
@@ -419,28 +409,13 @@ class BatotoBase(SeriesParser):
         images=[]
         for page_num in page_nums:
             time.sleep(delay)
-            url = urllib.parse.urljoin(self.READER_URL,'?id=%s&p=%i'%(chapter_id,int(page_num)))
+            url = urllib.parse.urljoin(self.BT_READER_URL,'?id=%s&p=%i'%(chapter_id,int(page_num)))
             html = self.SESSION.get(url).text
             etree = lxmlhtml.fromstring(html)
             pictureurl = etree.xpath(self.IMAGE_URL_XPATH)
             images.append(pictureurl)
         return images
-
-    QUERY_STRING = {
-        'app':'core',
-        'module':'global',
-        'section':'login',
-        'do':'process'
-        }
     
-    FORM_DATA = {
-        'rememberMe': '1',
-        'anonymous': '1',
-        # do NOT add this referer field or you will get a 403. add it to headers instead.
-##        'referer': u'https://bato.to/forums',
-##        'referer': u'https://bato.to/forums/index.php?app=core&module=global&section=login',
-        }
-
     # we won't override login() here because we dont need it to download images, just to get the chapter list
     # bato.to is a slow site so we want to minimize the number of requests we make 
     def _login(self):
@@ -470,12 +445,26 @@ class BatotoBase(SeriesParser):
         raise e
     
     def __init__(self,url,sessionobj=None):
-        self.HEADERS={'Referer':'http://bato.to/reader',
-                      'X-Requested-With':'XMLHttpRequest'}
+        self.LOGGED_IN = False
+        self.FORM_DATA = {
+        'rememberMe': '1',
+        'anonymous': '1',}
+        self.QUERY_STRING = {
+        'app':'core',
+        'module':'global',
+        'section':'login',
+        'do':'process'
+        }
+        if not sessionobj or not hasattr(sessionobj,'init'):
+            self.HEADERS={'Referer':'http://bato.to/reader',
+                          'X-Requested-With':'XMLHttpRequest'}
         retval = super().__init__(url,sessionobj)
-        if self.VALID and not self.etree.xpath(self.BT_LOGGED_IN_XPATH):
-            self._login()
-            retval = super().__init__(url,self.SESSION)
+        if self.VALID:
+            if not self.etree.xpath(self.BT_LOGGED_IN_XPATH):
+                self._login()
+                retval = super().__init__(url,self.SESSION)
+            else:
+                self.LOGGED_IN = True
         return retval
 
 ############################################

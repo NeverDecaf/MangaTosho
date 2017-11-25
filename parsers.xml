@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <sites>
 	<info>
-		<version>1.4</version>
+		<version>1.5</version>
 	</info>
 	<site name="MangaSee">
 		<!-- essential args. must supply all of these -->
@@ -116,6 +116,7 @@
 		<bt_logged_in_xpath>//div[@class='logged_in']</bt_logged_in_xpath>
 		<bt_login_failed_xpath>//p[@class='ipsType_sectiontitle']</bt_login_failed_xpath>
 		<bt_login_url>https://bato.to/forums/index.php</bt_login_url>
+		<bt_reader_url>http://bato.to/areader</bt_reader_url>
 	</site>
 	<site name="MangaKakalot">
 		<!-- essential args. you will need most of these. -->
