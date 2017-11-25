@@ -206,7 +206,6 @@ class SeriesParser(object):
     AUTHOR_RE = re.compile(r' \(.*?\)\Z') # matches the author if included in the title, this regex is used to remove the author for cleaner series names
     # note that adding 2 series with the same name but different authors WILL cause a problem. there may or may not be a fix in place but i have yet to encounter this
     AIO_IMAGES_RE = None # some sites include all the image urls in one page, if so this RE matches all the image urls
-    FIRST_IMAGE_XPATH = None # used to access the first page from the chapter's landing page, won't be used often.
     IGNORE_BASE_PATH = False # VERY dangerous, if set true you could download an entire series instead of just 1 chapter.
     # these 2 are used for sites with iterative page numbers, we can get a list of all pages of a chapter without jumping from one to the next.
     # this is currently only used for animeA so look there for more details.

@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <sites>
 	<info>
-		<version>1.5</version>
+		<version>1.4</version>
 	</info>
 	<site name="MangaSee">
 		<!-- essential args. must supply all of these -->
@@ -131,6 +131,25 @@
 		<chapter_nums_re><![CDATA[chapter (\d+\.?\d*)(?:v\d+)?]]></chapter_nums_re> <!-- regex used to further refine the results of chapter_nums_xpath, default is typically fine. -->
 		<aio_images_re><![CDATA[(?<=<img src=")([^"]*)(?=" alt="[^"]*chapter \d[^"]*page \d[^"]*")]]></aio_images_re> <!-- regex to match all image urls if the site includes them all on one page. -->
 	</site>
+	<site name="SadPanda">
+		<!-- essential args. you will need most of these. -->
+		<site_url>https://exhentai.org/</site_url> <!-- url of the main website -->
+		<abbr>SP</abbr> <!-- 2 letter abbreviation of the site's name. -->
+		<site_parser_re>.*exhentai.org/g/.+</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
+		<title_xpath>substring(//h1[@id='gn']/text(),1)</title_xpath> <!-- xpath that matches the series' title -->
+		<chapter_nums_xpath>/*/text()[1]</chapter_nums_xpath> <!-- xpath that matches all chapter numbers on the main series page -->
+		<chapter_urls_xpath>//div[@class='gdtm'][1]/div/a/@href</chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
+		<image_url_xpath>substring(//img[@id='img']/@src,1)</image_url_xpath> <!-- xpath that matches the image url on a given page of the series -->
+		<next_url_xpath>substring(//a[@id="next"]/@href,1)</next_url_xpath> <!-- xpath that matches the url of the next page on a given page of the series -->
+		<is_complete_xpath>substring('True',1)</is_complete_xpath> <!-- xpath that matches if the series has been marked "Complete" -->
+		<!-- optional args, delete these if not applicable. -->
+		<requires_credentials>True</requires_credentials> <!-- True if the site requires login to access images -->
+		<author_re>cantremoveauthornamesoritwillbreak</author_re> <!-- regex to remove author name from a series title for more uniform and clean series names. -->
+		<ex_login_url><![CDATA[https://forums.e-hentai.org/index.php?act=Login&CODE=01]]></ex_login_url>
+		<sad_panda>ceddf54195d034fab64a7d20c9b0c530</sad_panda>
+		<ignore_base_path>True</ignore_base_path> <!-- path changes every page so we need this -->
+		
+	</site>
 	<!-- Copy this template and use it to add a new site.
 	Fields left blank will fall back to their default values, which are fine for most sites. 
 	After updating this file you must convert it with dos2unix to ensure the md5 will match.
@@ -156,6 +175,7 @@
 		<reverse></reverse> <!-- True if chapters are listed in reverse numerical order (latest chapter first) this is True by default. -->
 		<author_re></author_re> <!-- regex to remove author name from a series title for more uniform and clean series names. -->
 		<aio_images_re></aio_images_re> <!-- regex to match all image urls if the site includes them all on one page. -->
+		<ignore_base_path></ignore_base_path> <!-- VERY dangerous, if set true you could download an entire series instead of just 1 chapter. -->
 		<!-- The following 2 are a messy solution used only on animeA which no longer exists. -->
 		<page_template_re></page_template_re>
 		<all_pages_re></all_pages_re>
