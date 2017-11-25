@@ -6,6 +6,7 @@ import os
 import shutil
 import zipfile
 import logging
+import random
 from PIL import Image
 from io import BytesIO
 from requests import session
@@ -249,6 +250,7 @@ class SQLManager():
                                             ext='.jpg'
                                             response = series.SESSION.get(url+ext)
                                     response.raise_for_status()#raise error code if occured
+                                    time.sleep(random.uniform(*series.IMAGE_DOWNLOAD_DELAY))
                                     
                                     filename = os.path.join(tempdir,str(iindex)+os.path.splitext(image)[1])
                                     img = Image.open(BytesIO(response.content))

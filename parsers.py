@@ -16,6 +16,7 @@ import urllib.request, urllib.parse, urllib.error
 ##import lxml.etree.XPathEvalError as XPathError
 from lxml.etree import XPathEvalError as XPathError
 from functools import reduce
+import random
 # add the cacert.pem file to the path correctly even if compiled with pyinstaller:
 # Get the base directory
 if getattr( sys , 'frozen' , None ):    # keyword 'frozen' is for setting basedir while in onefile mode in pyinstaller
@@ -172,6 +173,8 @@ class ParserFetch:
             if classname!='TemplateSite':
                 if classname=='Batoto':
                     WORKING_SITES.append(type(classname,(BatotoBase,),data))
+                elif classname=='SadPanda':
+                    WORKING_SITES.append(type(classname,(ExBase,),data))
                 else:
                     WORKING_SITES.append(type(classname,(SeriesParser,),data))
                 
@@ -203,6 +206,8 @@ class SeriesParser(object):
     AUTHOR_RE = re.compile(r' \(.*?\)\Z') # matches the author if included in the title, this regex is used to remove the author for cleaner series names
     # note that adding 2 series with the same name but different authors WILL cause a problem. there may or may not be a fix in place but i have yet to encounter this
     AIO_IMAGES_RE = None # some sites include all the image urls in one page, if so this RE matches all the image urls
+    FIRST_IMAGE_XPATH = None # used to access the first page from the chapter's landing page, won't be used often.
+    IGNORE_BASE_PATH = False # VERY dangerous, if set true you could download an entire series instead of just 1 chapter.
     # these 2 are used for sites with iterative page numbers, we can get a list of all pages of a chapter without jumping from one to the next.
     # this is currently only used for animeA so look there for more details.
     PAGE_TEMPLATE_RE = None # matches a prefix and suffix for the url [0] [1]
@@ -211,6 +216,8 @@ class SeriesParser(object):
     # will be used if site REQUIRES_CREDENTIALS, use class vars so we can set before creating an instance.
     USERNAME = None 
     PASSWORD = None
+
+    IMAGE_DOWNLOAD_DELAY = (0,0) # delay to use when downloading images, for sites with a rate limit
 
     def __init__(self,url,sessionobj=None):
         #loads the html from the series page, also checks to ensure the site is valid
@@ -315,7 +322,7 @@ class SeriesParser(object):
             return False
         return nums,list(zip(nums,urls))
     
-    def get_images(self,chapter,delay=0):
+    def get_images(self,chapter,delay=(0,0)):
         self.login()
         #returns links to every image in the chapter where chapter is the url to the first page
         #uses a new approach where we follow links until the end of the chapter
@@ -336,14 +343,17 @@ class SeriesParser(object):
         chapter_path = posixpath.dirname(pieces[2])
         first_chapter = 1 # first chapter sometimes has a slightly different url so we will refresh it after the first page.
         
-        while posixpath.dirname(urllib.parse.urlsplit(url)[2]) == chapter_path:
-##            print 'reading',url
-            html = self.SESSION.get(url).text
-
+        while self.IGNORE_BASE_PATH or posixpath.dirname(urllib.parse.urlsplit(url)[2]) == chapter_path:
+##            print('reading',url)
+            r= self.SESSION.get(url)
+##            html = self.SESSION.get(url).text
+            html = r.text
+            with open('pagebasehtml.html','wb') as f:
+                f.write(r.content)
             #we should be able to remove html once we replace everyting with xpath
             etree = lxmlhtml.fromstring(html)
             
-            time.sleep(delay)
+            time.sleep(random.uniform(*delay))
             
             if pagebase==None and self.PAGE_TEMPLATE_RE!=None:
                 pagebase = self.PAGE_TEMPLATE_RE.findall(html)[0]
@@ -358,7 +368,7 @@ class SeriesParser(object):
 ##            pictureurl = self.IMAGE_URL.findall(html)[0]
             
             pictureurl = etree.xpath(self.IMAGE_URL_XPATH)
-##            print 'pix is',pictureurl
+##            print('pix is',pictureurl)
             if not len(pictureurl):
                 # this means the image wasnt found. either your parser is outdated or you've reached the end of the chapter.
                 if len(images): # just to make sure the parser isnt at fault, only allow if at least one image has been found.
@@ -379,21 +389,24 @@ class SeriesParser(object):
             else:
                 try:
                     nexturl = etree.xpath(self.NEXT_URL_XPATH)
-                except XPathError:
+                except XPathError: # if IGNORE_BASE_PATH is true this is the only way to escape this infinite loop.
                     nexturl = ''
             if not len(nexturl): #prevents loops
                 break
-            url = urllib.parse.urljoin(url,nexturl)#join the url to correctly follow relative urls
+            newurl = urllib.parse.urljoin(url,nexturl)#join the url to correctly follow relative urls
+            if newurl == url: # prevents fetching the same page twice (there is a second failsafe for this via pictureurl)
+                break
+            url = newurl
             if first_chapter:
                 first_chapter = 0
                 chapter_path = posixpath.dirname(urllib.parse.urlsplit(url)[2])
-##            print 'next url is',url
+##            print('next url is',url)
         return images
 
 
 ################################################################################
 class BatotoBase(SeriesParser):
-    def get_images(self,chapter,delay=0):
+    def get_images(self,chapter,delay=(0,0)):
         # currently batoto does not require a login when accessing the reader, it is only needed for fetching the chapter list.
         number,url = chapter
 
@@ -408,7 +421,7 @@ class BatotoBase(SeriesParser):
         page_nums = [re.split('[ _]+',a)[-1] for a in etree.xpath(self.BATOTO_PAGES_XPATH) if not (a in seen or seen_add(a))]
         images=[]
         for page_num in page_nums:
-            time.sleep(delay)
+            time.sleep(random.uniform(*delay))
             url = urllib.parse.urljoin(self.BT_READER_URL,'?id=%s&p=%i'%(chapter_id,int(page_num)))
             html = self.SESSION.get(url).text
             etree = lxmlhtml.fromstring(html)
@@ -466,7 +479,61 @@ class BatotoBase(SeriesParser):
             else:
                 self.LOGGED_IN = True
         return retval
+################################################################################
+class ExBase(SeriesParser):
+    EX_DELAY = (2,3)
+    IMAGE_DOWNLOAD_DELAY = (3,5)
 
+    # define these in the xml (and NOT here)
+##    EX_LOGIN_URL='https://forums.e-hentai.org/index.php?act=Login&CODE=01'
+##    SAD_PANDA = 'ceddf54195d034fab64a7d20c9b0c530'
+
+    def get_images(self,chapter,delay=(2,4)):
+        return super().get_images(chapter,delay)
+    def login(self):
+        # how do we check login status? do we just gotta check the cookie? this won't be 100% accurate, will it?
+        if [x for x in self.SESSION.cookies if x.name == 'ipb_member_id' and x.domain == '.exhentai.org' and x.expires>time.time()]:
+            return True
+        self.FORM_DATA = {
+            'CookieDate':1,
+            'b':'d',
+            'bt':'1-1',
+            'ipb_login_submit':'Login!'
+        }
+        self.FORM_DATA['UserName'] = self.USERNAME
+        self.FORM_DATA['PassWord'] = self.PASSWORD
+        response = self.SESSION.post(self.EX_LOGIN_URL,data = self.FORM_DATA)
+        time.sleep(random.uniform(*self.EX_DELAY))
+        etree = lxmlhtml.fromstring(response.text)
+        if not etree.xpath('//div[@id="redirectwrap"]/h4[text()="Thanks"]'):
+            e = ParserError('Ex Login Failed')
+            e.display = 'Ex login failed'
+            raise e
+        panda = self.SESSION.get(self.SITE_URL)
+        time.sleep(random.uniform(*self.EX_DELAY))
+        if hashlib.md5(panda.content).hexdigest() == self.SAD_PANDA:
+            e = ParserError('Ex Login Failed (sadpanda)')
+            e.display = 'Ex login failed (sad panda)'
+            raise e
+        time.sleep(random.uniform(*self.EX_DELAY))
+        return True
+    
+##        time.sleep(random.uniform(*DELAY))
+##        r = s.get('https://exhentai.org/')
+##        with open('panda.html','wb') as f:
+##            f.write(r.content)
+        
+##    def __init__(self,url,sessionobj=None):
+##        super().__init__(url,sessionobj)
+        
+##    def __init__(self,url,sessionobj=None):
+##        self.HEADERS={'Referer':'http://bato.to/reader',
+##                      'X-Requested-With':'XMLHttpRequest'}
+##        retval = super().__init__(url,sessionobj)
+##        if self.VALID and not self.etree.xpath(self.BT_LOGGED_IN_XPATH):
+##            self._login()
+##            retval = super().__init__(url,self.SESSION)
+##        return retval
 ############################################
 ######## Dynamically create classes ########
 ############################################
