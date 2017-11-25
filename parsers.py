@@ -348,8 +348,6 @@ class SeriesParser(object):
             r= self.SESSION.get(url)
 ##            html = self.SESSION.get(url).text
             html = r.text
-            with open('pagebasehtml.html','wb') as f:
-                f.write(r.content)
             #we should be able to remove html once we replace everyting with xpath
             etree = lxmlhtml.fromstring(html)
             
