@@ -24,6 +24,5 @@ All colors will fade based on the amount of time since the last update. The dark
 
 ###### Known Bugs
 * Readme sucks.
-* New series are gray when they shouldn't be.
 * Update option does nothing, series aren't updated immediately after being added. (can restart if you need the update immediately)
 * Dynasty series with no chapter numbers will fail (red)
