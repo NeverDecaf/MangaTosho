@@ -10,6 +10,7 @@ from requests import session
 import requests
 import posixpath
 import sys
+import inspect
 import os,shutil
 from fake_useragent import UserAgent
 import urllib.request, urllib.parse, urllib.error
@@ -165,24 +166,24 @@ class ParserFetch:
         global WORKING_SITES
         tree = ET.parse('parsers.xml')
         root = tree.getroot()
+        is_class_member = lambda member: inspect.isclass(member) and member.__module__ == __name__
+        clsmembers = dict(inspect.getmembers(sys.modules[__name__], is_class_member))
         for site in root.iter('site'):
             classname = site.attrib['name']
             # remove None values and convert string booleans to booleans.
             # also create regex object for any key ending with _re
             data={k.upper(): {'True':True,'False':False}.get(v,re.compile(v,re.IGNORECASE) if k=='site_parser_re' else re.compile(v,re.IGNORECASE) if k.endswith('_re') else v) for k, v in list(self.__children_as_dict(site).items()) if v!=None}
             if classname!='TemplateSite':
-                if classname=='Batoto':
-                    WORKING_SITES.append(type(classname,(BatotoBase,),data))
-                elif classname=='SadPanda':
-                    WORKING_SITES.append(type(classname,(ExBase,),data))
+                if classname in clsmembers:
+                    WORKING_SITES.append(type(classname,(clsmembers[classname],),data))
                 else:
                     WORKING_SITES.append(type(classname,(SeriesParser,),data))
                     
     def __children_as_dict(self,t):
-    d={}
-    for v in list(t):
-        d[v.tag]=v.text
-    return d
+        d={}
+        for v in list(t):
+            d[v.tag]=v.text
+        return d
 
 class ParserError(Exception):
     pass
@@ -410,7 +411,7 @@ class SeriesParser(object):
 
 
 ################################################################################
-class BatotoBase(SeriesParser):
+class Batoto(SeriesParser):
     def get_images(self,chapter,delay=(0,0)):
         # currently batoto does not require a login when accessing the reader, it is only needed for fetching the chapter list.
         number,url = chapter
@@ -485,7 +486,7 @@ class BatotoBase(SeriesParser):
                 self.LOGGED_IN = True
         return retval
 ################################################################################
-class ExBase(SeriesParser):
+class SadPanda(SeriesParser):
     EX_DELAY = (2,3)
     IMAGE_DOWNLOAD_DELAY = (3,5)
 
@@ -545,4 +546,3 @@ def update_parsers(currentversion,targethash):
         else:
             return -1
     return 0
-
