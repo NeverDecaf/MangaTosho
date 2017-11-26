@@ -218,6 +218,7 @@ class SeriesParser(object):
 
     IMAGE_DOWNLOAD_DELAY = (0,0) # delay to use when downloading images, for sites with a rate limit
     AUTO_COMPLETE_TIME = 2592000 * 3 # 3 months before a series claimed to be complete by the site is marked as completed (in the db).
+    LICENSED_AS_403 = False # some sites use error 403 to indicate a licensed series.
 
     def __init__(self,url,sessionobj=None):
         #loads the html from the series page, also checks to ensure the site is valid
@@ -488,7 +489,11 @@ class ExBase(SeriesParser):
 ##    SAD_PANDA = 'ceddf54195d034fab64a7d20c9b0c530'
 
     def get_images(self,chapter,delay=(2,4)):
-        return super().get_images(chapter,delay)
+        imgs = super().get_images(chapter,delay)
+        if imgs and imgs[-1].endswith('509.gif'):
+            e = ParserError('Bandwidth Exceeded')
+            e.display = 'Bandwidth Exceeded'
+            raise e
     def login(self):
         # how do we check login status? do we just gotta check the cookie? this won't be 100% accurate, will it?
         if [x for x in self.SESSION.cookies if x.name == 'ipb_member_id' and x.domain == '.exhentai.org' and x.expires>time.time()]:

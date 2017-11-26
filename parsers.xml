@@ -56,6 +56,7 @@
 		<!-- optional args, delete these if not applicable. -->
 		<is_complete_xpath>//tr[td[text()='Status:']]/td[text()='Completed']</is_complete_xpath> <!-- xpath that matches if the series has been marked "Complete" -->
 		<reverse>False</reverse> <!-- True if chapters are listed in reverse numerical order (latest chapter first) -->
+		<licensed_as_403>True</licensed_as_403>
 	</site>
 	<!-- this is an exact copy of MangaReader, update as you update mangareader -->
 	<site name="MangaPanda">
@@ -71,6 +72,7 @@
 		<!-- optional args, delete these if not applicable. -->
 		<is_complete_xpath>//tr[td[text()='Status:']]/td[text()='Completed']</is_complete_xpath> <!-- xpath that matches if the series has been marked "Complete" -->
 		<reverse>False</reverse> <!-- True if chapters are listed in reverse numerical order (latest chapter first) -->
+		<licensed_as_403>True</licensed_as_403>
 	</site>
 	<site name="MangaPark">
 		<!-- essential args. must supply all of these -->
@@ -180,5 +182,6 @@
 		<page_template_re></page_template_re>
 		<all_pages_re></all_pages_re>
 		<batoto_pages_xpath></batoto_pages_xpath> <!-- regex to match all page numbers for batoto. will be further processed (split). -->
+		<licensed_as_403></licensed_as_403> <!-- some sites use error 403 to indicate a licensed series. -->
 	</site>
 </sites>

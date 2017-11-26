@@ -12,6 +12,7 @@ from io import BytesIO
 from requests import session
 from requests import exceptions
 from requests.packages.urllib3.exceptions import NewConnectionError
+import stat
 DELAY=5 # seconds between chapters, to keep from getting banned.
 LOGGING=False # If true, will log individual series errors to Series_Errors.log
 ALLOWED_IMAGE_ERRORS_PER_CHAPTER = 0 # I don't like this one bit. Should be 0. If you don't care about missing images increase this.
@@ -24,7 +25,7 @@ if os.path.exists('DEBUG_TEST'):
 #######################################################
 #YMMV, this probably doesnt even help.
 def takeown(func, path, excinfo):
-    os.chmod(path, stat.S_IWUSR | stat.S.IWGRP | stat.S_IWOTH) # give write permissions to everyone
+    os.chmod(path, stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH) # give write permissions to everyone
     func(path)
 ##    if not os.access(path,os.W_OK):
 ##        os.chmod(path, 0777)#whatever just go full 777 stat.S_IWUSR) # nah, dont.
@@ -144,7 +145,7 @@ class SQLManager():
 
     @staticmethod
     def cleanName(name):
-        return ''.join(c for c in name if c in '-_.() abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789')
+        return (''.join(c for c in name if c in '-_.() abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789')).strip()
 
     def removeSeries(self,url,removeData=False):
         c = self.conn.cursor()
@@ -154,7 +155,10 @@ class SQLManager():
         if removeData:
             validname = SQLManager.cleanName(removeData)
             if os.path.exists(validname):
-                shutil.rmtree(validname, onerror=takeown)
+                try:
+                    shutil.rmtree(validname, onerror=takeown)
+                except:
+                    'could not remove files - likely missing'
 
     def rollbackSeries(self,url,last_read,title):
         c = self.conn.cursor()
@@ -278,7 +282,7 @@ class SQLManager():
 ##                    except urllib2.HTTPError, e:
                     except exceptions.HTTPError as e:
                         errors+=1
-                        if e.response.status_code==403: # mangareader and their tricks
+                        if series.LICENSED_AS_403 and e.response.status_code==403: # mangareader and their tricks
                             errtype=3
                             errmsg='Error 403, likely licensed'
                             logging.exception('Type 3 (Licensed) ('+data[1]+' c.'+str(ch[0])+' p.'+str(iindex)+'): '+str(e))
@@ -289,7 +293,7 @@ class SQLManager():
                             break
                     except Exception as e:
                         errors+=1
-                        errmsg='Error on Ch.%g Page %g'%(float(ch[0]),iindex)
+                        errmsg='Error on Ch.%g Page %g '%(float(ch[0]),iindex)
                         logging.exception('Type 1 ('+data[1]+' c.'+str(ch[0])+' p.'+str(iindex)+'): '+str(e))
                         if hasattr(e, 'display'):
                             errmsg=e.display
