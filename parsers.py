@@ -169,7 +169,7 @@ class ParserFetch:
             classname = site.attrib['name']
             # remove None values and convert string booleans to booleans.
             # also create regex object for any key ending with _re
-            data={k.upper(): {'True':True,'False':False}.get(v,re.compile(v,re.IGNORECASE) if k=='site_parser_re' else re.compile(v,re.IGNORECASE) if k.endswith('_re') else v) for k, v in list(children_as_dict(site).items()) if v!=None}
+            data={k.upper(): {'True':True,'False':False}.get(v,re.compile(v,re.IGNORECASE) if k=='site_parser_re' else re.compile(v,re.IGNORECASE) if k.endswith('_re') else v) for k, v in list(self.__children_as_dict(site).items()) if v!=None}
             if classname!='TemplateSite':
                 if classname=='Batoto':
                     WORKING_SITES.append(type(classname,(BatotoBase,),data))
@@ -177,7 +177,13 @@ class ParserFetch:
                     WORKING_SITES.append(type(classname,(ExBase,),data))
                 else:
                     WORKING_SITES.append(type(classname,(SeriesParser,),data))
-                
+                    
+    def __children_as_dict(self,t):
+    d={}
+    for v in list(t):
+        d[v.tag]=v.text
+    return d
+
 class ParserError(Exception):
     pass
 
@@ -495,7 +501,6 @@ class ExBase(SeriesParser):
             e.display = 'Bandwidth Exceeded'
             raise e
     def login(self):
-        # how do we check login status? do we just gotta check the cookie? this won't be 100% accurate, will it?
         if [x for x in self.SESSION.cookies if x.name == 'ipb_member_id' and x.domain == '.exhentai.org' and x.expires>time.time()]:
             return True
         self.FORM_DATA = {
@@ -521,31 +526,6 @@ class ExBase(SeriesParser):
             raise e
         time.sleep(random.uniform(*self.EX_DELAY))
         return True
-    
-##        time.sleep(random.uniform(*DELAY))
-##        r = s.get('https://exhentai.org/')
-##        with open('panda.html','wb') as f:
-##            f.write(r.content)
-        
-##    def __init__(self,url,sessionobj=None):
-##        super().__init__(url,sessionobj)
-        
-##    def __init__(self,url,sessionobj=None):
-##        self.HEADERS={'Referer':'http://bato.to/reader',
-##                      'X-Requested-With':'XMLHttpRequest'}
-##        retval = super().__init__(url,sessionobj)
-##        if self.VALID and not self.etree.xpath(self.BT_LOGGED_IN_XPATH):
-##            self._login()
-##            retval = super().__init__(url,self.SESSION)
-##        return retval
-############################################
-######## Dynamically create classes ########
-############################################
-def children_as_dict(t):
-    d={}
-    for v in list(t):
-        d[v.tag]=v.text
-    return d
 
 def update_parsers(currentversion,targethash):
     currentversion=float(currentversion)
