@@ -3,6 +3,9 @@
 #### What is this?
 A auto-download and organization tool for manga series. Add urls for series, MT will auto-download new chapters and keep track of your progress letting you easily see and read new chapters with a double-click
 
+#### Dependencies
+Node.js is now required to bypass cloudflare protection. It is bundled with the windows binaries.
+
 #### How to Use
 Binaries are available if you are on windows, see [Releases](https://github.com/NeverDecaf/MangaTosho/releases/latest).
 

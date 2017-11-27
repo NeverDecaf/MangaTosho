@@ -6,7 +6,7 @@ import urllib.parse
 import html.entities
 from io import StringIO
 import time
-from requests import session
+##from requests import session
 import requests
 import posixpath
 import sys
@@ -37,6 +37,11 @@ try:
     os.chdir(os.path.dirname(sys.argv[0]))
 except:
     os.chdir(os.path.dirname(os.path.realpath(__file__)))
+
+# we also need to add the resources directory to path to use the bundled nodejs
+os.environ["PATH"] += os.pathsep + basedir
+# only import cfscrape AFTER setting PATH
+import cfscrape
 
 def hash_no_newline(stringdata):
     #got easier in python 3 thanks to universal newline mode being the default.
@@ -109,7 +114,7 @@ class ParserFetch:
         self._generate_parsers()
         self.parsers = set(WORKING_SITES)#[globals()[cname] for cname in WORKING_SITES]
         for parser in self.parsers:
-            self.matchers.append((parser.SITE_PARSER_RE,parser,session()))
+            self.matchers.append((parser.SITE_PARSER_RE,parser,cfscrape.create_scraper()))
             if parser.REQUIRES_CREDENTIALS:
                 self.parsers_req_creds.add(parser)
         self.updateCreds(credentials)
@@ -241,7 +246,7 @@ class SeriesParser(object):
             return
         # create a random user agent
         if not sessionobj:
-            self.SESSION = session()
+            self.SESSION = cfscrape.create_scraper()
         else:
             self.SESSION = sessionobj
         if sessionobj and hasattr(sessionobj,'init'):
@@ -263,7 +268,8 @@ class SeriesParser(object):
             self.SESSION.headers.update(self.HEADERS)
             self.SESSION.init = True
         self.login()
-        self.HTML = self.SESSION.get(url).text
+        r=self.SESSION.get(url)
+        self.HTML = r.text
         self.etree = lxmlhtml.fromstring(self.HTML)
         if not self.get_title():
             self.VALID=False
