@@ -89,10 +89,10 @@
 	</site>
 	<site name="MangaStream">
 		<!-- essential args. you will need most of these. -->
-		<site_url>http://mangastream.com/</site_url> <!-- url of the main website -->
+		<site_url>https://www.readms.net/</site_url> <!-- url of the main website -->
 		<abbr>MS</abbr> <!-- 2 letter abbreviation of the site's name. -->
-		<site_parser_re>https?://.*mangastream.com/manga/.*</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
-		<title_xpath>substring(//div[@class='content']/h1/text(),1)</title_xpath> <!-- xpath that matches the series' title -->
+		<site_parser_re>https?://.*readms.net/manga/.*</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
+		<title_xpath>substring(//div[contains(@class, 'content')]//h1/text(),1)</title_xpath> <!-- xpath that matches the series' title -->
 		<chapter_nums_xpath>//td/a/text()</chapter_nums_xpath> <!-- xpath that matches all chapter numbers on the main series page -->
 		<chapter_urls_xpath>//td/a/@href</chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
 		<image_url_xpath>substring(concat('http:',//a/img/@src), 1 div boolean(//a/img/@src))</image_url_xpath> <!-- xpath that matches the image url on a given page of the series -->

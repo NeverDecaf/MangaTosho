@@ -72,6 +72,8 @@ class SQLManager():
         c = self.conn.cursor()
         # change old site urls to new ones.
         c.execute('''UPDATE series SET url=replace(url,'mangahere.co','mangahere.cc') WHERE site="MH" AND url LIKE "%mangahere.co%"''')
+        c.execute('''UPDATE series SET url=replace(url,'mangastream.com','readms.net') WHERE site="MS" AND url LIKE "%mangastream.com%"''')
+        c.execute('''UPDATE series SET url=replace(url,'http://','https://') WHERE site="MS" AND url LIKE "http://%"''')
         self.conn.commit()
         c.close()
 
