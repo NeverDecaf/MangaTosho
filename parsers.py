@@ -497,9 +497,6 @@ class SadPanda(SeriesParser):
     IMAGE_DOWNLOAD_DELAY = (3,5)
 
     AUTO_COMPLETE_TIME = -1
-    # define these in the xml (and NOT here)
-##    EX_LOGIN_URL='https://forums.e-hentai.org/index.php?act=Login&CODE=01'
-##    SAD_PANDA = 'ceddf54195d034fab64a7d20c9b0c530'
 
     def get_images(self,chapter,delay=(2,4)):
         imgs = super().get_images(chapter,delay)

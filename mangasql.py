@@ -12,6 +12,7 @@ from io import BytesIO
 from requests import session
 from requests import exceptions
 from requests.packages.urllib3.exceptions import NewConnectionError
+from urllib.parse import urlsplit,urlunsplit
 import stat
 DELAY=5 # seconds between chapters, to keep from getting banned.
 LOGGING=False # If true, will log individual series errors to Series_Errors.log
@@ -60,12 +61,19 @@ class SQLManager():
         c.close()
 
         self.getCredentials() # to update the parserfetch correctly.
-        
+        self.legacyConversions()
         if LOGGING:
             logging.basicConfig(level=logging.ERROR, filename='Series_Errors.log')
         else:
             logging.basicConfig(level=logging.DEBUG, stream=BytesIO())
             logging.disable(logging.ERROR)
+
+    def legacyConversions(self):
+        c = self.conn.cursor()
+        # change old site urls to new ones.
+        c.execute('''UPDATE series SET url=replace(url,'mangahere.co','mangahere.cc') WHERE site="MH" AND url LIKE "%mangahere.co%"''')
+        self.conn.commit()
+        c.close()
 
     def updateParserCredentials(self,creds):
         self.parserFetch.updateCreds(creds)
@@ -103,10 +111,13 @@ class SQLManager():
         return cmd[0][0]
         
     def addSeries(self,url):
-        series = self.parserFetch.fetch(url)
+        try:
+            series = self.parserFetch.fetch(url)
 ##        parser=self.parserFetch.match(url)
-        if series==None:
-            return None
+            if series==None:
+                return None
+        except:
+            return -1
         
 ##        series = parser(url)
         title = series.get_title()
@@ -238,19 +249,23 @@ class SQLManager():
                                 shutil.rmtree(tempdir, onerror=takeown)
                             os.makedirs(tempdir)
                             for image in images:
-##                                print 'attempting to fetch image from',image
+##                                print('attempting to fetch image from',image)
                                 try: # give the site another chance (maybe)
                                     response = series.SESSION.get(image)
                                     #this little bit retries an image as .jpg if its .png and vice versa, its pretty much used exclusively for batoto
                                     if response.status_code == 404:
-                                        del response
-                                        url,ext = os.path.splitext(image)
+                                        
+                                        firstresponse = response
+                                        spliturl = urlsplit(image)
+                                        path,ext = os.path.splitext(spliturl.path)
                                         if ext == '.jpg':
-                                            ext='.png'
-                                            response = series.SESSION.get(url+ext)
+                                            newpath = path+'.png'
                                         elif ext == '.png':
-                                            ext='.jpg'
-                                            response = series.SESSION.get(url+ext)
+                                            newpath = path+'.jpg'
+                                        response = series.SESSION.get(urlunsplit((spliturl.scheme,spliturl.netloc,newpath,spliturl.query,spliturl.fragment)))
+                                        if not response.ok:
+                                            firstresponse.raise_for_status()
+
                                     response.raise_for_status()#raise error code if occured
                                     time.sleep(random.uniform(*series.IMAGE_DOWNLOAD_DELAY))
                                     
@@ -329,7 +344,6 @@ class SQLManager():
                 return 1,['No Internet Connection']
         except Exception as e:
             errmsg = 'Error downloading: '
-            
             if hasattr(e, 'display'):
                 errmsg+= e.display
             else:

@@ -7,7 +7,7 @@
 		<!-- essential args. must supply all of these -->
 		<site_url>http://mangaseeonline.us</site_url> <!-- url of the main website -->
 		<abbr>SE</abbr> <!-- 2 letter abbreviation of the site's name. -->
-		<site_parser_re>.*mangaseeonline.us/manga/.*</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
+		<site_parser_re>https?://.*mangaseeonline.us/manga/.*</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
 		<title_xpath>substring(//h1[@class='SeriesName']/text(),1)</title_xpath> <!-- xpath that matches the series' title -->
 		<chapter_nums_xpath>//a/@chapter</chapter_nums_xpath> <!-- xpath that matches all chapter numbers on the main series page -->
 		<chapter_urls_xpath>//a[@chapter]/@href</chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
@@ -17,9 +17,9 @@
 	</site>
 	<site name="MangaHere">
 		<!-- essential args. must supply all of these -->
-		<site_url>http://www.mangahere.co/</site_url> <!-- url of the main website -->
+		<site_url>http://www.mangahere.cc/</site_url> <!-- url of the main website -->
 		<abbr>MH</abbr> <!-- 2 letter abbreviation of the site's name. -->
-		<site_parser_re>.*mangahere.co/manga/.*</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
+		<site_parser_re>https?://.*mangahere.cc/manga/.*</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
 		<title_xpath>substring(//h1[@class='title']/text(),1)</title_xpath> <!-- xpath that matches the series' title -->
 		<chapter_nums_xpath>//span[@class='left']/a/text()</chapter_nums_xpath> <!-- xpath that matches all chapter numbers on the main series page -->
 		<chapter_urls_xpath>//span[@class='left']/a/@href</chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
@@ -32,7 +32,7 @@
 		<!-- essential args. must supply all of these -->
 		<site_url>http://dynasty-scans.com/</site_url> <!-- url of the main website -->
 		<abbr>DS</abbr> <!-- 2 letter abbreviation of the site's name. -->
-		<site_parser_re>.*dynasty-scans.com/series/.*</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
+		<site_parser_re>https?://.*dynasty-scans.com/series/.*</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
 		<title_xpath>substring(//b/text(),1)</title_xpath> <!-- xpath that matches the series' title -->
 		<chapter_nums_xpath>//a[@class='name']/text()</chapter_nums_xpath> <!-- xpath that matches all chapter numbers on the main series page -->
 		<chapter_urls_xpath>//a[@class='name']/@href</chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
@@ -47,7 +47,7 @@
 		<!-- essential args. must supply all of these -->
 		<site_url>http://www.mangareader.net/</site_url> <!-- url of the main website -->
 		<abbr>MR</abbr> <!-- 2 letter abbreviation of the site's name. -->
-		<site_parser_re>.*mangareader.net/.*</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
+		<site_parser_re>https?://.*mangareader.net/.*</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
 		<title_xpath>substring(//h2[@class='aname']/text(),1)</title_xpath> <!-- xpath that matches the series' title -->
 		<chapter_nums_xpath>//td[div[@class='chico_manga']]/a/text()</chapter_nums_xpath> <!-- xpath that matches all chapter numbers on the main series page -->
 		<chapter_urls_xpath>//td[div[@class='chico_manga']]/a/@href</chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
@@ -63,7 +63,7 @@
 		<!-- essential args. must supply all of these -->
 		<site_url>http://www.mangapanda.com/</site_url> <!-- url of the main website -->
 		<abbr>MP</abbr> <!-- 2 letter abbreviation of the site's name. -->
-		<site_parser_re>.*mangapanda.com/.*</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
+		<site_parser_re>https?://.*mangapanda.com/.*</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
 		<title_xpath>substring(//h2[@class='aname']/text(),1)</title_xpath> <!-- xpath that matches the series' title -->
 		<chapter_nums_xpath>//td[div[@class='chico_manga']]/a/text()</chapter_nums_xpath> <!-- xpath that matches all chapter numbers on the main series page -->
 		<chapter_urls_xpath>//td[div[@class='chico_manga']]/a/@href</chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
@@ -78,7 +78,7 @@
 		<!-- essential args. must supply all of these -->
 		<site_url>http://mangapark.me/</site_url> <!-- url of the main website -->
 		<abbr>PA</abbr> <!-- 2 letter abbreviation of the site's name. -->
-		<site_parser_re>.*mangapark.me/manga/.*</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
+		<site_parser_re>https?://.*mangapark.me/manga/.*</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
 		<title_xpath>substring(//div[@class='cover']/img/@title,1)</title_xpath> <!-- xpath that matches the series' title -->
 		<chapter_nums_xpath>//div[@class='stream']//span/a/text()</chapter_nums_xpath> <!-- xpath that matches all chapter numbers on the main series page -->
 		<chapter_urls_xpath>//div[@class='stream']//span/a/@href</chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
@@ -91,7 +91,7 @@
 		<!-- essential args. you will need most of these. -->
 		<site_url>http://mangastream.com/</site_url> <!-- url of the main website -->
 		<abbr>MS</abbr> <!-- 2 letter abbreviation of the site's name. -->
-		<site_parser_re>.*mangastream.com/manga/.*</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
+		<site_parser_re>https?://.*mangastream.com/manga/.*</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
 		<title_xpath>substring(//div[@class='content']/h1/text(),1)</title_xpath> <!-- xpath that matches the series' title -->
 		<chapter_nums_xpath>//td/a/text()</chapter_nums_xpath> <!-- xpath that matches all chapter numbers on the main series page -->
 		<chapter_urls_xpath>//td/a/@href</chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
@@ -104,7 +104,7 @@
 		<!-- essential args. you will need most of these. -->
 		<site_url>http://bato.to/</site_url> <!-- url of the main website -->
 		<abbr>BT</abbr> <!-- 2 letter abbreviation of the site's name. -->
-		<site_parser_re>.*bato.to/comic/_/comics/.*</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
+		<site_parser_re>https?://.*bato.to/comic/_/comics/.*</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
 		<title_xpath>substring(//h1[@class='ipsType_pagetitle']/text(),1)</title_xpath> <!-- xpath that matches the series' title -->
 		<chapter_nums_xpath>//tr[@class='row lang_English chapter_row']/td/a[img]/text()</chapter_nums_xpath> <!-- xpath that matches all chapter numbers on the main series page -->
 		<chapter_urls_xpath>//tr[@class='row lang_English chapter_row']/td/a[img]/@href</chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
@@ -124,7 +124,7 @@
 		<!-- essential args. you will need most of these. -->
 		<site_url>http://mangakakalot.com/</site_url> <!-- url of the main website -->
 		<abbr>MK</abbr> <!-- 2 letter abbreviation of the site's name. -->
-		<site_parser_re>.*mangakakalot.com/manga/.+</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
+		<site_parser_re>https?://.*mangakakalot.com/manga/.+</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
 		<title_xpath>substring(//h1/text(),1)</title_xpath> <!-- xpath that matches the series' title -->
 		<chapter_nums_xpath>//div[@class='row']/span/a/@title</chapter_nums_xpath> <!-- xpath that matches all chapter numbers on the main series page -->
 		<chapter_urls_xpath>//div[@class='row']/span/a[@title]/@href</chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
@@ -137,7 +137,7 @@
 		<!-- essential args. you will need most of these. -->
 		<site_url>https://exhentai.org/</site_url> <!-- url of the main website -->
 		<abbr>SP</abbr> <!-- 2 letter abbreviation of the site's name. -->
-		<site_parser_re>.*exhentai.org/g/.+</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
+		<site_parser_re>https?://.*exhentai.org/g/.+</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
 		<title_xpath>substring(//h1[@id='gn']/text(),1)</title_xpath> <!-- xpath that matches the series' title -->
 		<chapter_nums_xpath>/*/text()[1]</chapter_nums_xpath> <!-- xpath that matches all chapter numbers on the main series page -->
 		<chapter_urls_xpath>//div[@class='gdtm'][1]/div/a/@href</chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
@@ -183,5 +183,6 @@
 		<all_pages_re></all_pages_re>
 		<batoto_pages_xpath></batoto_pages_xpath> <!-- regex to match all page numbers for batoto. will be further processed (split). -->
 		<licensed_as_403></licensed_as_403> <!-- some sites use error 403 to indicate a licensed series. -->
+		<ignore_base_path>False</ignore_base_path> <!-- Only use if pages of a series don't share the same base url, wrongly setting this to True can cause you to dl and entire series (or multiple) instead of 1 chapter so be careful -->
 	</site>
 </sites>

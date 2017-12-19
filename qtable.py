@@ -449,6 +449,9 @@ class MyTableModel(QAbstractTableModel):
         elif data == False:
             #series already exists.
             QMessageBox.information(self.myparent, 'Series Add Failed','You are already reading this series.')
+        elif data == -1:
+            #other error
+            QMessageBox.information(self.myparent, 'Series Add Failed','Error adding this series. Check to make sure your URL is valid. (This may be a bug)')
         else:
             old=self.rowCount(None)
             self.beginInsertRows(QModelIndex(),old,old)
