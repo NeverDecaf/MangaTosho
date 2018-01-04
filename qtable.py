@@ -617,18 +617,19 @@ class MyTableModel(QAbstractTableModel):
         if index.column()==self.current_col:
             return
         last=self.arraydata[index.row()][self.headerdata.index('Read')]#last read chapter
-        self.arraydata[index.row()][self.headerdata.index('Unread')]=0
-        self.arraydata[index.row()][self.current_col] = self.arraydata[index.row()][self.total_col]
-        idx = self.createIndex(index.row(),0)
-        idx2 = self.createIndex(index.row(),len(self.headerdata)-1)
-        self.dataChanged.emit(idx, idx2)
-        self.sql.changeSeries(self.arraydata[index.row()])
+
+
+
+
 
         sdir=SQLManager.cleanName(self.arraydata[index.row()][self.headerdata.index('Title')])#name of series
-        chapters =sorted(os.listdir(sdir))
+        if os.path.exists(sdir):
+            chapters = sorted(os.listdir(sdir))
+        else:
+            chapters=[]
 
         if not len(chapters):
-            self.resort()
+##            self.resort()
             return
         
         toopen = os.path.join(sdir,chapters[0])
@@ -646,14 +647,22 @@ class MyTableModel(QAbstractTableModel):
                 toopen = os.path.join(sdir,chapters[nextIndex])
             except:
                 toopen = os.path.join(sdir,chapters[-1])
-        if os.name=='nt':
-            if self.readercmd=='MMCE':
-                subprocess.Popen(resource_path(MMCE)+' "'+os.path.realpath(toopen)+'"')
+        if os.path.exists(os.path.realpath(toopen)):
+            if os.name=='nt':
+                if self.readercmd=='MMCE':
+                    subprocess.Popen(resource_path(MMCE)+' "'+os.path.realpath(toopen)+'"')
+                else:
+                    subprocess.Popen(self.readercmd+' "'+os.path.realpath(toopen)+'"')
             else:
-                subprocess.Popen(self.readercmd+' "'+os.path.realpath(toopen)+'"')
-        else:
-            subprocess.Popen(self.readercmd+' "'+os.path.realpath(toopen)+'"', shell=True)
-        self.resort()
+                subprocess.Popen(self.readercmd+' "'+os.path.realpath(toopen)+'"', shell=True)
+            self.arraydata[index.row()][self.headerdata.index('Unread')]=0
+            self.arraydata[index.row()][self.current_col] = self.arraydata[index.row()][self.total_col]
+            idx = self.createIndex(index.row(),0)
+            idx2 = self.createIndex(index.row(),len(self.headerdata)-1)
+            self.dataChanged.emit(idx, idx2)
+            self.sql.changeSeries(self.arraydata[index.row()])
+            self.resort()
+##        self.resort()
         
     def columnCount(self, parent):
 ##        try:
