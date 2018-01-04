@@ -150,7 +150,7 @@
 		<ex_login_url><![CDATA[https://forums.e-hentai.org/index.php?act=Login&CODE=01]]></ex_login_url>
 		<sad_panda>ceddf54195d034fab64a7d20c9b0c530</sad_panda>
 		<ignore_base_path>True</ignore_base_path> <!-- path changes every page so we need this -->
-	<site name="MangaWidow">
+	<site name="MangaWindow">
 		<!-- essential args. you will need most of these. -->
 		<site_url>https://mangawindow.com/</site_url> <!-- url of the main website -->
 		<abbr>MW</abbr> <!-- 2 letter abbreviation of the site's name. -->
