@@ -78,6 +78,7 @@ class MyWindow(QMainWindow):
     removeSeries = pyqtSignal(QModelIndex, int)
     rollbackSeries = pyqtSignal(QModelIndex)
     completeSeries = pyqtSignal(QModelIndex)
+    editSeriesUrl = pyqtSignal(QModelIndex,'QString')
 
     def __init__(self, *args): 
         QMainWindow.__init__(self, *args) 
@@ -142,6 +143,9 @@ class MyWindow(QMainWindow):
         self.updateAction=QAction("&Update", self)
         self.right_menu.addAction(self.updateAction)
 
+        self.urlAction=QAction("&Edit URL", self)
+        self.right_menu.addAction(self.urlAction)
+        
         self.rollbackAction=QAction("&Rollback 1ch", self)
         self.right_menu.addAction(self.rollbackAction)
 
@@ -291,6 +295,7 @@ class MyWindow(QMainWindow):
         self.removeSeries[QModelIndex, int].connect(tm.removeSeries)
         self.rollbackSeries[QModelIndex].connect(tm.rollbackSeries)
         self.completeSeries[QModelIndex].connect(tm.completeSeries)
+        self.editSeriesUrl[QModelIndex,str].connect(tm.editSeriesUrl)
         tv.customContextMenuRequested[QPoint].connect(self.alart)
         
         #initial sort
@@ -341,6 +346,16 @@ class MyWindow(QMainWindow):
                     self.completeSeries.emit(self.tv.indexAt(pos))
             else:
                 self.completeSeries.emit(self.tv.indexAt(pos))
+        if self.urlAction==localpos:
+            url = self.tm.getUrl(self.tv.indexAt(pos))
+            site = self.tm.getSite(self.tv.indexAt(pos))
+            reply = QInputDialog.getText(self, self.tr("Enter URL"), self.tr("URL"), text=url)
+            if reply[1]:
+                match = self.parserFetcher.match(reply[0])
+                if match and match.ABBR==site and reply[0] != url:
+                    self.editSeriesUrl.emit(self.tv.indexAt(pos),reply[0])
+                else:
+                    QMessageBox.information(self, 'Error changing URL', 'New URL is not valid for this site (%s)'%site)
         
 class RightClickMenu(QMenu):
     def __init__(self, removeAction, parent=None):
@@ -511,10 +526,16 @@ class MyTableModel(QAbstractTableModel):
 
     def getComplete(self,index):
         return self.arraydata[index.row()][self.headerdata.index('Complete')]
-
+    
+    def getSite(self,index):
+        return self.arraydata[index.row()][self.headerdata.index('Site')]
+    
     def getUnread(self,index):
         return self.arraydata[index.row()][self.headerdata.index('Unread')]
-
+    
+    def getUrl(self,index):
+        return self.arraydata[index.row()][self.headerdata.index('Url')]
+    
     def errorRow(self,data,errcode,errmsg):
         #errmsg is an array of messages (len 1 though)
         try:
@@ -573,6 +594,18 @@ class MyTableModel(QAbstractTableModel):
             completion_status = int(self.arraydata[index.row()][self.headerdata.index('Complete')])
             self.arraydata[index.row()][self.headerdata.index('Complete')] = completion_status ^ 1
             self.sql.completeSeries(url,completion_status^1)
+            self.dataChanged.emit(idx, idx2)
+        except:
+            pass
+
+    def editSeriesUrl(self,index,newurl):
+        row=index.row()
+        idx = self.createIndex(row,0)
+        idx2 = self.createIndex(row,len(self.headerdata)-1)
+        url=self.arraydata[index.row()][self.headerdata.index('Url')]
+        try:
+            self.arraydata[index.row()][self.headerdata.index('Url')] = newurl
+            self.sql.updateSeriesUrl(url,newurl)
             self.dataChanged.emit(idx, idx2)
         except:
             pass

@@ -1,3 +1,6 @@
+there are most certainly concurrency issues all throughout this ancient and amateurish code.
+a full rewrite is probably necessary to really fix it.
+
 you need to use blockSignals all throughout your pyqt widgets to prevent race conditions.
 
 deleting a series while it is being updated causes a crash (in python 3)

@@ -188,7 +188,12 @@ class SQLManager():
         c.execute("UPDATE series set complete=? WHERE url=?",(completed,url))
         self.conn.commit()
         c.close()
-
+        
+    def updateSeriesUrl(self,url,newurl):
+        c = self.conn.cursor()
+        c.execute("UPDATE series set url=? WHERE url=?",(newurl,url))
+        self.conn.commit()
+        c.close()
 
     # this method is extremely outdated and terribly coded BUT it still works somehow so we just leave it alone. Everything around it has changed drastically so it could probably be cut down
     # to much, much fewer lines of code. (And more readable)
