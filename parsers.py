@@ -355,7 +355,7 @@ class SeriesParser(object):
         pagebase = None
 
         chapter_path = posixpath.dirname(pieces[2])
-        first_chapter = 1 # first chapter sometimes has a slightly different url so we will refresh it after the first page.
+        first_chapter = True # first chapter sometimes has a slightly different url so we will refresh it after the first page.
         
         while self.IGNORE_BASE_PATH or posixpath.dirname(urllib.parse.urlsplit(url)[2]) == chapter_path:
 ##            print('reading',url)
@@ -383,12 +383,12 @@ class SeriesParser(object):
 ##            print('pix is',pictureurl)
             if not len(pictureurl):
                 # this means the image wasnt found. either your parser is outdated or you've reached the end of the chapter.
-                if len(images): # just to make sure the parser isnt at fault, only allow if at least one image has been found.
-                    break
-                else:
-                    e = ParserError('Image Parsing failed on %s, chapter:%s'%(self.get_title(),number))
-                    e.display="Failed parsing images for Ch.%s"%number
-                    raise e
+##                if len(images): # just to make sure the parser isnt at fault, only allow if at least one image has been found.
+##                    break
+##                else:
+                e = ParserError('Image Parsing failed on %s, chapter:%s'%(self.get_title(),number))
+                e.display="Failed parsing images for Ch.%s"%number
+                raise e
             if pictureurl in images: #prevents loops
                 break
             images.append(pictureurl)
@@ -410,7 +410,7 @@ class SeriesParser(object):
                 break
             url = newurl
             if first_chapter:
-                first_chapter = 0
+                first_chapter = False
                 chapter_path = posixpath.dirname(urllib.parse.urlsplit(url)[2])
 ##            print('next url is',url)
         return images
