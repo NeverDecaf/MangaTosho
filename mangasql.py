@@ -120,7 +120,6 @@ class SQLManager():
                 return None
         except:
             return -1
-        
 ##        series = parser(url)
         title = series.get_title()
         c = self.conn.cursor()
@@ -203,7 +202,7 @@ class SQLManager():
             series = self.parserFetch.fetch(data[self.COLUMNS.index('Url')])
                 
             if not series:
-                return 4,['Parser Error: Site no longer supported.']
+                return 4,['Parser Error: Site no longer supported (or series url changed).']
             nums,chapters = series.get_chapters()
             if not len(chapters):
                 return errtype,['Parser Error: No chapters found.'] # type 1 is a generic parser error
