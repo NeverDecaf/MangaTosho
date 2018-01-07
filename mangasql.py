@@ -116,8 +116,10 @@ class SQLManager():
         try:
             series = self.parserFetch.fetch(url)
 ##        parser=self.parserFetch.match(url)
-            if not series:
+            if not isinstance(series,parsers.SeriesParser):
                 return None
+##            if not series:
+##                return None
         except:
             return -1
 ##        series = parser(url)
@@ -205,8 +207,8 @@ class SQLManager():
             errmsg = ''
             data=list(data)
             series = self.parserFetch.fetch(data[self.COLUMNS.index('Url')])
-                
-            if not series:
+            if not isinstance(series,parsers.SeriesParser):
+##            if not series:
                 if series==-2:
                     #server error
                     logging.exception('Type 1 (failed accessing series page for '+data[1]+' due to server error 5xx)')
@@ -216,9 +218,11 @@ class SQLManager():
                     logging.exception('Type 2 (failed accessing series page for '+data[1]+' due to client error 4xx)')
                     return 2,['Series page not accessible.']
                 #else is None aka invalid site
+                logging.exception('Type 4 (series not supported: '+data[1]+')')
                 return 4,['Parser Error: Site/series no longer supported.']
             nums,chapters = series.get_chapters()
             if not len(chapters):
+                logging.exception('Type 1 (Parser Error: No chapters found: '+data[1]+')')
                 return errtype,['Parser Error: No chapters found.'] # type 1 is a generic parser error
 ##            if chapters[-1][0]!=data[3] or data[2]!=chapters[-1][0]: #[3]=latest != newlatest or last_read != newlatest, this makes more work but gives us 100% accuracy so we must
             if chapters[-1][0]!=data[self.COLUMNS.index('Chapters')] or data[self.COLUMNS.index('Read')]!=chapters[-1][0]:
@@ -266,7 +270,7 @@ class SQLManager():
                             for image in images:
 ##                                print('attempting to fetch image from',image)
                                 try: # give the site another chance (maybe)
-                                    response = series.SESSION.get(image)
+                                    response = series.SESSION.get(image, timeout = parsers.REQUEST_TIMEOUT)
                                     #this little bit retries an image as .jpg if its .png and vice versa, its pretty much used exclusively for batoto
                                     if response.status_code == 404:
                                         
@@ -277,7 +281,7 @@ class SQLManager():
                                             newpath = path+'.png'
                                         elif ext == '.png':
                                             newpath = path+'.jpg'
-                                        response = series.SESSION.get(urlunsplit((spliturl.scheme,spliturl.netloc,newpath,spliturl.query,spliturl.fragment)))
+                                        response = series.SESSION.get(urlunsplit((spliturl.scheme,spliturl.netloc,newpath,spliturl.query,spliturl.fragment)), timeout = parsers.REQUEST_TIMEOUT)
                                         if not response.ok:
                                             firstresponse.raise_for_status()
 
@@ -350,7 +354,13 @@ class SQLManager():
                     #return error type
                     return errtype,[errmsg] # type 1 is a generic parser error
     ##        return False
+            else:
+                if not data[self.COLUMNS.index('Error')] and time.time() - series.AUTO_COMPLETE_TIME > data[self.COLUMNS.index('UpdateTime')]:
+                    data[self.COLUMNS.index('Complete')] = int(series.is_complete())
+                    return 0,data
+                #no update needed but we should check autocopmlete
             return 0,[]
+            
         except NewConnectionError as e:
             if 'Errno 11004' in str(e):
                 ''' this means we don't have internet access (most likely)

@@ -43,6 +43,8 @@ os.environ["PATH"] += os.pathsep + basedir
 # only import cfscrape AFTER setting PATH
 import cfscrape
 
+REQUEST_TIMEOUT = 60
+
 def hash_no_newline(stringdata):
     #got easier in python 3 thanks to universal newline mode being the default.
     return hashlib.md5(stringdata).hexdigest()
@@ -149,6 +151,8 @@ class ParserFetch:
                         return -2
 ##                    if e.reponse.status_code//100==4:
                     return -1
+                except requests.exceptions.Timeout:
+                    return -1
         return None
     def updateCreds(self,credentials):
         for parser in self.parsers_req_creds:
@@ -162,7 +166,7 @@ class ParserFetch:
     def _update_parsers(self):
         # auto-update the parsers xml file if possible.
         if not os.path.exists('NO_PARSER_UPDATE'):
-            r=requests.get('https://raw.githubusercontent.com/NeverDecaf/MangaTosho/master/parsers.md5')
+            r=requests.get('https://raw.githubusercontent.com/NeverDecaf/MangaTosho/master/parsers.md5', timeout = REQUEST_TIMEOUT)
             targethash = r.text
             if not os.path.exists('parsers.xml'):
                 return update_parsers(PARSER_VERSION,targethash)
@@ -276,7 +280,7 @@ class SeriesParser(object):
             self.SESSION.headers.update(self.HEADERS)
             self.SESSION.init = True
         self.login()
-        r=self.SESSION.get(url)
+        r=self.SESSION.get(url, timeout = REQUEST_TIMEOUT)
         r.raise_for_status()
         self.HTML = r.text
         self.etree = lxmlhtml.fromstring(self.HTML)
@@ -353,7 +357,7 @@ class SeriesParser(object):
 
         #special EZ cases:
         if self.AIO_IMAGES_RE:
-            html = self.SESSION.get(url).text
+            html = self.SESSION.get(url, timeout = REQUEST_TIMEOUT).text
             all_images=re.compile(self.AIO_IMAGES_RE)
             return [c if c.startswith('http://') else urllib.parse.urljoin(self.SITE_URL,c) for c in [c.replace('\\','') for c in all_images.findall(html)]]
         
@@ -368,7 +372,7 @@ class SeriesParser(object):
         
         while self.IGNORE_BASE_PATH or posixpath.dirname(urllib.parse.urlsplit(url)[2]) == chapter_path:
 ##            print('reading',url)
-            r= self.SESSION.get(url)
+            r= self.SESSION.get(url, timeout = REQUEST_TIMEOUT)
 ##            html = self.SESSION.get(url).text
             html = r.text
             #we should be able to remove html once we replace everyting with xpath
@@ -434,7 +438,7 @@ class Batoto(SeriesParser):
         chapter_id = urllib.parse.urlsplit(url)[4]
         url = urllib.parse.urljoin(self.BT_READER_URL,'?id=%s&p=1'%chapter_id)
 
-        html = self.SESSION.get(url).text
+        html = self.SESSION.get(url, timeout = REQUEST_TIMEOUT).text
         etree = lxmlhtml.fromstring(html)
         # use a set to remove duplicates.
         seen = set()
@@ -444,7 +448,7 @@ class Batoto(SeriesParser):
         for page_num in page_nums:
             time.sleep(random.uniform(*delay))
             url = urllib.parse.urljoin(self.BT_READER_URL,'?id=%s&p=%i'%(chapter_id,int(page_num)))
-            html = self.SESSION.get(url).text
+            html = self.SESSION.get(url, timeout = REQUEST_TIMEOUT).text
             etree = lxmlhtml.fromstring(html)
             pictureurl = etree.xpath(self.IMAGE_URL_XPATH)
             images.append(pictureurl)
@@ -462,7 +466,7 @@ class Batoto(SeriesParser):
         referer_url = '?'.join((self.BT_LOGIN_URL,urllib.parse.urlencode({i:self.QUERY_STRING[i] for i in self.QUERY_STRING if i!='do'})))
         while tries<max_tries:
             # no need to verify login because this method will only be called if NOT already logged in.
-            response = self.SESSION.get(referer_url)
+            response = self.SESSION.get(referer_url, timeout = REQUEST_TIMEOUT)
             etree = lxmlhtml.fromstring(response.text)
             self.FORM_DATA['auth_key'] = etree.xpath(self.BT_AUTH_KEY_XPATH)
             time.sleep(.25) # small break between requests
@@ -533,7 +537,7 @@ class SadPanda(SeriesParser):
             e = ParserError('Ex Login Failed')
             e.display = 'Ex login failed'
             raise e
-        panda = self.SESSION.get(self.SITE_URL)
+        panda = self.SESSION.get(self.SITE_URL, timeout = REQUEST_TIMEOUT)
         time.sleep(random.uniform(*self.EX_DELAY))
         if hashlib.md5(panda.content).hexdigest() == self.SAD_PANDA:
             e = ParserError('Ex Login Failed (sadpanda)')
@@ -544,7 +548,7 @@ class SadPanda(SeriesParser):
 
 def update_parsers(currentversion,targethash):
     currentversion=float(currentversion)
-    r=requests.get('https://raw.githubusercontent.com/NeverDecaf/MangaTosho/master/parsers.xml')
+    r=requests.get('https://raw.githubusercontent.com/NeverDecaf/MangaTosho/master/parsers.xml', timeout = REQUEST_TIMEOUT)
     with open('parsers.tmp', 'wb') as f:
         f.write(r.content)
     #must reload to file to ensure it was written correctly
