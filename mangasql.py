@@ -116,7 +116,7 @@ class SQLManager():
         try:
             series = self.parserFetch.fetch(url)
 ##        parser=self.parserFetch.match(url)
-            if series==None:
+            if not series:
                 return None
         except:
             return -1
@@ -207,7 +207,16 @@ class SQLManager():
             series = self.parserFetch.fetch(data[self.COLUMNS.index('Url')])
                 
             if not series:
-                return 4,['Parser Error: Site no longer supported (or series url changed).']
+                if series==-2:
+                    #server error
+                    logging.exception('Type 1 (failed accessing series page for '+data[1]+' due to server error 5xx)')
+                    return 1,['Series page not accessible due to server error.']
+                if series==-1:
+                    #client error
+                    logging.exception('Type 2 (failed accessing series page for '+data[1]+' due to client error 4xx)')
+                    return 2,['Series page not accessible.']
+                #else is None aka invalid site
+                return 4,['Parser Error: Site/series no longer supported.']
             nums,chapters = series.get_chapters()
             if not len(chapters):
                 return errtype,['Parser Error: No chapters found.'] # type 1 is a generic parser error

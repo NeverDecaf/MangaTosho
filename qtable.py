@@ -689,6 +689,7 @@ class MyTableModel(QAbstractTableModel):
             if error!=0:
                 # 1 = parser error, 2= imgfetch error (dunno where i got this idea but it seems to actually just be a
                 # generic Exception that wasnt caught by anything in sql.updateSeries), 3=licensed
+                # 4=site/series not supported
 
                 # after some observation, error 2 seems to be caused by a severely misconfigured parser
                 if error==1:

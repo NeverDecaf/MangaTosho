@@ -130,6 +130,9 @@ class ParserFetch:
                 return rex[1]
         return None
     def fetch(self,url):
+        # None =  site not supported (doesn't regex match)
+        # -1 : error 4xx meaning invalid url or something similar (site is down)
+        # -2: error 5xx meaning server error aka temporary issue (mostlikely)
         #returns an actual parser object
         for rex in self.matchers:
             if rex[0].match(url):
@@ -141,6 +144,11 @@ class ParserFetch:
                         return None
                 except requests.exceptions.InvalidSchema:
                     return None
+                except requests.exceptions.HTTPError as e:
+                    if e.response.status_code//100==5:
+                        return -2
+##                    if e.reponse.status_code//100==4:
+                    return -1
         return None
     def updateCreds(self,credentials):
         for parser in self.parsers_req_creds:
@@ -269,6 +277,7 @@ class SeriesParser(object):
             self.SESSION.init = True
         self.login()
         r=self.SESSION.get(url)
+        r.raise_for_status()
         self.HTML = r.text
         self.etree = lxmlhtml.fromstring(self.HTML)
         if not self.get_title():
