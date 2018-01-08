@@ -12,6 +12,9 @@ import posixpath
 import sys
 import inspect
 import os,shutil
+import base64
+import pyaes
+import hashlib
 from fake_useragent import UserAgent
 import urllib.request, urllib.parse, urllib.error
 ##import lxml.etree.XPathEvalError as XPathError
@@ -354,7 +357,7 @@ class SeriesParser(object):
             return False
         return nums,list(zip(nums,urls))
     
-    def get_images(self,chapter,delay=(0,0)):
+    def get_images(self,chapter,delay=(0,0),fix_urls = True):
         self.login()
         #returns links to every image in the chapter where chapter is the url to the first page
         #uses a new approach where we follow links until the end of the chapter
@@ -364,7 +367,7 @@ class SeriesParser(object):
         if self.AIO_IMAGES_RE:
             html = self.SESSION.get(url, timeout = REQUEST_TIMEOUT).text
             all_images=re.compile(self.AIO_IMAGES_RE)
-            return [c if c.startswith('http://') else urllib.parse.urljoin(self.SITE_URL,c) for c in [c.replace('\\','') for c in all_images.findall(html)]]
+            return [c if (c.startswith('http://') or not fix_urls) else urllib.parse.urljoin(self.SITE_URL,c) for c in [c.replace('\\','') for c in all_images.findall(html)]]
         
         pieces = urllib.parse.urlsplit(url)
         url = urllib.parse.urlunsplit(pieces[:3]+(self.SKIP_MATURE or pieces[3],)+pieces[4:])
@@ -550,7 +553,44 @@ class SadPanda(SeriesParser):
             raise e
         time.sleep(random.uniform(*self.EX_DELAY))
         return True
+################################################################################
+class KissManga(SeriesParser):
+    
+    def get_images(self,chapter,delay=(2,4),fix_urls=False):
+        # this is the only place (for now) where we use fix_urls = false
+        res = super().get_images(chapter,delay,fix_urls)
+        try:
+            imgs = [self._decrypt_url(url.encode()) for url in res]
+        except:
+            e = ParserError('Error decoding KissManga image urls on '+self.get_title()+' (%s ch.%s)'%(chapter[1],chapter[0]))
+            e.display = 'Error decoding KissManga URLS'
+            raise e
+        return imgs
 
+    def _decrypt_url(self,encrypted_url):
+        # all credit for the logic goes to https://github.com/someonesapien/MangaDownloader
+        # this method can raise exceptions easily so make sure to catch them.
+        b64d = base64.b64decode(encrypted_url)
+        iv=bytes.fromhex('a5e8e2e9c2721be0a84ad660c472c1f3')
+        keys=[
+            b"mshsdf832nsdbash20asdmnasdbasd612basd",
+            b"72nnasdasd9asdn123nasdbasd612basd",
+            b"72nnasdasd9asdn123",
+            b"034nsdfns72nasdasd",
+            b"mshsdf832nsdbash20asdm",
+            b"nsfd732nsdnds823nsdf"
+            ]
+        keys=list(map(lambda x:bytes.fromhex(hashlib.sha256(x).hexdigest()),keys))
+        chunk_size=16 # required for CBC, luckily the input is already padded to the correct length
+        chunks = [b64d[i:i+chunk_size] for i in range(0, len(b64d), chunk_size)]
+        for key_attempt in keys:
+            aes = pyaes.AESModeOfOperationCBC(key_attempt, iv = iv)
+            try:
+                return ''.join([aes.decrypt(chunk).decode('utf8') for chunk in chunks]).strip('\x0c')
+            except:
+                pass # only one of the keys will work, just trial and error.
+        return None
+    
 def update_parsers(currentversion,targethash):
     currentversion=float(currentversion)
     r=requests.get('https://raw.githubusercontent.com/NeverDecaf/MangaTosho/master/parsers.xml', timeout = REQUEST_TIMEOUT)
