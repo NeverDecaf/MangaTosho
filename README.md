@@ -11,7 +11,7 @@ Binaries are available if you are on windows, see [Releases](https://github.com/
 
 * Double click a series to read starting from the latest unread chapter.
 * Right click a series for some options, rollback is useful for dud chapters.
-* Some sites (Batoto) require credentials before you can use them, add these through the file menu.
+* Some sites require credentials before you can use them, add these through the file menu.
 * The "Read" field can be manually edited by double clicking.
 
 Closing the main window will simply minimize it to tray. Double-click the icon to bring it back. You can also right-click the tray icon for some quick-access options.
@@ -25,7 +25,20 @@ Gray: Series has been marked as complete by either you or the site. (Newly added
 
 All colors will fade based on the amount of time since the last update. The darker the color the longer the time. A light green or red will likely fix itself over time but a darker one indicates a permanent problem.
 
+#### Supported sites (likely outdated):
+- mangakakalot
+- mangastream
+- mangawindow
+- mangapark
+- mangapanda
+- mangareader
+- kissmanga
+- dynasty-scans
+- mangahere
+- mangaseeonline
+- batoto
+- exhentai
+
 ###### Known Bugs
 * Readme sucks.
-* Update option does nothing, series aren't updated immediately after being added. (can restart if you need the update immediately)
 * Dynasty series with no chapter numbers will fail (red)
