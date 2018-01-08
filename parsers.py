@@ -148,6 +148,11 @@ class ParserFetch:
                     return None
                 except requests.exceptions.HTTPError as e:
                     if e.response.status_code//100==5:
+                        try:
+                            if b'cloudflare' in e.response.content:
+                                return -3
+                        except:
+                            pass
                         return -2
 ##                    if e.reponse.status_code//100==4:
                     return -1

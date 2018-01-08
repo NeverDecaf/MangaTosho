@@ -202,27 +202,36 @@ class SQLManager():
     def updateSeries(self,data):
         working_chapter = None
         working_page = None
+        errtype = 1
+        errmsg = ''
+        data=list(data)
+        logsafe_title = data[self.COLUMNS.index('Title')]
         try:
-            errtype = 1
-            errmsg = ''
-            data=list(data)
+            # this isnt ideal but it works and thats all we care about for logging
+            logsafe_title = str(str(data[self.COLUMNS.index('Title')]).encode('utf8'))
+        except:# UnicodeEncodeError:
+            logsafe_title = '[Could not encode name]'
+        try:
             series = self.parserFetch.fetch(data[self.COLUMNS.index('Url')])
             if not isinstance(series,parsers.SeriesParser):
 ##            if not series:
+                if series==-3:
+                    logging.exception('Type 2 (cloudflare bypass failed for '+logsafe_title)
+                    return 2,['Cloudflare bypass failed.']
                 if series==-2:
                     #server error
-                    logging.exception('Type 1 (failed accessing series page for '+data[1]+' due to server error 5xx)')
-                    return 1,['Series page not accessible due to server error.']
+                    logging.exception('Type 1 (failed accessing series page for '+logsafe_title+' due to server error 5xx)')
+                    return 1,['Webpage could not be reached. (Server Error)']
                 if series==-1:
                     #client error
-                    logging.exception('Type 2 (failed accessing series page for '+data[1]+' due to client error 4xx)')
-                    return 2,['Series page not accessible.']
+                    logging.exception('Type 2 (failed accessing series page for '+logsafe_title+' due to client error 4xx)')
+                    return 2,['Webpage could not be reached.']
                 #else is None aka invalid site
-                logging.exception('Type 4 (series not supported: '+data[1]+')')
+                logging.exception('Type 4 (series not supported: '+logsafe_title+')')
                 return 4,['Parser Error: Site/series no longer supported.']
             nums,chapters = series.get_chapters()
             if not len(chapters):
-                logging.exception('Type 1 (Parser Error: No chapters found: '+data[1]+')')
+                logging.exception('Type 1 (Parser Error: No chapters found: '+logsafe_title+')')
                 return errtype,['Parser Error: No chapters found.'] # type 1 is a generic parser error
 ##            if chapters[-1][0]!=data[3] or data[2]!=chapters[-1][0]: #[3]=latest != newlatest or last_read != newlatest, this makes more work but gives us 100% accuracy so we must
             if chapters[-1][0]!=data[self.COLUMNS.index('Chapters')] or data[self.COLUMNS.index('Read')]!=chapters[-1][0]:
@@ -245,13 +254,13 @@ class SQLManager():
                 updated_count = 0
                 validname = SQLManager.cleanName(data[self.COLUMNS.index('Title')])#[1]=name of series
                 errors=0
-                try:
-                    print('updating',len(toupdate),'chapters from',data[self.COLUMNS.index('Title')])
-                except:
-                    try:
-                        print(data[self.COLUMNS.index('Title')].encode('utf8'))
-                    except:
-                        print('could not encode name')
+##                try:
+                print('updating',len(toupdate),'chapters from',logsafe_title)
+##                except UnicodeEncodeError:
+##                    try:
+##                        print('updating',len(toupdate),'chapters from',data[self.COLUMNS.index('Title')].encode('utf8'))
+##                    except:
+##                        print('updating',len(toupdate),'chapters from','[Could not encode name]')
                 iindex=0
                 for ch in toupdate:
                     try:
@@ -311,7 +320,7 @@ class SQLManager():
                         errors+=1
                         errtype=3
                         errmsg=e.display
-                        logging.exception('Type 3-M (Licensed) ('+data[1]+' c.'+str(ch[0])+' p.'+str(iindex)+'): '+str(e))
+                        logging.exception('Type 3-M (Licensed) ('+logsafe_title+' c.'+str(ch[0])+' p.'+str(iindex)+'): '+str(e))
                         break
 ##                    except urllib2.HTTPError, e:
                     except exceptions.HTTPError as e:
@@ -319,16 +328,16 @@ class SQLManager():
                         if series.LICENSED_AS_403 and e.response.status_code==403: # mangareader and their tricks
                             errtype=3
                             errmsg='Error 403, likely licensed'
-                            logging.exception('Type 3 (Licensed) ('+data[1]+' c.'+str(ch[0])+' p.'+str(iindex)+'): '+str(e))
+                            logging.exception('Type 3 (Licensed) ('+logsafe_title+' c.'+str(ch[0])+' p.'+str(iindex)+'): '+str(e))
                             break
                         else:
                             errmsg='HTTP Error %s on Ch.%g Page %g'%(e.response.status_code,float(ch[0]),iindex)
-                            logging.exception('Type 1 ('+data[1]+' c.'+str(ch[0])+' p.'+str(iindex)+'): '+str(e))
+                            logging.exception('Type 1 ('+logsafe_title+' c.'+str(ch[0])+' p.'+str(iindex)+'): '+str(e))
                             break
                     except Exception as e:
                         errors+=1
                         errmsg='Error on Ch.%g Page %g '%(float(ch[0]),iindex)
-                        logging.exception('Type 1 ('+data[1]+' c.'+str(ch[0])+' p.'+str(iindex)+'): '+str(e))
+                        logging.exception('Type 1 ('+logsafe_title+' c.'+str(ch[0])+' p.'+str(iindex)+'): '+str(e))
                         if hasattr(e, 'display'):
                             errmsg=e.display
                         else:
@@ -344,7 +353,7 @@ class SQLManager():
                             data[self.COLUMNS.index('Complete')] = int(series.is_complete())
                     except:
                         errmsg = 'Failure parsing series completion'
-                        logging.exception('Type 2 ('+data[self.COLUMNS.index('Title')]+'): Failure parsing series completion '+str(e))
+                        logging.exception('Type 2 ('+logsafe_title+'): Failure parsing series completion '+str(e))
                         return 2,[errmsg] # err type 2 is a severe parser error
                     if updated_count>0: # if no chapters have been updated, we don't want to change the update time
                         return 0,data
@@ -365,7 +374,7 @@ class SQLManager():
             if 'Errno 11004' in str(e):
                 ''' this means we don't have internet access (most likely)
                     11004 is getaddrinfo failed '''
-                logging.exception('Type 1-nointernet ('+data[1]+' c.'+str(ch[0])+' p.'+str(iindex)+'): '+str(e))
+                logging.exception('Type 1-nointernet ('+logsafe_title+' c.'+str(ch[0])+' p.'+str(iindex)+'): '+str(e))
                 return 1,['No Internet Connection']
         except Exception as e:
             errmsg = 'Error downloading: '
@@ -373,7 +382,7 @@ class SQLManager():
                 errmsg+= e.display
             else:
                 errmsg+= type(e).__name__
-            logging.exception('Type 2 ('+data[self.COLUMNS.index('Title')]+'): '+str(e))
+            logging.exception('Type 2 ('+logsafe_title+'): '+str(e))
             return 2,[errmsg] # err type 2 is a severe parser error
                 
             
