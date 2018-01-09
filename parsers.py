@@ -32,7 +32,7 @@ else:
 if hasattr(sys,'_MEIPASS'):
     # Locate the SSL certificate for requests
     # we should only do this if this is running as an executable.
-    os.environ['REQUESTS_CA_BUNDLE'] = os.path.join(basedir , 'requests', 'cacert.pem')
+    os.environ['REQUESTS_CA_BUNDLE'] = os.path.join(basedir , 'certifi', 'cacert.pem')
 
 # need to set working directory for this to work with pyinstaller:
 try:

@@ -52,7 +52,6 @@ MMCE=resource_path("!MMCE_Win32\MMCE_Win32.exe")
 def main():
     from PyQt5 import QtGui
 
-
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
     w = MyWindow()
@@ -61,7 +60,7 @@ def main():
     x=trayIcon(w)
     if '-q' not in sys.argv and '/q' not in sys.argv and '/silent' not in sys.argv:
         w.show()
-    sys.exit(app.exec_()) 
+    sys.exit(app.exec_())
 
 def resource_path(relative_path):
     """ Get absolute path to resource, works for dev and for PyInstaller """
@@ -71,7 +70,7 @@ def resource_path(relative_path):
     except Exception:
         base_path = os.path.abspath(".")
     return os.path.join(base_path, relative_path)
-        
+
 class MyWindow(QMainWindow): 
     addSeries = pyqtSignal('QString')
     updateSeries = pyqtSignal(int)

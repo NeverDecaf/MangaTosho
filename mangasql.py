@@ -364,10 +364,12 @@ class SQLManager():
                     return errtype,[errmsg] # type 1 is a generic parser error
     ##        return False
             else:
-                if not data[self.COLUMNS.index('Error')] and time.time() - series.AUTO_COMPLETE_TIME > data[self.COLUMNS.index('UpdateTime')]:
+                #no update needed but we should check autocopmlete
+                #important that we only update here if the series is complete, otherwise it will reset last update time incorrectly.
+                if not data[self.COLUMNS.index('Error')] and int(series.is_complete()) and time.time() - series.AUTO_COMPLETE_TIME > data[self.COLUMNS.index('UpdateTime')]:
                     data[self.COLUMNS.index('Complete')] = int(series.is_complete())
                     return 0,data
-                #no update needed but we should check autocopmlete
+                
             return 0,[]
             
         except NewConnectionError as e:
