@@ -551,7 +551,7 @@ class MyTableModel(QAbstractTableModel):
         self.sql.changeSeries(self.arraydata[row])
 
     def setData(self, index, value, role=Qt.EditRole, user=False):
-        if not user and not value.isdigit(): # enforces float values for chapter num
+        if not user and not value.replace('.','',1).isdigit(): # enforces float values for chapter num
             return False
         self.arraydata[index.row()][index.column()] = str(value)
         self.dataChanged.emit(index, index)
