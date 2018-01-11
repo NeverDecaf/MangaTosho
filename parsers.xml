@@ -175,7 +175,7 @@
 		<!-- optional args, delete these if not applicable. -->
 		<chapter_nums_re>(\d\d\d+\.?\d*)</chapter_nums_re> <!-- regex used to further refine the results of chapter_nums_xpath, default is typically fine. -->
 		<aio_images_re>push\(wrapKA\("([^"]*)</aio_images_re> <!-- regex to match all image urls if the site includes them all on one page. -->
-		<kissmanga_padding_re>(\x10|\x00|\x10)*$</kissmanga_padding_re> <!-- regex to remove padding from kissmanga encrypted urls. -->
+		<kissmanga_padding_re>(\x00|\x01|\x02|\x03|\x04|\x05|\x06|\x07|\x08|\x09|\x10)*$</kissmanga_padding_re> <!-- regex to remove padding from kissmanga encrypted urls. -->
 	</site>
 	<!-- Copy this template and use it to add a new site.
 	Fields left blank will fall back to their default values, which are fine for most sites. 
