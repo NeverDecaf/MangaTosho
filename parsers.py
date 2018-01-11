@@ -586,7 +586,7 @@ class KissManga(SeriesParser):
         for key_attempt in keys:
             aes = pyaes.AESModeOfOperationCBC(key_attempt, iv = iv)
             try:
-                return ''.join([aes.decrypt(chunk).decode('utf8') for chunk in chunks]).strip('\x0c')
+                return ''.join([aes.decrypt(chunk).decode('utf8') for chunk in chunks]).rstrip('\x0c').rstrip('\x10').rstrip('\0')
             except:
                 pass # only one of the keys will work, just trial and error.
         return None
