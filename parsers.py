@@ -81,7 +81,7 @@ def unescape(text):
 # sites than have been abandoned:
 # KissManga (crazy js browser verification, MangaFox (banned in the US), MangaPandaNet (taken by russian hackers), MangaTraders (not suitable for this program)
 WORKING_SITES = []
-PARSER_VERSION = 1.65 # update if this file changes in a way that is incompatible with older parsers.xml
+PARSER_VERSION = 1.7 # update if this file changes in a way that is incompatible with older parsers.xml
 
 class ParserFetch:
     ''' you should only get parsers through the fetch() method, otherwise they will not use the correct session object '''
@@ -586,7 +586,7 @@ class KissManga(SeriesParser):
         for key_attempt in keys:
             aes = pyaes.AESModeOfOperationCBC(key_attempt, iv = iv)
             try:
-                return ''.join([aes.decrypt(chunk).decode('utf8') for chunk in chunks]).rstrip('\x0c').rstrip('\x10').rstrip('\0')
+                return self.KISSMANGA_PADDING_RE.sub('',''.join([aes.decrypt(chunk).decode('utf8') for chunk in chunks]))
             except:
                 pass # only one of the keys will work, just trial and error.
         return None
