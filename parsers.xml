@@ -80,8 +80,8 @@
 		<abbr>PA</abbr> <!-- 2 letter abbreviation of the site's name. -->
 		<site_parser_re>https?://.*mangapark.me/manga/.*</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
 		<title_xpath>substring(//div[@class='cover']/img/@title,1)</title_xpath> <!-- xpath that matches the series' title -->
-		<chapter_nums_xpath>//div[@class='stream']//span/a/text()</chapter_nums_xpath> <!-- xpath that matches all chapter numbers on the main series page -->
-		<chapter_urls_xpath>//div[@class='stream']//span/a/@href</chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
+		<chapter_nums_xpath>(//div[contains(@class, 'stream')])[last()]//span/a/text()</chapter_nums_xpath> <!-- xpath that matches all chapter numbers on the main series page -->
+		<chapter_urls_xpath>(//div[contains(@class, 'stream')])[last()]//span/a/@href</chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
 		<image_url_xpath>substring(//a[@class='img-num']/@href,1)</image_url_xpath> <!-- xpath that matches the image url on a given page of the series -->
 		<next_url_xpath>substring(//div[@class='page']/span[last()]/a/@href,1)</next_url_xpath> <!-- xpath that matches the url of the next page on a given page of the series -->
 		<!-- optional args, delete these if not applicable. -->

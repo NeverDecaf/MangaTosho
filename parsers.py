@@ -412,6 +412,11 @@ class SeriesParser(object):
                 raise e
             if pictureurl in images: #prevents loops
                 break
+            # do some small url repairs
+            if fix_urls:
+                repair = urllib.parse.urlsplit(self.SITE_URL)
+                img_url = urllib.parse.urlsplit(pictureurl)
+                pictureurl = urllib.parse.urlunsplit([repair[i] if i<2 and not img_url[i] else img_url[i] for i in range(len(img_url))])
             images.append(pictureurl)
 
             if self.PAGE_TEMPLATE_RE!=None:
