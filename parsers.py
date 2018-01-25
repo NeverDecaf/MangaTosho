@@ -81,7 +81,7 @@ def unescape(text):
 # sites than have been abandoned:
 # KissManga (crazy js browser verification, MangaFox (banned in the US), MangaPandaNet (taken by russian hackers), MangaTraders (not suitable for this program)
 WORKING_SITES = []
-PARSER_VERSION = 1.7 # update if this file changes in a way that is incompatible with older parsers.xml
+PARSER_VERSION = 1.8 # update if this file changes in a way that is incompatible with older parsers.xml
 
 class ParserFetch:
     ''' you should only get parsers through the fetch() method, otherwise they will not use the correct session object '''
@@ -358,79 +358,57 @@ class SeriesParser(object):
         return nums,list(zip(nums,urls))
     
     def get_images(self,chapter,delay=(0,0),fix_urls = True):
-        self.login()
         #returns links to every image in the chapter where chapter is the url to the first page
         #uses a new approach where we follow links until the end of the chapter
+        self.login()
         number,url = chapter
 
-        #special EZ cases:
+        ## If all image urls are easily parsable from the first page, we can finish up quickly.
         if self.AIO_IMAGES_RE:
             html = self.SESSION.get(url, timeout = REQUEST_TIMEOUT).text
             all_images=re.compile(self.AIO_IMAGES_RE)
             return [c if (c.startswith('http://') or not fix_urls) else urllib.parse.urljoin(self.SITE_URL,c) for c in [c.replace('\\','') for c in all_images.findall(html)]]
-        
+        ##
+        images=[]
+        first_chapter = True # first chapter sometimes has a slightly different url so we will refresh it after the first page.
         pieces = urllib.parse.urlsplit(url)
         url = urllib.parse.urlunsplit(pieces[:3]+(self.SKIP_MATURE or pieces[3],)+pieces[4:])
-
-        images=[]
-        pagebase = None
-
         chapter_path = posixpath.dirname(pieces[2])
-        first_chapter = True # first chapter sometimes has a slightly different url so we will refresh it after the first page.
-        
+
         while self.IGNORE_BASE_PATH or posixpath.dirname(urllib.parse.urlsplit(url)[2]) == chapter_path:
 ##            print('reading',url)
             r= self.SESSION.get(url, timeout = REQUEST_TIMEOUT)
-##            html = self.SESSION.get(url).text
             html = r.text
-            #we should be able to remove html once we replace everyting with xpath
             etree = lxmlhtml.fromstring(html)
             
             time.sleep(random.uniform(*delay))
-            
-            if pagebase==None and self.PAGE_TEMPLATE_RE!=None:
-                pagebase = self.PAGE_TEMPLATE_RE.findall(html)[0]
-                page_list = iter(self.ALL_PAGES_RE.findall(html))
-                next(page_list) #pop off the first item as it will be accessed already.
                 
             if self.LICENSED_CHECK_RE!=None and self.LICENSED_CHECK_RE.match(html)!=None:
                 e = LicensedError('Series '+self.get_title()+' is licensed.')
                 e.display = 'Series is licensed'
                 raise e
             
-##            pictureurl = self.IMAGE_URL.findall(html)[0]
-            
             pictureurl = etree.xpath(self.IMAGE_URL_XPATH)
 ##            print('pix is',pictureurl)
             if not len(pictureurl):
-                # this means the image wasnt found. either your parser is outdated or you've reached the end of the chapter.
-##                if len(images): # just to make sure the parser isnt at fault, only allow if at least one image has been found.
-##                    break
-##                else:
+                # this means the image wasnt found. (parser is outdated)
                 e = ParserError('Image Parsing failed on %s, chapter:%s'%(self.get_title(),number))
                 e.display="Failed parsing images for Ch.%s"%number
                 raise e
-            if pictureurl in images: #prevents loops
-                break
             # do some small url repairs
             if fix_urls:
                 repair = urllib.parse.urlsplit(self.SITE_URL)
                 img_url = urllib.parse.urlsplit(pictureurl)
                 pictureurl = urllib.parse.urlunsplit([repair[i] if i<2 and not img_url[i] else img_url[i] for i in range(len(img_url))])
+            if pictureurl in images: #prevents loops
+                break
             images.append(pictureurl)
 
-            if self.PAGE_TEMPLATE_RE!=None:
-                try:
-                    nexturl = page_list.next().join(pagebase)
-                except StopIteration:
-                    break
-            else:
-                try:
-                    nexturl = etree.xpath(self.NEXT_URL_XPATH)
-                except XPathError: # if IGNORE_BASE_PATH is true this is the only way to escape this infinite loop.
-                    nexturl = ''
-            if not len(nexturl): #prevents loops
+            try:
+                nexturl = etree.xpath(self.NEXT_URL_XPATH)
+            except XPathError: # if IGNORE_BASE_PATH is true this is the only way to escape this infinite loop.
                 break
+            
             newurl = urllib.parse.urljoin(url,nexturl)#join the url to correctly follow relative urls
             if newurl == url: # prevents fetching the same page twice (there is a second failsafe for this via pictureurl)
                 break
@@ -595,7 +573,61 @@ class KissManga(SeriesParser):
             except:
                 pass # only one of the keys will work, just trial and error.
         return None
+################################################################################
+class MangaDex(SeriesParser):
+    # a generic solution for this problem would be very hard to make generic so instead we just made a separate class.
+    def get_images(self,chapter,delay=(0,0),fix_urls = True):
+        self.login()
+        #returns links to every image in the chapter where chapter is the url to the first page
+        #uses a new approach where we follow links until the end of the chapter
+        number,url = chapter
+
+        #special EZ cases:
+        if self.AIO_IMAGES_RE:
+            html = self.SESSION.get(url, timeout = REQUEST_TIMEOUT).text
+            all_images=re.compile(self.AIO_IMAGES_RE)
+            return [c if (c.startswith('http://') or not fix_urls) else urllib.parse.urljoin(self.SITE_URL,c) for c in [c.replace('\\','') for c in all_images.findall(html)]]
+        
+        pieces = urllib.parse.urlsplit(url)
+        url = urllib.parse.urlunsplit(pieces[:3]+(self.SKIP_MATURE or pieces[3],)+pieces[4:])
+
+        images=[]
+        pagebase = None
+
+        chapter_path = posixpath.dirname(pieces[2])
+        first_chapter = True # first chapter sometimes has a slightly different url so we will refresh it after the first page.
+        
+        if posixpath.dirname(urllib.parse.urlsplit(url)[2]) == chapter_path:
+##            print('reading',url)
+            r= self.SESSION.get(url, timeout = REQUEST_TIMEOUT)
+##            html = self.SESSION.get(url).text
+            html = r.text
+            #we should be able to remove html once we replace everyting with xpath
+            etree = lxmlhtml.fromstring(html)
+            
+            time.sleep(random.uniform(*delay))
+            
+            if pagebase==None:
+                server = self.MANGADEX_SERVER_RE.findall(html)[0]
+                dataurl = self.MANGADEX_DATAURL_RE.findall(html)[0]
+                pagebase = server+dataurl+'/'
+                page_list = self.MANGADEX_PAGE_ARRAY_RE.findall(html)[0].replace('\'','').split(',')
+                
+            if self.LICENSED_CHECK_RE!=None and self.LICENSED_CHECK_RE.match(html)!=None:
+                e = LicensedError('Series '+self.get_title()+' is licensed.')
+                e.display = 'Series is licensed'
+                raise e
+            # do some small url repairs
+            for page in page_list:
+                pictureurl = urllib.parse.urljoin(pagebase,page)
+                if fix_urls:
+                    repair = urllib.parse.urlsplit(self.SITE_URL)
+                    img_url = urllib.parse.urlsplit(pictureurl)
+                    pictureurl = urllib.parse.urlunsplit([repair[i] if i<2 and not img_url[i] else img_url[i] for i in range(len(img_url))])
+                images.append(pictureurl)
+        return images
     
+################################################################################
 def update_parsers(currentversion,targethash):
     currentversion=float(currentversion)
     r=requests.get('https://raw.githubusercontent.com/NeverDecaf/MangaTosho/master/parsers.xml', timeout = REQUEST_TIMEOUT)
