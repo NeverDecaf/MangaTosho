@@ -53,6 +53,7 @@ def main():
     from PyQt5 import QtGui
 
     app = QApplication(sys.argv)
+##    app.setStyle('Plastique')
     app.setQuitOnLastWindowClosed(False)
     w = MyWindow()
     w.setWindowTitle('MT')
