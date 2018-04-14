@@ -81,7 +81,7 @@ def unescape(text):
 # sites than have been abandoned:
 # KissManga (crazy js browser verification, MangaFox (banned in the US), MangaPandaNet (taken by russian hackers), MangaTraders (not suitable for this program)
 WORKING_SITES = []
-PARSER_VERSION = 1.8 # update if this file changes in a way that is incompatible with older parsers.xml
+PARSER_VERSION = 1.9 # update if this file changes in a way that is incompatible with older parsers.xml
 
 class ParserFetch:
     ''' you should only get parsers through the fetch() method, otherwise they will not use the correct session object '''
@@ -197,7 +197,7 @@ class ParserFetch:
             classname = site.attrib['name']
             # remove None values and convert string booleans to booleans.
             # also create regex object for any key ending with _re
-            data={k.upper(): {'True':True,'False':False}.get(v,re.compile(v,re.IGNORECASE) if k=='site_parser_re' else re.compile(v,re.IGNORECASE) if k.endswith('_re') else v) for k, v in list(self.__children_as_dict(site).items()) if v!=None}
+            data={k.upper(): {'True':True,'False':False,'None':None}.get(v,re.compile(v,re.IGNORECASE) if k=='site_parser_re' else re.compile(v,re.IGNORECASE) if k.endswith('_re') else v) for k, v in list(self.__children_as_dict(site).items()) if v!=None}
             if classname!='TemplateSite':
                 if classname in clsmembers:
                     WORKING_SITES.append(type(classname,(clsmembers[classname],),data))
@@ -361,6 +361,11 @@ class SeriesParser(object):
         #returns links to every image in the chapter where chapter is the url to the first page
         #uses a new approach where we follow links until the end of the chapter
         self.login()
+        try:
+            if delay==(0,0):
+                delay = tuple(map(float,self.IMAGE_DELAY.split(',')))
+        except AttributeError:
+            pass
         number,url = chapter
 
         ## If all image urls are easily parsable from the first page, we can finish up quickly.
@@ -502,7 +507,7 @@ class SadPanda(SeriesParser):
 
     AUTO_COMPLETE_TIME = -1
 
-    def get_images(self,chapter,delay=(2,4)):
+    def get_images(self,chapter,delay=(0,0)):
         imgs = super().get_images(chapter,delay)
         if imgs and imgs[-1].endswith('509.gif'):
             e = ParserError('Bandwidth Exceeded')
@@ -539,7 +544,7 @@ class SadPanda(SeriesParser):
 ################################################################################
 class KissManga(SeriesParser):
     
-    def get_images(self,chapter,delay=(2,4),fix_urls=False):
+    def get_images(self,chapter,delay=(0,0),fix_urls=False):
         # this is the only place (for now) where we use fix_urls = false
         res = super().get_images(chapter,delay,fix_urls)
         try:

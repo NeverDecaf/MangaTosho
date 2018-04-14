@@ -279,7 +279,10 @@ class SQLManager():
                             for image in images:
 ##                                print('attempting to fetch image from',image)
                                 try: # give the site another chance (maybe)
-                                    response = series.SESSION.get(image, timeout = parsers.REQUEST_TIMEOUT)
+                                    try:
+                                        response = series.SESSION.get(image, timeout = parsers.REQUEST_TIMEOUT, headers={'referer': series.IMAGE_REFERER})
+                                    except AttributeError:
+                                        response = series.SESSION.get(image, timeout = parsers.REQUEST_TIMEOUT)
                                     #this little bit retries an image as .jpg if its .png and vice versa, its pretty much used exclusively for batoto
                                     if response.status_code == 404:
                                         
