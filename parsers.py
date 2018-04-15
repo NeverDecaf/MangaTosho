@@ -81,7 +81,7 @@ def unescape(text):
 # sites than have been abandoned:
 # KissManga (crazy js browser verification, MangaFox (banned in the US), MangaPandaNet (taken by russian hackers), MangaTraders (not suitable for this program)
 WORKING_SITES = []
-PARSER_VERSION = 1.9 # update if this file changes in a way that is incompatible with older parsers.xml
+PARSER_VERSION = 1.10 # update if this file changes in a way that is incompatible with older parsers.xml
 
 class ParserFetch:
     ''' you should only get parsers through the fetch() method, otherwise they will not use the correct session object '''
@@ -387,8 +387,8 @@ class SeriesParser(object):
             etree = lxmlhtml.fromstring(html)
             
             time.sleep(random.uniform(*delay))
-                
-            if self.LICENSED_CHECK_RE!=None and self.LICENSED_CHECK_RE.match(html)!=None:
+            
+            if self.LICENSED_CHECK_RE!=None and self.LICENSED_CHECK_RE.search(html)!=None:
                 e = LicensedError('Series '+self.get_title()+' is licensed.')
                 e.display = 'Series is licensed'
                 raise e
@@ -618,7 +618,7 @@ class MangaDex(SeriesParser):
                 pagebase = server+dataurl+'/'
                 page_list = self.MANGADEX_PAGE_ARRAY_RE.findall(html)[0].replace('\'','').split(',')
                 
-            if self.LICENSED_CHECK_RE!=None and self.LICENSED_CHECK_RE.match(html)!=None:
+            if self.LICENSED_CHECK_RE!=None and self.LICENSED_CHECK_RE.search(html)!=None:
                 e = LicensedError('Series '+self.get_title()+' is licensed.')
                 e.display = 'Series is licensed'
                 raise e

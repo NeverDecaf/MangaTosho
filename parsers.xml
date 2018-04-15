@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <sites>
 	<info>
-		<version>1.9</version>
+		<version>1.10</version>
 	</info>
 	<site name="MangaSee">
 		<!-- essential args. must supply all of these -->
@@ -26,6 +26,7 @@
 		<image_url_xpath>substring(//img[@id='image']/@src,1)</image_url_xpath> <!-- xpath that matches the image url on a given page of the series -->
 		<next_url_xpath>substring(//a[@onclick='return next_page();']/@href,1)</next_url_xpath> <!-- xpath that matches the url of the next page on a given page of the series -->
 		<!-- optional args, delete these if not applicable. -->
+		<licensed_check_re><![CDATA[(has been licensed)]]></licensed_check_re> <!-- regex that matches if series is licensed -->
 		<is_complete_xpath>//li[label[text()='Status:'] and text()='Completed']</is_complete_xpath> <!-- xpath that matches if the series has been marked "Complete" -->
 		<image_delay>1,1.5</image_delay> <!-- Time (in seconds) between image fetches, may be needed to prevent rate limit. Give lower then upper bounds (comma separated). -->
 	</site>
