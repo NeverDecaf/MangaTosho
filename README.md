@@ -26,17 +26,17 @@ Gray: Series has been marked as complete by either you or the site. (Newly added
 All colors will fade based on the amount of time since the last update. The darker the color the longer the time. A light green or red will likely fix itself over time but a darker one indicates a permanent problem.
 
 #### Supported sites (likely outdated):
-- mangakakalot
-- mangastream
+- mangareader
+- mangadex
+- dynasty-scans
+- kissmanga
+- mangahere
 - mangawindow
+- mangaseeonline
+- mangakakalot
+- readms
 - mangapark
 - mangapanda
-- mangareader
-- kissmanga
-- dynasty-scans
-- mangahere
-- mangaseeonline
-- batoto
 - exhentai
 
 ###### Known Bugs
