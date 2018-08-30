@@ -106,7 +106,7 @@
 		<!-- essential args. you will need most of these. -->
 		<site_url>http://mangakakalot.com/</site_url> <!-- url of the main website -->
 		<abbr>MK</abbr> <!-- 2 letter abbreviation of the site's name. -->
-		<site_parser_re>https?://.*mangakakalot.com/manga/.+</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
+		<site_parser_re>https?://.*manga(kakalot|nelo).com/manga/.+</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
 		<title_xpath>substring(//h1/text(),1)</title_xpath> <!-- xpath that matches the series' title -->
 		<chapter_nums_xpath>//div[@class='row']/span/a/@title</chapter_nums_xpath> <!-- xpath that matches all chapter numbers on the main series page -->
 		<chapter_urls_xpath>//div[@class='row']/span/a[@title]/@href</chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
@@ -167,10 +167,10 @@
 		<site_url>https://mangadex.org/</site_url> <!-- url of the main website -->
 		<abbr>DX</abbr> <!-- 2 letter abbreviation of the site's name. -->
 		<site_parser_re>https?://mangadex.org/manga/.*</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
-		<title_xpath>substring(//h3[@class='panel-title']/text(),1)</title_xpath> <!-- xpath that matches the series' title -->
-		<chapter_nums_xpath>//div[@class='table-responsive']//td[img[@alt='English']]/preceding-sibling::td/a[@data-chapter-id]/@data-chapter-num</chapter_nums_xpath> <!-- xpath that matches all chapter numbers on the main series page -->
-		<chapter_urls_xpath>//div[@class='table-responsive']//td[img[@alt='English']]/preceding-sibling::td/a[@data-chapter-id]/@href</chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
-		<is_complete_xpath>//tr[th[text()='Pub. status:']]/td[text()='Completed']</is_complete_xpath> <!-- xpath that matches if the series has been marked "Complete" -->
+		<title_xpath>substring(//h6[@class='card-header']/text()[2],1)</title_xpath> <!-- xpath that matches the series' title -->
+		<chapter_nums_xpath>//div[contains(@class,'chapter-row') and @data-lang='1']/@data-chapter</chapter_nums_xpath> <!-- xpath that matches all chapter numbers on the main series page -->
+		<chapter_urls_xpath>//div[contains(@class,'chapter-row') and @data-lang='1']//a[@class='text-truncate']/@href</chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
+		<is_complete_xpath>//div[div[text()='Pub. status:']]/div[text()='Completed']</is_complete_xpath> <!-- xpath that matches if the series has been marked "Complete" -->
 		<!-- optional args, delete these if not applicable. -->
 		<mangadex_server_re>var server = '([^']*)</mangadex_server_re> <!-- all 3 of these mangadex regex parse from js, used to get all image urls at once -->
 		<mangadex_dataurl_re>var dataurl = '([^']*)</mangadex_dataurl_re>
