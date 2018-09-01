@@ -118,7 +118,7 @@
 	<site name="MangaNelo">
 		<!-- This is a copy of MangaKakalot, not sure if they are moving to a new site or not. -->
 		<site_url>https://manganelo.com/</site_url> <!-- url of the main website -->
-		<abbr>MK</abbr> <!-- 2 letter abbreviation of the site's name. -->
+		<abbr>MN</abbr> <!-- 2 letter abbreviation of the site's name. -->
 		<site_parser_re>https?://.*manganelo.com/manga/.+</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
 		<title_xpath>substring(//h1/text(),1)</title_xpath> <!-- xpath that matches the series' title -->
 		<chapter_nums_xpath>//div[@class='row']/span/a/@title</chapter_nums_xpath> <!-- xpath that matches all chapter numbers on the main series page -->
