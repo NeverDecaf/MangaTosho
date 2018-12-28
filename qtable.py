@@ -11,6 +11,7 @@ import time
 import subprocess
 from qtrayico import Systray
 from parsers import ParserFetch
+from functools import partial
 
 def isfloat(string):
     try:
@@ -113,6 +114,10 @@ class MyWindow(QMainWindow):
         self.credsAction.triggered.connect(self.addCredentials)
         fileMenu.addAction(self.credsAction)
 
+
+        self.historyMenu = menubar.addMenu('&History')
+        
+
         self.sinfoAction=QAction(self.tr("&Supported Sites"), self)
         self.sinfoAction.triggered.connect(self.sinfoevent)
 
@@ -121,6 +126,7 @@ class MyWindow(QMainWindow):
 
         self.legendAction=QAction(self.tr("&Color Legend"), self)
         self.legendAction.triggered.connect(self.colorLegend)
+
         
         helpMenu = menubar.addMenu('&Help')
         helpMenu.addAction(self.sinfoAction)
@@ -132,7 +138,9 @@ class MyWindow(QMainWindow):
         self.quitAction.triggered.connect(QApplication.quit)
         fileMenu.addAction(self.quitAction)
 
+
         
+
 
         self.geometry=None
         self.state=None
@@ -151,7 +159,16 @@ class MyWindow(QMainWindow):
 
         self.completeAction=QAction("&Toggle Completion", self)
         self.right_menu.addAction(self.completeAction)
+
+        self.setHistory(self.tm.getHistory())
         
+    def setHistory(self,data):
+        self.historyMenu.clear()
+        for title,num,path in data:
+            tmpaction = QAction(self.tr("&{0} {1:g}".format(title,float(num))),self)
+            self.historyMenu.addAction(tmpaction)
+            tmpaction.triggered.connect(partial(self.tm.readpath,path))
+
     def closeEvent(self,event): #override default close functionality to minimize to tray instead
          self.geometry = self.saveGeometry()
          self.state = self.saveState()
@@ -374,35 +391,45 @@ class Worker(QThread):
     errorRow = pyqtSignal('PyQt_PyObject', 'PyQt_PyObject', 'PyQt_PyObject')
     updateRow = pyqtSignal('PyQt_PyObject', 'PyQt_PyObject', 'PyQt_PyObject')
 
-    def __init__(self, data, sqlmanager, headerdata, lock, parent = None):
+    def __init__(self, data, sqlmanager, headerdata, lock, series_locks, parent = None):
         QThread.__init__(self, parent)
         self.sql=sqlmanager
         self.data=data
         self.headerdata=headerdata
         self.lock=lock
+        self.series_locks=series_locks
     def run(self):
         self.updateAll()
     def updateAll(self):
-            for datum in self.data:
-                try:
-                    self.lock.lock()
-                    complete = datum[self.headerdata.index('Complete')]
-                    if complete:
-                        continue
-                    err,data = self.sql.updateSeries(datum)
-                    if err>0:
-                        self.errorRow.emit(datum, err, data)
-                    elif len(data):
-                        self.updateRow.emit(datum, data, err)
-                    else:
-                        self.errorRow.emit(datum, 0, [''])
-##                    self.lock.unlock()
-                    time.sleep(mangasql.DELAY) # sleep between series (same delay as between chapters)
-                except:
-                    fh=open('CRITICAL ERROR SEARCH QTABLE FOR THIS LINE','wb')
-                    fh.close()
-                finally:
-                    self.lock.unlock()
+            try:
+                self.lock.lock()
+                for datum in self.data:
+                    lockset = self.series_locks.setdefault(datum[self.headerdata.index('Url')],[QMutex(),0])
+                    thislock = lockset[0]
+                    thislock.lock()
+                    try:
+                        complete = datum[self.headerdata.index('Complete')]
+                        if complete:
+                            continue
+                        err,data = self.sql.updateSeries(datum)
+                        if err>0:
+                            self.errorRow.emit(datum, err, data)
+                        elif len(data):
+                            if lockset[1]:
+                                # means a change occured mid-update, in this case we don't want to overwrite the data.
+                                lockset[1]=0
+                            else:
+                                self.updateRow.emit(datum, data, err)
+                        else:
+                            self.errorRow.emit(datum, 0, [''])
+                        time.sleep(mangasql.DELAY) # sleep between series (same delay as between chapters)
+                    finally:
+                        thislock.unlock()
+            except:
+                fh=open('CRITICAL ERROR SEARCH QTABLE FOR THIS LINE','wb')
+                fh.close()
+            finally:
+                self.lock.unlock()
 
 class MyTableModel(QAbstractTableModel): 
     dataChanged = pyqtSignal(QModelIndex, QModelIndex)
@@ -421,6 +448,7 @@ class MyTableModel(QAbstractTableModel):
         self.sql=SQLManager(parserFetch)
         # create lock for threads
         self.lock = QMutex()
+        self.series_locks = {}
         
         self.arraydata = self.sql.getSeries()
         self.headerdata = headerdata
@@ -440,11 +468,15 @@ class MyTableModel(QAbstractTableModel):
         self.setReader(self.sql.getReader())
         
         self.updateAll()
+        
     def setCredentials(self,creds):
         self.sql.setCredentials(creds)
 
     def getCredentials(self):
         return self.sql.getCredentials()
+
+    def getHistory(self):
+        return self.sql.getHistory()
     
     def setReader(self,new):
         self.readercmd=str(new)
@@ -480,7 +512,7 @@ class MyTableModel(QAbstractTableModel):
     def updateSeries(self,index):
         #Just do the same as updateAll except with an array of size 1.
         #create the business thread
-        self.thread = Worker([self.arraydata[index]],self.sql,self.headerdata,self.lock)
+        self.thread = Worker([self.arraydata[index]],self.sql,self.headerdata,self.lock,self.series_locks)
         
         self.thread.updateRow['PyQt_PyObject', 'PyQt_PyObject', 'PyQt_PyObject'].connect(self.updateRow)
         self.thread.errorRow['PyQt_PyObject', 'PyQt_PyObject', 'PyQt_PyObject'].connect(self.errorRow)
@@ -494,7 +526,7 @@ class MyTableModel(QAbstractTableModel):
         
     def updateAll(self):
         #create the business thread
-        self.thread = Worker(self.arraydata,self.sql,self.headerdata,self.lock)
+        self.thread = Worker(self.arraydata,self.sql,self.headerdata,self.lock,self.series_locks)
         self.thread.updateRow['PyQt_PyObject', 'PyQt_PyObject', 'PyQt_PyObject'].connect(self.updateRow)
         self.thread.errorRow['PyQt_PyObject', 'PyQt_PyObject', 'PyQt_PyObject'].connect(self.errorRow)
         self.thread.finished.connect(self.waitThenUpdate)
@@ -554,10 +586,23 @@ class MyTableModel(QAbstractTableModel):
     def setData(self, index, value, role=Qt.EditRole, user=False):
         if not user and not value.replace('.','',1).isdigit(): # enforces float values for chapter num
             return False
-        self.arraydata[index.row()][index.column()] = str(value)
-        self.dataChanged.emit(index, index)
-        self.sql.changeSeries(self.arraydata[index.row()])
-        self.resort()
+        locked = 0
+        if self.arraydata[index.row()][self.headerdata.index('Url')] in self.series_locks:
+            lockset = self.series_locks[self.arraydata[index.row()][self.headerdata.index('Url')]]
+            lock = lockset[0]
+            if lock.tryLock():
+                locked=lock
+                lockset[1] = 0
+            else:
+                lockset[1] = 1 # data changed but lock could not be aquired, meaning update in progress
+        try:
+            self.arraydata[index.row()][index.column()] = str(value)
+            self.dataChanged.emit(index, index)
+            self.sql.changeSeries(self.arraydata[index.row()])
+            self.resort()
+        finally:
+            if locked:
+                lock.unlock()
         return True
     
     def removeSeries(self,index,removedata):
@@ -616,53 +661,71 @@ class MyTableModel(QAbstractTableModel):
     def readSeries(self, index):
         if index.column()==self.current_col:
             return
-        last=self.arraydata[index.row()][self.headerdata.index('Read')]#last read chapter
 
-
-
-
-
-        sdir=SQLManager.cleanName(self.arraydata[index.row()][self.headerdata.index('Title')])#name of series
-        if os.path.exists(sdir):
-            chapters = sorted(os.listdir(sdir))
-        else:
-            chapters=[]
-
-        if not len(chapters):
-##            self.resort()
-            return
-        
-        toopen = os.path.join(sdir,chapters[0])
-
-        last = SQLManager.formatName(last) # convert to proper form
-        
-        if os.path.exists(os.path.join(sdir,last)):
-            try:
-                toopen = os.path.join(sdir,chapters[chapters.index(last)+1])
-            except:
-                toopen = os.path.join(sdir,chapters[-1])
-        elif is_number(last): # didn't find last anywhere but we'll try to fit it in
-            nextIndex = SQLManager.fitnumber(last,[x for x in chapters if isfloat(x)])
-            try:
-                toopen = os.path.join(sdir,chapters[nextIndex])
-            except:
-                toopen = os.path.join(sdir,chapters[-1])
-        if os.path.exists(os.path.realpath(toopen)):
-            if os.name=='nt':
-                if self.readercmd=='MMCE':
-                    subprocess.Popen(resource_path(MMCE)+' "'+os.path.realpath(toopen)+'"')
-                else:
-                    subprocess.Popen(self.readercmd+' "'+os.path.realpath(toopen)+'"')
+        locked = 0
+        if self.arraydata[index.row()][self.headerdata.index('Url')] in self.series_locks:
+            lockset = self.series_locks[self.arraydata[index.row()][self.headerdata.index('Url')]]
+            lock = lockset[0]
+            if lock.tryLock():
+                locked=lock
+                lockset[1] = 0
             else:
-                subprocess.Popen(self.readercmd+' "'+os.path.realpath(toopen)+'"', shell=True)
-            self.arraydata[index.row()][self.headerdata.index('Unread')]=0
-            self.arraydata[index.row()][self.current_col] = self.arraydata[index.row()][self.total_col]
-            idx = self.createIndex(index.row(),0)
-            idx2 = self.createIndex(index.row(),len(self.headerdata)-1)
-            self.dataChanged.emit(idx, idx2)
-            self.sql.changeSeries(self.arraydata[index.row()])
-            self.resort()
+                lockset[1] = 1 # data changed but lock could not be aquired, meaning update in progress
+        try:
+            last=self.arraydata[index.row()][self.headerdata.index('Read')]#last read chapter
+
+            sdir=SQLManager.cleanName(self.arraydata[index.row()][self.headerdata.index('Title')])#name of series
+            if os.path.exists(sdir):
+                chapters = sorted(os.listdir(sdir))
+            else:
+                chapters=[]
+
+            if not len(chapters):
+    ##            self.resort()
+                return
+            
+            toopen = os.path.join(sdir,chapters[0])
+
+            last = SQLManager.formatName(last) # convert to proper form
+            
+            if os.path.exists(os.path.join(sdir,last)):
+                try:
+                    toopen = os.path.join(sdir,chapters[chapters.index(last)+1])
+                except:
+                    toopen = os.path.join(sdir,chapters[-1])
+            elif is_number(last): # didn't find last anywhere but we'll try to fit it in
+                nextIndex = SQLManager.fitnumber(last,[x for x in chapters if isfloat(x)])
+                try:
+                    toopen = os.path.join(sdir,chapters[nextIndex])
+                except:
+                    toopen = os.path.join(sdir,chapters[-1])
+            if os.path.exists(os.path.realpath(toopen)):
+                self.readpath(toopen)
+                
+                self.arraydata[index.row()][self.headerdata.index('Unread')]=0
+                self.arraydata[index.row()][self.current_col] = self.arraydata[index.row()][self.total_col]
+                idx = self.createIndex(index.row(),0)
+                idx2 = self.createIndex(index.row(),len(self.headerdata)-1)
+                self.dataChanged.emit(idx, idx2)
+                self.sql.changeSeries(self.arraydata[index.row()])
+                history_last_read = os.path.basename(toopen)
+                self.sql.addHistory(self.arraydata[index.row()], history_last_read, toopen)
+                self.resort()
+                self.myparent.setHistory(self.sql.getHistory())
+##                self.myparent.addHistory("{0} {1:g}".format(self.arraydata[index.row()][self.headerdata.index('Title')],float(history_last_read)),toopen)
+        finally:
+            if locked:
+                locked.unlock()
 ##        self.resort()
+
+    def readpath(self, path):
+        if os.name=='nt':
+            if self.readercmd=='MMCE':
+                subprocess.Popen(resource_path(MMCE)+' "'+os.path.realpath(path)+'"')
+            else:
+                subprocess.Popen(self.readercmd+' "'+os.path.realpath(path)+'"')
+        else:
+            subprocess.Popen(self.readercmd+' "'+os.path.realpath(path)+'"', shell=True)
         
     def columnCount(self, parent):
 ##        try:

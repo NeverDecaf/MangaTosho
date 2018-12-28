@@ -51,6 +51,15 @@ class SQLManager():
                      (id integer PRIMARY KEY DEFAULT 0, readercmd text)''')
         c.execute('''CREATE TABLE IF NOT EXISTS site_info
                      (name text PRIMARY KEY, username text DEFAULT '', password text DEFAULT '')''')
+        # history doesn't need all these columns but it won't really hurt as the max size of this table is around 5 rows
+        c.execute('''CREATE TABLE IF NOT EXISTS history
+                     (url text PRIMARY KEY, title text, last_read text, path text)''')
+        c.execute('''CREATE TRIGGER IF NOT EXISTS prune_history AFTER INSERT ON history
+                    BEGIN
+                        delete from history where
+                        (select count(*) from history)>10 AND 
+                        rowid in (SELECT rowid FROM history limit 1);
+                    END''')
         c.execute('''INSERT OR IGNORE INTO user_settings (id, readercmd) VALUES (0,'')''')
         try:
             c.execute('''ALTER TABLE series ADD COLUMN error_msg text''')
@@ -400,10 +409,31 @@ class SQLManager():
         c.close()
         return list(list(x) for x in series)
     
-    def changeSeries(self,data):
+    def changeSeries(self,data,_tbl='series'):
         # REPLACE the data into the db.
         c = self.conn.cursor()
-        c.execute("REPLACE INTO series VALUES (?,?,?,?,?,?,?,?,?,?,?)",data)
+        c.execute("REPLACE INTO `{}` VALUES (?,?,?,?,?,?,?,?,?,?,?)".format(_tbl),data)
         self.conn.commit()
         c.close()
+
+    def addHistory(self, data, last_read, path):
+        # REPLACE the data into the db.
+        reldata = data[:2] # url, title
+        reldata.append(float(last_read))
+        reldata.append(path)
+##        localcopy = data.copy()
+##        localcopy[self.COLUMNS.index('Read')] = float(last_read)
+        c = self.conn.cursor()
+        c.execute("REPLACE INTO `history` VALUES (?,?,?,?)",reldata)
+        self.conn.commit()
+        c.close()
+
+##        return self.changeSeries(localcopy,_tbl='history')
+        
+    def getHistory(self, count=5):
+        c = self.conn.cursor()
+        c.execute('''SELECT title,last_read,path FROM history ORDER BY rowid DESC LIMIT ?''',(count,))
+        res = c.fetchall()
+        c.close()
+        return res
         
