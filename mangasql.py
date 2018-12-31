@@ -54,11 +54,12 @@ class SQLManager():
         # history doesn't need all these columns but it won't really hurt as the max size of this table is around 5 rows
         c.execute('''CREATE TABLE IF NOT EXISTS history
                      (url text PRIMARY KEY, title text, last_read text, path text)''')
+        c.execute('''DROP TRIGGER IF EXISTS prune_history''')
         c.execute('''CREATE TRIGGER IF NOT EXISTS prune_history AFTER INSERT ON history
                     BEGIN
                         delete from history where
                         (select count(*) from history)>10 AND 
-                        rowid in (SELECT rowid FROM history limit 1);
+                        rowid in (SELECT rowid FROM history order by rowid limit 1);
                     END''')
         c.execute('''INSERT OR IGNORE INTO user_settings (id, readercmd) VALUES (0,'')''')
         try:
@@ -419,7 +420,11 @@ class SQLManager():
     def addHistory(self, data, last_read, path):
         # REPLACE the data into the db.
         reldata = data[:2] # url, title
-        reldata.append(float(last_read))
+        try:
+            reldata.append(float(last_read))
+        except ValueError:
+            #last_read is #temp or another invalid directory name
+            return -1
         reldata.append(path)
 ##        localcopy = data.copy()
 ##        localcopy[self.COLUMNS.index('Read')] = float(last_read)
