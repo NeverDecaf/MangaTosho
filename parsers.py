@@ -741,9 +741,3 @@ def update_parsers(currentversion,targethash):
         else:
             return -1
     return 0
-
-a=r'var guidkey=\'\'+\'f\'+\'d\'+\'4\'+\'4\'+\'1\'+\'4\'+\'3\'+\'f\'+\'c\'+\'6\'+\'e\'+\'0\'+\'a\'+\'6\'+\'a\'+\'8\';$("#dm5_key").val(guidkey);'
-a=a.replace('\\','')
-print(a)
-b = a.split("'+'")
-print(''.join(b[1:-1])+b[-1][0])
