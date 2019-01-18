@@ -21,6 +21,7 @@ import urllib.request, urllib.parse, urllib.error
 from lxml.etree import XPathEvalError as XPathError
 from functools import reduce
 import random
+import jsbeautifier.unpackers.packer as packer
 # add the cacert.pem file to the path correctly even if compiled with pyinstaller:
 # Get the base directory
 if getattr( sys , 'frozen' , None ):    # keyword 'frozen' is for setting basedir while in onefile mode in pyinstaller
@@ -81,7 +82,7 @@ def unescape(text):
 # sites than have been abandoned:
 # KissManga (crazy js browser verification, MangaFox (banned in the US), MangaPandaNet (taken by russian hackers), MangaTraders (not suitable for this program)
 WORKING_SITES = []
-PARSER_VERSION = 1.91 # update if this file changes in a way that is incompatible with older parsers.xml
+PARSER_VERSION = 1.92 # update if this file changes in a way that is incompatible with older parsers.xml
 
 class ParserFetch:
     ''' you should only get parsers through the fetch() method, otherwise they will not use the correct session object '''
@@ -631,7 +632,96 @@ class MangaDex(SeriesParser):
                     pictureurl = urllib.parse.urlunsplit([repair[i] if i<2 and not img_url[i] else img_url[i] for i in range(len(img_url))])
                 images.append(pictureurl)
         return images
-    
+
+class MangaHere(SeriesParser):
+    def get_images(self,chapter,delay=(0,0),fix_urls = True):
+        #returns links to every image in the chapter where chapter is the url to the first page
+        #uses a new approach where we follow links until the end of the chapter
+        self.login()
+        try:
+            if delay==(0,0):
+                delay = tuple(map(float,self.IMAGE_DELAY.split(',')))
+        except AttributeError:
+            pass
+        number,url = chapter
+
+        ## If all image urls are easily parsable from the first page, we can finish up quickly.
+        if self.AIO_IMAGES_RE:
+            html = self.SESSION.get(url, timeout = REQUEST_TIMEOUT).text
+            all_images=re.compile(self.AIO_IMAGES_RE)
+            return [c if (c.startswith('http://') or not fix_urls) else urllib.parse.urljoin(self.SITE_URL,c) for c in [c.replace('\\','') for c in all_images.findall(html)]]
+        ##
+        images=[]
+        first_chapter = True # first chapter sometimes has a slightly different url so we will refresh it after the first page.
+        pieces = urllib.parse.urlsplit(url)
+        url = urllib.parse.urlunsplit(pieces[:3]+(self.SKIP_MATURE or pieces[3],)+pieces[4:])
+        chapter_path = posixpath.dirname(pieces[2])
+
+        while self.IGNORE_BASE_PATH or posixpath.dirname(urllib.parse.urlsplit(url)[2]) == chapter_path:
+##            print('reading',url)
+            r= self.SESSION.get(url, timeout = REQUEST_TIMEOUT)
+            html = r.text
+            etree = lxmlhtml.fromstring(html)
+            
+            time.sleep(random.uniform(*delay))
+            
+            if self.LICENSED_CHECK_RE!=None and self.LICENSED_CHECK_RE.search(html)!=None:
+                e = LicensedError('Series '+self.get_title()+' is licensed.')
+                e.display = 'Series is licensed'
+                raise e
+
+            ##############################################################
+            ###this section is the only part changed from SeriesParser####
+            ##############################################################
+            cid = re.findall('(?<=var chapterid) ?= ?(\d*)',html)[0]
+            imagepage = re.findall('(?<=var imagepage) ?= ?(\d*)',html)[0]
+            
+            unpack = packer.unpack(re.findall('(eval\(function.*)',html)[0])
+            unpack=unpack.replace('\\','')
+            b = unpack.split("'+'")
+            key = ''.join(b[1:-1])+b[-1][0]
+
+            jsurl= urllib.parse.urljoin(posixpath.dirname(url),'chapterfun.ashx?cid={}&page={}&key={}'.format(cid,imagepage,key))
+            r= self.SESSION.get(jsurl, timeout = REQUEST_TIMEOUT)
+            
+            unpack = packer.unpack(r.text)
+            a=re.findall('var pix="([^"]*)',unpack)[0]
+            b=re.findall('var pvalue=\["([^"]*)',unpack)[0]
+            pictureurl = a+b
+##            pictureurl = etree.xpath(self.IMAGE_URL_XPATH)
+            ##############################################################
+            ##############################################################
+            ##############################################################
+##            print('pix is',pictureurl)
+            if not len(pictureurl):
+                # this means the image wasnt found. (parser is outdated)
+                e = ParserError('Image Parsing failed on %s, chapter:%s'%(self.get_title(),number))
+                e.display="Failed parsing images for Ch.%s"%number
+                raise e
+            # do some small url repairs
+            if fix_urls:
+                repair = urllib.parse.urlsplit(self.SITE_URL)
+                img_url = urllib.parse.urlsplit(pictureurl)
+                pictureurl = urllib.parse.urlunsplit([repair[i] if i<2 and not img_url[i] else img_url[i] for i in range(len(img_url))])
+            if pictureurl in images: #prevents loops
+                break
+            images.append(pictureurl)
+
+            try:
+                nexturl = etree.xpath(self.NEXT_URL_XPATH)
+            except XPathError: # if IGNORE_BASE_PATH is true this is the only way to escape this infinite loop.
+                break
+            
+            newurl = urllib.parse.urljoin(url,nexturl)#join the url to correctly follow relative urls
+            if newurl == url: # prevents fetching the same page twice (there is a second failsafe for this via pictureurl)
+                break
+            url = newurl
+            if first_chapter:
+                first_chapter = False
+                chapter_path = posixpath.dirname(urllib.parse.urlsplit(url)[2])
+##            print('next url is',url)
+        return images
+        
 ################################################################################
 def update_parsers(currentversion,targethash):
     currentversion=float(currentversion)
@@ -651,3 +741,9 @@ def update_parsers(currentversion,targethash):
         else:
             return -1
     return 0
+
+a=r'var guidkey=\'\'+\'f\'+\'d\'+\'4\'+\'4\'+\'1\'+\'4\'+\'3\'+\'f\'+\'c\'+\'6\'+\'e\'+\'0\'+\'a\'+\'6\'+\'a\'+\'8\';$("#dm5_key").val(guidkey);'
+a=a.replace('\\','')
+print(a)
+b = a.split("'+'")
+print(''.join(b[1:-1])+b[-1][0])
