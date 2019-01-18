@@ -721,7 +721,13 @@ class MangaHere(SeriesParser):
                 chapter_path = posixpath.dirname(urllib.parse.urlsplit(url)[2])
 ##            print('next url is',url)
         return images
-        
+    def __init__(self,url,sessionobj=None):
+        # add this isAdult cookie to bypass the mature check
+        if not sessionobj:
+            sessionobj = cfscrape.create_scraper()
+        sessionobj.cookies.set('isAdult', '1', domain=urllib.parse.urlparse(self.SITE_URL).netloc, path='/')
+        return super().__init__(url,sessionobj)
+    
 ################################################################################
 def update_parsers(currentversion,targethash):
     currentversion=float(currentversion)
