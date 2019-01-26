@@ -183,7 +183,7 @@
 		<image_referer>None</image_referer> <!-- If images are hosted on an external site you may need to override the referer header. -->
 		<image_delay>2,4</image_delay> <!-- Time (in seconds) between image fetches, may be needed to prevent rate limit. Give lower then upper bounds (comma separated). -->
 	</site>
-	<site name="MangaDex">
+	<site name="TemplateSite"> <!-- formerly MangaDex, left broken for now. -->
 		<!-- essential args. you will need most of these. -->
 		<site_url>https://mangadex.org/</site_url> <!-- url of the main website -->
 		<abbr>DX</abbr> <!-- 2 letter abbreviation of the site's name. -->

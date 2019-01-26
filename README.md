@@ -21,13 +21,12 @@ Blue: All good.
 Red: Parser error, MT needs an update.  
 Green: Other error, most likely the series is missing an image/chapter, you can increment "Read" to bypass this  
 Purple: licensed.  
-Gray: Series has been marked as complete by either you or the site. (Newly added series also appear gray but this is a bug.)  
+Gray: Series has been marked as complete by either you or the site. 
 
 All colors will fade based on the amount of time since the last update. The darker the color the longer the time. A light green or red will likely fix itself over time but a darker one indicates a permanent problem.
 
 #### Supported sites (likely outdated):
 - mangareader
-- mangadex
 - dynasty-scans
 - kissmanga
 - mangahere
@@ -38,7 +37,9 @@ All colors will fade based on the amount of time since the last update. The dark
 - mangapark
 - mangapanda
 - exhentai
+- manganelo
+- mangarock
 
 ###### Known Bugs
-* Readme sucks.
+* mangadex support on hold as the site changes too often to keep up
 * Dynasty series with no chapter numbers will fail (red)
