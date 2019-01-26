@@ -7,16 +7,14 @@ import shutil
 import zipfile
 import logging
 import random
-from PIL import Image
 from io import BytesIO
 from requests import session
 from requests import exceptions
 from requests.packages.urllib3.exceptions import NewConnectionError
 from urllib.parse import urlsplit,urlunsplit
 import stat
-DELAY=5 # seconds between chapters, to keep from getting banned.
 LOGGING=False # If true, will log individual series errors to Series_Errors.log
-ALLOWED_IMAGE_ERRORS_PER_CHAPTER = 0 # I don't like this one bit. Should be 0. If you don't care about missing images increase this.
+
 
 if os.path.exists('DEBUG_TEST'):
     LOGGING=True
@@ -255,111 +253,37 @@ class SQLManager():
                 except:#
                     idx=-1
                     if is_number(data[self.COLUMNS.index('Read')]): # we try to fit the last read into the nums somwhere, even though the file doesn't exist.
-##                        idx=0
-##                        print 'fitting',data[2]
                         idx=SQLManager.fitnumber(float(data[self.COLUMNS.index('Read')]),nums)-1
-##                        print'@ index',idx
-##                        for i in range(len(nums)):
-##                            if float(nums[i])<float(data[2]):
-##                                idx+=1
                 toupdate = chapters[idx+1:]
                 unread_count = 0
-                updated_count = 0
                 validname = SQLManager.cleanName(data[self.COLUMNS.index('Title')])#[1]=name of series
                 errors=0
-##                try:
                 print('updating',len(toupdate),'chapters from',logsafe_title)
-##                except UnicodeEncodeError:
-##                    try:
-##                        print('updating',len(toupdate),'chapters from',data[self.COLUMNS.index('Title')].encode('utf8'))
-##                    except:
-##                        print('updating',len(toupdate),'chapters from','[Could not encode name]')
-                iindex=0
-                for ch in toupdate:
-                    try:
-                        img_dl_errs = 0
-                        ch=list(ch)
-                        ch[0]=SQLManager.formatName(ch[0])
-                        if not os.path.exists(os.path.join(validname,ch[0])):
-##                            print 'about to get images, if fails, you prob looped infinite'
-                            images = series.get_images(ch) # throws licensedError and maybe ?parsererror?
-##                            print 'images gotten'
-                            iindex=0
-                            tempdir= os.path.join(validname,'#temp')
-                            if os.path.exists(tempdir):
-                                shutil.rmtree(tempdir, onerror=takeown)
-                            os.makedirs(tempdir)
-                            for image in images:
-##                                print('attempting to fetch image from',image)
-                                try: # give the site another chance (maybe)
-                                    try:
-                                        response = series.SESSION.get(image, timeout = parsers.REQUEST_TIMEOUT, headers={'referer': series.IMAGE_REFERER})
-                                    except AttributeError:
-                                        response = series.SESSION.get(image, timeout = parsers.REQUEST_TIMEOUT)
-                                    #this little bit retries an image as .jpg if its .png and vice versa, its pretty much used exclusively for batoto
-                                    if response.status_code == 404:
-                                        
-                                        firstresponse = response
-                                        spliturl = urlsplit(image)
-                                        path,ext = os.path.splitext(spliturl.path)
-                                        if ext == '.jpg':
-                                            newpath = path+'.png'
-                                        elif ext == '.png':
-                                            newpath = path+'.jpg'
-                                        response = series.SESSION.get(urlunsplit((spliturl.scheme,spliturl.netloc,newpath,spliturl.query,spliturl.fragment)), timeout = parsers.REQUEST_TIMEOUT)
-                                        if not response.ok:
-                                            firstresponse.raise_for_status()
-
-                                    response.raise_for_status()#raise error code if occured
-                                    time.sleep(random.uniform(*series.IMAGE_DOWNLOAD_DELAY))
-                                    
-                                    filename = os.path.join(tempdir,str(iindex)+os.path.splitext(image)[1])
-                                    img = Image.open(BytesIO(response.content))
-                                    img.save(os.path.splitext(filename)[0]+r'.'+img.format)
-                                    iindex+=1
-                                    
-                                except:
-                                    if img_dl_errs<ALLOWED_IMAGE_ERRORS_PER_CHAPTER:
-                                        img_dl_errs+=1
-                                        pass
-                                    else:
-                                        raise
-                            shutil.move(tempdir,os.path.join(validname,ch[0]))
-                            if os.path.exists(tempdir):
-                                shutil.rmtree(tempdir, onerror=takeown)
-                            updated_count+=1
-                            #sleep should be OK in this inner loop, otherwise nothing is downloaded.
-                            time.sleep(DELAY)
-                        unread_count+=1
-                        
-                    except parsers.LicensedError as e:
-                        errors+=1
+                try:
+                    updated_count = series.save_images(validname,toupdate)
+                except parsers.LicensedError as e:
+                    errors+=1
+                    errtype=3
+                    errmsg=e.display
+                    logging.exception('Type 3-M (Licensed) ('+logsafe_title+' c.'+e.chapter+' p.'+e.imagenum+'): '+str(e))
+                except exceptions.HTTPError as e:
+                    errors+=1
+                    if series.LICENSED_AS_403 and e.response.status_code==403: # mangareader and their tricks
                         errtype=3
+                        errmsg='Error 403, likely licensed'
+                        logging.exception('Type 3 (Licensed) ('+logsafe_title+' c.'+e.chapter+' p.'+e.imagenum+'): '+str(e))
+                    else:
+                        errmsg='HTTP Error {} on Ch.{} Page {}'.format(e.response.status_code,e.chapter,e.imagenum)
+                        logging.exception('Type 1 ('+logsafe_title+' c.'+e.chapter+' p.'+e.imagenum+'): '+str(e))
+                except Exception as e:
+                    errors+=1
+                    errmsg='Error on Ch.{} Page {} '.format(e.chapter,e.imagenum)
+                    logging.exception('Type 1 ('+logsafe_title+' c.'+e.chapter+' p.'+e.imagenum+'): '+str(e))
+                    if hasattr(e, 'display'):
                         errmsg=e.display
-                        logging.exception('Type 3-M (Licensed) ('+logsafe_title+' c.'+str(ch[0])+' p.'+str(iindex)+'): '+str(e))
-                        break
-##                    except urllib2.HTTPError, e:
-                    except exceptions.HTTPError as e:
-                        errors+=1
-                        if series.LICENSED_AS_403 and e.response.status_code==403: # mangareader and their tricks
-                            errtype=3
-                            errmsg='Error 403, likely licensed'
-                            logging.exception('Type 3 (Licensed) ('+logsafe_title+' c.'+str(ch[0])+' p.'+str(iindex)+'): '+str(e))
-                            break
-                        else:
-                            errmsg='HTTP Error %s on Ch.%g Page %g'%(e.response.status_code,float(ch[0]),iindex)
-                            logging.exception('Type 1 ('+logsafe_title+' c.'+str(ch[0])+' p.'+str(iindex)+'): '+str(e))
-                            break
-                    except Exception as e:
-                        errors+=1
-                        errmsg='Error on Ch.%g Page %g '%(float(ch[0]),iindex)
-                        logging.exception('Type 1 ('+logsafe_title+' c.'+str(ch[0])+' p.'+str(iindex)+'): '+str(e))
-                        if hasattr(e, 'display'):
-                            errmsg=e.display
-                        else:
-                            errmsg+= type(e).__name__
-                        break
-                    
+                    else:
+                        errmsg+= type(e).__name__
+                        
 ##                print 'finished with',errors,'errors'
                 if errors==0:# and unread_count>0: # commenting this allows for an initial update, we also need it commented for successtime to be accurate.
                     data[self.COLUMNS.index('Unread')] = unread_count

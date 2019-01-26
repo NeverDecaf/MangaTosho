@@ -15,6 +15,9 @@ import os,shutil
 import base64
 import pyaes
 import hashlib
+import mangasql
+from PIL import Image
+from io import BytesIO
 from fake_useragent import UserAgent
 import urllib.request, urllib.parse, urllib.error
 ##import lxml.etree.XPathEvalError as XPathError
@@ -48,6 +51,8 @@ os.environ["PATH"] += os.pathsep + basedir
 import cfscrape
 
 REQUEST_TIMEOUT = 60
+ALLOWED_IMAGE_ERRORS_PER_CHAPTER = 0 # I don't like this one bit. Should be 0. If you don't care about missing images increase this.
+CHAPTER_DELAY=(4,5) # seconds between chapters, to keep from getting banned.
 
 def hash_no_newline(stringdata):
     #got easier in python 3 thanks to universal newline mode being the default.
@@ -82,7 +87,7 @@ def unescape(text):
 # sites than have been abandoned:
 # KissManga (crazy js browser verification, MangaFox (banned in the US), MangaPandaNet (taken by russian hackers), MangaTraders (not suitable for this program)
 WORKING_SITES = []
-PARSER_VERSION = 1.92 # update if this file changes in a way that is incompatible with older parsers.xml
+PARSER_VERSION = 1.93 # update if this file changes in a way that is incompatible with older parsers.xml
 
 class ParserFetch:
     ''' you should only get parsers through the fetch() method, otherwise they will not use the correct session object '''
@@ -384,6 +389,7 @@ class SeriesParser(object):
         while self.IGNORE_BASE_PATH or posixpath.dirname(urllib.parse.urlsplit(url)[2]) == chapter_path:
 ##            print('reading',url)
             r= self.SESSION.get(url, timeout = REQUEST_TIMEOUT)
+            r.raise_for_status()
             html = r.text
             etree = lxmlhtml.fromstring(html)
             
@@ -424,9 +430,234 @@ class SeriesParser(object):
                 chapter_path = posixpath.dirname(urllib.parse.urlsplit(url)[2])
 ##            print('next url is',url)
         return images
+    def save_images(self,sname,chapters):
+        updated_count=0
+        for ch in chapters:
+            try:
+            # this is our num,url tuple
+                img_dl_errs = 0
+                ch=list(ch)
+                ch[0]=mangasql.SQLManager.formatName(ch[0])
+                if not os.path.exists(os.path.join(sname,ch[0])):
+                    images = self.get_images(ch) # throws licensedError and maybe ?parsererror?
+                    iindex=0
+                    tempdir= os.path.join(sname,'#temp')
+                    if os.path.exists(tempdir):
+                        shutil.rmtree(tempdir, onerror=mangasql.takeown)
+                    os.makedirs(tempdir)
+                    for image in images:
+        ##                                print('attempting to fetch image from',image)
+                        try: # give the site another chance (maybe)
+                            try:
+                                response = self.SESSION.get(image, timeout = REQUEST_TIMEOUT, headers={'referer': self.IMAGE_REFERER})
+                            except AttributeError:
+                                response = self.SESSION.get(image, timeout = REQUEST_TIMEOUT)
+                            #this little bit retries an image as .jpg if its .png and vice versa, its pretty much used exclusively for batoto
+                            # batoto doesn't even exist so forget this part
+    ##                        if response.status_code == 404:
+    ##                            
+    ##                            firstresponse = response
+    ##                            spliturl = urlsplit(image)
+    ##                            path,ext = os.path.splitext(spliturl.path)
+    ##                            if ext == '.jpg':
+    ##                                newpath = path+'.png'
+    ##                            elif ext == '.png':
+    ##                                newpath = path+'.jpg'
+    ##                            response = series.SESSION.get(urlunsplit((spliturl.scheme,spliturl.netloc,newpath,spliturl.query,spliturl.fragment)), timeout = parsers.REQUEST_TIMEOUT)
+    ##                            if not response.ok:
+    ##                                firstresponse.raise_for_status()
 
+                            response.raise_for_status()#raise error code if occured
+                            time.sleep(random.uniform(*self.IMAGE_DOWNLOAD_DELAY))
+                            
+                            filename = os.path.join(tempdir,str(iindex)+os.path.splitext(image)[1])
+                            img = Image.open(BytesIO(response.content))
+                            img.save(os.path.splitext(filename)[0]+r'.'+img.format)
+                            iindex+=1
+                        except:
+                            if img_dl_errs<ALLOWED_IMAGE_ERRORS_PER_CHAPTER:
+                                img_dl_errs+=1
+                                pass
+                            else:
+                                raise
+                    shutil.move(tempdir,os.path.join(sname,ch[0]))
+                    if os.path.exists(tempdir):
+                        shutil.rmtree(tempdir, onerror=mangasql.takeown)
+                    updated_count+=1
+                    #sleep should be OK in this inner loop, otherwise nothing is downloaded.
+                    time.sleep(random.uniform(*CHAPTER_DELAY))
+            except Exception as e:
+                e.chapter =str(ch[0])
+                e.imagenum =str(iindex)
+                raise e
+        return updated_count
 
 ################################################################################
+class MangaRock(SeriesParser):
+    def __init__(self,url,sessionobj=None):
+        #loads the html from the series page, also checks to ensure the site is valid
+        #note if this returns False you cannot use this object.
+        self.VALID=True # is set to false if the given url doesnt match the sites url
+        self.UA = None
+        self.TITLE = None
+        pieces = urllib.parse.urlsplit(url)
+        url = urllib.parse.urlunsplit(pieces[:3]+(self.SKIP_MATURE or pieces[3],)+pieces[4:])
+        self.MAIN_URL = url
+        if self.SITE_PARSER_RE.match(url)==None:
+            self.VALID=False
+            return
+        # create a random user agent
+        if not sessionobj:
+            self.SESSION = cfscrape.create_scraper()
+        else:
+            self.SESSION = sessionobj
+        if sessionobj and hasattr(sessionobj,'init'):
+            'session already exists and has been set up'
+        else:
+            try:
+                if not 'Referer' in self.HEADERS:
+                    self.HEADERS['Referer'] = self.SITE_URL
+            except AttributeError:
+                self.HEADERS = {'Referer':self.SITE_URL}
+            if not self.UA:
+                self.UA = UserAgent(fallback='Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/37.0.2062.124 Safari/537.36')
+            self._cycle_UA()
+            adapter = requests.adapters.HTTPAdapter(max_retries=1)
+            self.SESSION.mount('https://', adapter)
+            self.SESSION.mount('http://', adapter)
+            
+            self.SESSION.keep_alive = False
+            self.SESSION.headers.update(self.HEADERS)
+            self.SESSION.init = True
+        self.login()
+        series_url = pieces[2].split('/')[2]
+        query = 'https://api.mangarockhd.com/query/web{}/info?oid={}&last=0'.format(self.MANGAROCK_QUERY_VERSION,series_url)
+        r=self.SESSION.get(query, timeout = REQUEST_TIMEOUT)
+        r.raise_for_status()
+##        self.HTML = r.text
+        self.JSON = r.json()
+##        self.etree = lxmlhtml.fromstring(self.HTML)
+        if self.JSON['code']:
+            self.VALID=False
+        elif not self.get_title():
+            self.VALID=False
+    def get_title(self):
+        #returns the title of the series
+        if self.TITLE:
+            return self.TITLE
+        title = unescape(self.JSON['data']['name'])
+        split = title.split()
+        for i in range(len(split)):
+            if split[i].isupper() or i==0:
+                split[i]=split[i].capitalize()
+        ret = r' '.join(split)
+        self.TITLE = self.AUTHOR_RE.sub(r'',ret)
+        return self.TITLE
+    def is_complete(self):
+        return self.JSON['data']['completed']
+    def get_chapters(self):
+        #returns a list of all chapters, where each entry is a tuple (number,url)
+        # for mangarock this is (order,oid)
+        raw = self.JSON['data']['chapters']
+        return [c['order']+1 for c in raw],[(c['order']+1,c['oid']) for c in raw]
+    
+    def get_images(self,chapter,delay=(0,0),fix_urls = True):
+        # chapter here is the mangarock oid
+        self.login()
+        try:
+            if delay==(0,0):
+                delay = tuple(map(float,self.IMAGE_DELAY.split(',')))
+        except AttributeError:
+            pass
+        number,oid = chapter
+        query = 'https://api.mangarockhd.com/query/web{}/pages?oid={}'.format(self.MANGAROCK_QUERY_VERSION,oid)
+        r= self.SESSION.get(query, timeout = REQUEST_TIMEOUT)
+        r.raise_for_status()
+        chjs = r.json()
+        if not chjs['code']:
+            return chjs['data']
+        else:
+            e = ParserError('Json query failed on %s, chapter:%s'%(self.get_title(),number))
+            e.display="Failed querying images for Ch.%s"%number
+            raise e
+        
+    def save_images(self,sname,chapters):
+        def decodeMRI(content):
+            #content is response.content from requests.get
+            #decode logic from: https://github.com/MinusGix/MangarockDownloader
+            buflen= len(content)
+            n = buflen +7
+            
+            data = [0]*15
+            data[0] = 82# // R
+            data[1] = 73# // I
+            data[2] = 70# // F
+            data[3] = 70# // F
+            data[7] = n >> 24 & 255
+            data[6] = n >> 16 & 255
+            data[5] = n >> 8 & 255
+            data[4] = 255 & n
+            data[8] = 87# // W
+            data[9] = 69# // E
+            data[10] = 66# // B
+            data[11] = 80# // P
+            data[12] = 86# // V
+            data[13] = 80# // P
+            data[14] = 56# // 8
+
+            decoded = BytesIO()
+            decoded.seek(0)
+            decoded.write(bytes(data))
+            decoded.write(bytes([101 ^ b for b in content]))
+
+            return decoded
+        updated_count=0
+        for ch in chapters:
+            try:
+            # this is our num,url tuple
+                img_dl_errs = 0
+                ch=list(ch)
+                ch[0]=mangasql.SQLManager.formatName(ch[0])
+                if not os.path.exists(os.path.join(sname,ch[0])):
+                    images = self.get_images(ch) # throws licensedError and maybe ?parsererror?
+                    iindex=0
+                    tempdir= os.path.join(sname,'#temp')
+                    if os.path.exists(tempdir):
+                        shutil.rmtree(tempdir, onerror=mangasql.takeown)
+                    os.makedirs(tempdir)
+                    for image in images:
+                        try: # give the site another chance (maybe)
+                            try:
+                                response = self.SESSION.get(image, timeout = REQUEST_TIMEOUT, headers={'referer': self.IMAGE_REFERER})
+                            except AttributeError:
+                                response = self.SESSION.get(image, timeout = REQUEST_TIMEOUT)
+
+                            response.raise_for_status()#raise error code if occured
+                            time.sleep(random.uniform(*self.IMAGE_DOWNLOAD_DELAY))
+                            
+                            filename = os.path.join(tempdir,str(iindex)+os.path.splitext(image)[1])
+                            buf = decodeMRI(response.content)
+                            img = Image.open(buf)
+                            img.save(os.path.splitext(filename)[0]+r'.jpeg') # force conversion to jpeg as mmce doesnt support webp
+                            iindex+=1
+                        except:
+                            if img_dl_errs<ALLOWED_IMAGE_ERRORS_PER_CHAPTER:
+                                img_dl_errs+=1
+                                pass
+                            else:
+                                raise
+                    shutil.move(tempdir,os.path.join(sname,ch[0]))
+                    if os.path.exists(tempdir):
+                        shutil.rmtree(tempdir, onerror=mangasql.takeown)
+                    updated_count+=1
+                    #sleep should be OK in this inner loop, otherwise nothing is downloaded.
+                    time.sleep(random.uniform(*CHAPTER_DELAY))
+            except Exception as e:
+                e.chapter =str(ch[0])
+                e.imagenum =str(iindex)
+                raise e
+        return updated_count
+    
 class Batoto(SeriesParser):
     def get_images(self,chapter,delay=(0,0)):
         # currently batoto does not require a login when accessing the reader, it is only needed for fetching the chapter list.
