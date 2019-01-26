@@ -613,7 +613,8 @@ class MangaDex(SeriesParser):
         
         if chjs['status']=='OK':
             chash = chjs['hash']
-            return ['https://mangadex.org/data/{}/{}'.format(chash,img) for img in chjs['page_array']]
+            cserver = chjs['server']
+            return ['{}/{}/{}'.format(cserver,chash,img) for img in chjs['page_array']]
         else:
             e = ParserError('Json query failed on %s, chapter:%s'%(self.get_title(),number))
             e.display="Failed querying images for Ch.%s"%number
