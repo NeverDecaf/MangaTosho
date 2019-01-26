@@ -1,8 +1,15 @@
 <?xml version="1.0"?>
 <sites>
 	<info>
-		<version>1.93</version>
+		<version>1.94</version>
 	</info>
+	<site name="MangaDex">
+		<!-- essential args. you will need most of these. -->
+		<site_url>https://mangadex.org/</site_url> <!-- url of the main website -->
+		<abbr>DX</abbr> <!-- 2 letter abbreviation of the site's name. -->
+		<site_parser_re>https?://mangadex.org/title/\d*</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
+		<image_download_delay>1,2</image_download_delay> <!-- Same as image_delay but used when downloading the images themselves, used mainly for sites where all image urls can be fetched at once. -->
+	</site>
 	<site name="MangaRock">
 		<!-- essential args. must supply all of these -->
 		<site_url>https://mangarock.com/</site_url> <!-- url of the main website -->
@@ -154,6 +161,7 @@
 		<sad_panda>ceddf54195d034fab64a7d20c9b0c530</sad_panda>
 		<ignore_base_path>True</ignore_base_path> <!-- path changes every page so we need this -->
 		<image_delay>2,4</image_delay> <!-- Time (in seconds) between image fetches, may be needed to prevent rate limit. Give lower then upper bounds (comma separated). -->
+		<image_download_delay>3,5</image_download_delay> <!-- Same as image_delay but used when downloading the images themselves, used mainly for sites where all image urls can be fetched at once. -->
 	</site>
 	<site name="MangaWindow">
 		<!-- essential args. you will need most of these. -->
@@ -182,20 +190,6 @@
 		<kissmanga_padding_re>(\x00|\x01|\x02|\x03|\x04|\x05|\x06|\x07|\x08|\x09|\x0a|\x0b|\x0c|\x0d|\x0e|\x0f|\x10|\x11|\x12|\x13|\x14|\x15|\x16|\x17|\x18|\x19|\x1a|\x1b|\x1c|\x1d|\x1e|\x1f)*$</kissmanga_padding_re> <!-- regex to remove padding from kissmanga encrypted urls. -->
 		<image_referer>None</image_referer> <!-- If images are hosted on an external site you may need to override the referer header. -->
 		<image_delay>2,4</image_delay> <!-- Time (in seconds) between image fetches, may be needed to prevent rate limit. Give lower then upper bounds (comma separated). -->
-	</site>
-	<site name="TemplateSite"> <!-- formerly MangaDex, left broken for now. -->
-		<!-- essential args. you will need most of these. -->
-		<site_url>https://mangadex.org/</site_url> <!-- url of the main website -->
-		<abbr>DX</abbr> <!-- 2 letter abbreviation of the site's name. -->
-		<site_parser_re>https?://mangadex.org/manga/.*</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
-		<title_xpath>substring(//h6[@class='card-header']/text()[2],1)</title_xpath> <!-- xpath that matches the series' title -->
-		<chapter_nums_xpath>//div[contains(@class,'chapter-row') and @data-lang='1']/@data-chapter</chapter_nums_xpath> <!-- xpath that matches all chapter numbers on the main series page -->
-		<chapter_urls_xpath>//div[contains(@class,'chapter-row') and @data-lang='1']//a[@class='text-truncate']/@href</chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
-		<is_complete_xpath>//div[div[text()='Pub. status:']]/div[text()='Completed']</is_complete_xpath> <!-- xpath that matches if the series has been marked "Complete" -->
-		<!-- optional args, delete these if not applicable. -->
-		<mangadex_server_re>var server = '([^']*)</mangadex_server_re> <!-- all 3 of these mangadex regex parse from js, used to get all image urls at once -->
-		<mangadex_dataurl_re>var dataurl = '([^']*)</mangadex_dataurl_re>
-		<mangadex_page_array_re>var page_array = \[\s*([^\]]*')</mangadex_page_array_re>
 	</site>
 	<!-- Copy this template and use it to add a new site.
 	Fields left blank will fall back to their default values, which are fine for most sites. 
@@ -232,7 +226,8 @@
 		<mangarock_query_version></mangarock_query_version> <!-- used for json query uri -->
 		<ignore_base_path>False</ignore_base_path> <!-- VERY DANGEROUS. Only use if pages of a series don't share the same base url, wrongly setting this to True can cause you to dl and entire series (or multiple) instead of 1 chapter so be careful -->
 		<image_referer></image_referer> <!-- If images are hosted on an external site you may need to override the referer header. -->
-		<image_delay></image_delay> <!-- Time (in seconds) between image fetches, may be needed to prevent rate limit. Give lower then upper bounds (comma separated). -->
+		<image_delay></image_delay> <!-- Time (in seconds) between image fetches, may be needed to prevent rate limit. This is a range separated by ",", for example: 2,5. -->
+		<image_download_delay></image_download_delay> <!-- Same as image_delay but used when downloading the images themselves, used mainly for sites where all image urls can be fetched at once. -->
 		<!-- The following 2 are a messy solution used only on animeA which no longer exists. -->
 		<page_template_re></page_template_re>
 		<all_pages_re></all_pages_re>

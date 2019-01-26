@@ -87,7 +87,7 @@ def unescape(text):
 # sites than have been abandoned:
 # KissManga (crazy js browser verification, MangaFox (banned in the US), MangaPandaNet (taken by russian hackers), MangaTraders (not suitable for this program)
 WORKING_SITES = []
-PARSER_VERSION = 1.93 # update if this file changes in a way that is incompatible with older parsers.xml
+PARSER_VERSION = 1.94 # update if this file changes in a way that is incompatible with older parsers.xml
 
 class ParserFetch:
     ''' you should only get parsers through the fetch() method, otherwise they will not use the correct session object '''
@@ -203,7 +203,7 @@ class ParserFetch:
             classname = site.attrib['name']
             # remove None values and convert string booleans to booleans.
             # also create regex object for any key ending with _re
-            data={k.upper(): {'True':True,'False':False,'None':None}.get(v,re.compile(v,re.IGNORECASE) if k=='site_parser_re' else re.compile(v,re.IGNORECASE) if k.endswith('_re') else v) for k, v in list(self.__children_as_dict(site).items()) if v!=None}
+            data={k.upper(): {'True':True,'False':False,'None':None}.get(v,re.compile(v,re.IGNORECASE) if k=='site_parser_re' else re.compile(v,re.IGNORECASE) if k.endswith('_re') else tuple(map(float,v.split(','))) if k.endswith('_delay') else v) for k, v in list(self.__children_as_dict(site).items()) if v!=None}
             if classname!='TemplateSite':
                 if classname in clsmembers:
                     WORKING_SITES.append(type(classname,(clsmembers[classname],),data))
@@ -369,7 +369,7 @@ class SeriesParser(object):
         self.login()
         try:
             if delay==(0,0):
-                delay = tuple(map(float,self.IMAGE_DELAY.split(',')))
+                delay = self.IMAGE_DELAY
         except AttributeError:
             pass
         number,url = chapter
@@ -491,7 +491,133 @@ class SeriesParser(object):
                 e.imagenum =str(iindex)
                 raise e
         return updated_count
+    
+################################################################################
+class MangaDex(SeriesParser):
+    # copied from mangarock, similar in that both have json api.
+    def __init__(self,url,sessionobj=None):
+        #loads the html from the series page, also checks to ensure the site is valid
+        #note if this returns False you cannot use this object.
+        self.VALID=True # is set to false if the given url doesnt match the sites url
+        self.UA = None
+        self.TITLE = None
+        pieces = urllib.parse.urlsplit(url)
+        url = urllib.parse.urlunsplit(pieces[:3]+(self.SKIP_MATURE or pieces[3],)+pieces[4:])
+        self.MAIN_URL = url
+        if self.SITE_PARSER_RE.match(url)==None:
+            self.VALID=False
+            return
+        # create a random user agent
+        if not sessionobj:
+            self.SESSION = cfscrape.create_scraper()
+        else:
+            self.SESSION = sessionobj
+        if sessionobj and hasattr(sessionobj,'init'):
+            'session already exists and has been set up'
+        else:
+            try:
+                if not 'Referer' in self.HEADERS:
+                    self.HEADERS['Referer'] = self.SITE_URL
+            except AttributeError:
+                self.HEADERS = {'Referer':self.SITE_URL}
+            if not self.UA:
+                self.UA = UserAgent(fallback='Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/37.0.2062.124 Safari/537.36')
+            self._cycle_UA()
+            adapter = requests.adapters.HTTPAdapter(max_retries=1)
+            self.SESSION.mount('https://', adapter)
+            self.SESSION.mount('http://', adapter)
+            
+            self.SESSION.keep_alive = False
+            self.SESSION.headers.update(self.HEADERS)
+            self.SESSION.init = True
+        self.login()
+        series_id = pieces[2].split('/')[2]
+        query = 'https://mangadex.org/api/manga/{}'.format(series_id)
+        r=self.SESSION.get(query, timeout = REQUEST_TIMEOUT)
+        r.raise_for_status()
+##        self.HTML = r.text
+        self.JSON = r.json()
+##        self.etree = lxmlhtml.fromstring(self.HTML)
+        if self.JSON['status']!='OK':
+            self.VALID=False
+        elif not self.get_title():
+            self.VALID=False
+    def get_title(self):
+        #returns the title of the series
+        if self.TITLE:
+            return self.TITLE
+        title = unescape(self.JSON['manga']['title'])
+        split = title.split()
+        for i in range(len(split)):
+            if split[i].isupper() or i==0:
+                split[i]=split[i].capitalize()
+        ret = r' '.join(split)
+        self.TITLE = self.AUTHOR_RE.sub(r'',ret)
+        return self.TITLE
+    def is_complete(self):
+        return self.JSON['manga']['status']==2
+    def get_chapters(self):
+        #returns a list of all chapters, where each entry is a tuple (number,url)
+        # for mangarock this is (order,oid)
+        # this is a bit complex, we have volume and chapter. need to extrapolate a bit, but how to do it cleanly?
+        # just build our own dict from scratch, too confusing otherwise.
+        volumes = {}
+        for k,v in self.JSON['chapter'].items():
+            if v['lang_code'] in ['en','gb']:
+                # eng chapter, add it.
+                try:
+                    thisvol = int(v['volume'])
+                except:
+                    thisvol = 0
+                try:
+                    thisch = float(v['chapter'])
+                except:
+                    thisch = 0.0
+                volumes.setdefault(thisvol,{})[thisch]=k
 
+        nums = []
+        urls = []
+        vol_base = 0
+        cvol = None
+        for vol in sorted(volumes.keys()):
+            for ch in sorted(volumes[vol].keys()):
+                if cvol==None:
+                    cvol = vol
+                if vol != cvol:
+                    vol_base = float(nums[-1])
+                    if ch == 0:
+                        vol_base=int(vol_base+1)
+                    cvol = vol
+                nums.append(str(ch + vol_base))
+                urls.append(volumes[vol][ch])
+        nums = self.extrapolate_nums(nums)
+        if len(nums)!=len(urls):
+            e = ParserError('Chapter Numbers and URLS do not match in '+self.get_title()+' (%i nums vs %i urls, site:%s)'%(len(nums),len(urls),type(self).__name__))
+            e.display = 'Error parsing chapter list'
+            raise e
+            return False
+        return nums,list(zip(nums,urls))
+    
+    def get_images(self,chapter,delay=(0,0),fix_urls = True):
+        self.login()
+        try:
+            if delay==(0,0):
+                delay = self.IMAGE_DELAY
+        except AttributeError:
+            pass
+        number,cid = chapter
+        query = 'https://mangadex.org/api/chapter/{}'.format(cid)
+        r= self.SESSION.get(query, timeout = REQUEST_TIMEOUT)
+        r.raise_for_status()
+        chjs = r.json()
+        
+        if chjs['status']=='OK':
+            chash = chjs['hash']
+            return ['https://mangadex.org/data/{}/{}'.format(chash,img) for img in chjs['page_array']]
+        else:
+            e = ParserError('Json query failed on %s, chapter:%s'%(self.get_title(),number))
+            e.display="Failed querying images for Ch.%s"%number
+            raise e
 ################################################################################
 class MangaRock(SeriesParser):
     def __init__(self,url,sessionobj=None):
@@ -566,7 +692,7 @@ class MangaRock(SeriesParser):
         self.login()
         try:
             if delay==(0,0):
-                delay = tuple(map(float,self.IMAGE_DELAY.split(',')))
+                delay = self.IMAGE_DELAY
         except AttributeError:
             pass
         number,oid = chapter
@@ -657,7 +783,7 @@ class MangaRock(SeriesParser):
                 e.imagenum =str(iindex)
                 raise e
         return updated_count
-    
+################################################################################
 class Batoto(SeriesParser):
     def get_images(self,chapter,delay=(0,0)):
         # currently batoto does not require a login when accessing the reader, it is only needed for fetching the chapter list.
@@ -735,7 +861,6 @@ class Batoto(SeriesParser):
 ################################################################################
 class SadPanda(SeriesParser):
     EX_DELAY = (2,3)
-    IMAGE_DOWNLOAD_DELAY = (3,5)
 
     AUTO_COMPLETE_TIME = -1
 
@@ -811,59 +936,6 @@ class KissManga(SeriesParser):
                 pass # only one of the keys will work, just trial and error.
         return None
 ################################################################################
-class MangaDex(SeriesParser):
-    # a generic solution for this problem would be very hard to make generic so instead we just made a separate class.
-    def get_images(self,chapter,delay=(0,0),fix_urls = True):
-        self.login()
-        #returns links to every image in the chapter where chapter is the url to the first page
-        #uses a new approach where we follow links until the end of the chapter
-        number,url = chapter
-
-        #special EZ cases:
-        if self.AIO_IMAGES_RE:
-            html = self.SESSION.get(url, timeout = REQUEST_TIMEOUT).text
-            all_images=re.compile(self.AIO_IMAGES_RE)
-            return [c if (c.startswith('http://') or not fix_urls) else urllib.parse.urljoin(self.SITE_URL,c) for c in [c.replace('\\','') for c in all_images.findall(html)]]
-        
-        pieces = urllib.parse.urlsplit(url)
-        url = urllib.parse.urlunsplit(pieces[:3]+(self.SKIP_MATURE or pieces[3],)+pieces[4:])
-
-        images=[]
-        pagebase = None
-
-        chapter_path = posixpath.dirname(pieces[2])
-        first_chapter = True # first chapter sometimes has a slightly different url so we will refresh it after the first page.
-        
-        if posixpath.dirname(urllib.parse.urlsplit(url)[2]) == chapter_path:
-##            print('reading',url)
-            r= self.SESSION.get(url, timeout = REQUEST_TIMEOUT)
-##            html = self.SESSION.get(url).text
-            html = r.text
-            #we should be able to remove html once we replace everyting with xpath
-            etree = lxmlhtml.fromstring(html)
-            
-            time.sleep(random.uniform(*delay))
-            
-            if pagebase==None:
-                server = self.MANGADEX_SERVER_RE.findall(html)[0]
-                dataurl = self.MANGADEX_DATAURL_RE.findall(html)[0]
-                pagebase = server+dataurl+'/'
-                page_list = self.MANGADEX_PAGE_ARRAY_RE.findall(html)[0].replace('\'','').split(',')
-                
-            if self.LICENSED_CHECK_RE!=None and self.LICENSED_CHECK_RE.search(html)!=None:
-                e = LicensedError('Series '+self.get_title()+' is licensed.')
-                e.display = 'Series is licensed'
-                raise e
-            # do some small url repairs
-            for page in page_list:
-                pictureurl = urllib.parse.urljoin(pagebase,page)
-                if fix_urls:
-                    repair = urllib.parse.urlsplit(self.SITE_URL)
-                    img_url = urllib.parse.urlsplit(pictureurl)
-                    pictureurl = urllib.parse.urlunsplit([repair[i] if i<2 and not img_url[i] else img_url[i] for i in range(len(img_url))])
-                images.append(pictureurl)
-        return images
-
 class MangaHere(SeriesParser):
     def get_images(self,chapter,delay=(0,0),fix_urls = True):
         #returns links to every image in the chapter where chapter is the url to the first page
@@ -871,7 +943,7 @@ class MangaHere(SeriesParser):
         self.login()
         try:
             if delay==(0,0):
-                delay = tuple(map(float,self.IMAGE_DELAY.split(',')))
+                delay = self.IMAGE_DELAY
         except AttributeError:
             pass
         number,url = chapter
