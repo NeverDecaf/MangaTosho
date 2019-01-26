@@ -371,6 +371,8 @@ class MyWindow(QMainWindow):
                 match = self.parserFetcher.match(reply[0])
                 if match and match.ABBR==site and reply[0] != url:
                     self.editSeriesUrl.emit(self.tv.indexAt(pos),reply[0])
+                elif reply[0] == url:
+                    QMessageBox.information(self, 'Error changing URL', 'New URL is the same as existing one.')
                 else:
                     QMessageBox.information(self, 'Error changing URL', 'New URL is not valid for this site (%s)'%site)
         

@@ -7,7 +7,7 @@
 		<!-- essential args. you will need most of these. -->
 		<site_url>https://mangadex.org/</site_url> <!-- url of the main website -->
 		<abbr>DX</abbr> <!-- 2 letter abbreviation of the site's name. -->
-		<site_parser_re>https?://mangadex.org/title/\d*</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
+		<site_parser_re>https?://mangadex.org/(title|manga)/\d*</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
 		<image_download_delay>1,2</image_download_delay> <!-- Same as image_delay but used when downloading the images themselves, used mainly for sites where all image urls can be fetched at once. -->
 	</site>
 	<site name="MangaRock">
