@@ -39,6 +39,7 @@ All colors will fade based on the amount of time since the last update. The dark
 - exhentai
 - manganelo
 - mangarock
+- mangadex
 
 ###### Known Bugs
 * Dynasty series with no chapter numbers will fail (red)
