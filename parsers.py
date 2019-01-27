@@ -87,7 +87,7 @@ def unescape(text):
 # sites than have been abandoned:
 # KissManga (crazy js browser verification, MangaFox (banned in the US), MangaPandaNet (taken by russian hackers), MangaTraders (not suitable for this program)
 WORKING_SITES = []
-PARSER_VERSION = 1.96 # update if this file changes in a way that is incompatible with older parsers.xml
+PARSER_VERSION = 2.0 # update if this file changes in a way that is incompatible with older parsers.xml
 
 class ParserFetch:
     ''' you should only get parsers through the fetch() method, otherwise they will not use the correct session object '''
@@ -209,6 +209,14 @@ class ParserFetch:
                     WORKING_SITES.append(type(classname,(clsmembers[classname],),data))
                 else:
                     WORKING_SITES.append(type(classname,(SeriesParser,),data))
+    @staticmethod
+    def _get_conversions():
+        conversions = []
+        tree = ET.parse('parsers.xml')
+        root = tree.getroot()
+        for conv in root.find('domain_changes').iter('conversion'):
+            conversions.append(conv.text.split(','))
+        return conversions
                     
     def __children_as_dict(self,t):
         d={}
@@ -299,7 +307,10 @@ class SeriesParser(object):
         r.raise_for_status()
         # use this very first request to set the referer header (in case of redirect)
         if not hasattr(self.SESSION,'init'):
-            ref = urllib.parse.urlunsplit(urllib.parse.urlsplit(r.history[-1].url)[:2]+('',)*3)
+            try:
+                ref = urllib.parse.urlunsplit(urllib.parse.urlsplit(r.history[-1].url)[:2]+('',)*3)
+            except IndexError:
+                ref = urllib.parse.urlunsplit(urllib.parse.urlsplit(r.url)[:2]+('',)*3)
             try:
                 if not 'Referer' in self.HEADERS:
                     self.HEADERS['Referer'] = ref
@@ -555,7 +566,10 @@ class MangaDex(SeriesParser):
         r.raise_for_status()
         # use this very first request to set the referer header (in case of redirect)
         if not hasattr(self.SESSION,'init'):
-            ref = urllib.parse.urlunsplit(urllib.parse.urlsplit(r.history[-1].url)[:2]+('',)*3)
+            try:
+                ref = urllib.parse.urlunsplit(urllib.parse.urlsplit(r.history[-1].url)[:2]+('',)*3)
+            except IndexError:
+                ref = urllib.parse.urlunsplit(urllib.parse.urlsplit(r.url)[:2]+('',)*3)
             try:
                 if not 'Referer' in self.HEADERS:
                     self.HEADERS['Referer'] = ref
@@ -758,7 +772,10 @@ class MangaRock(SeriesParser):
         r.raise_for_status()
         # use this very first request to set the referer header (in case of redirect)
         if not hasattr(self.SESSION,'init'):
-            ref = urllib.parse.urlunsplit(urllib.parse.urlsplit(r.history[-1].url)[:2]+('',)*3)
+            try:
+                ref = urllib.parse.urlunsplit(urllib.parse.urlsplit(r.history[-1].url)[:2]+('',)*3)
+            except IndexError:
+                ref = urllib.parse.urlunsplit(urllib.parse.urlsplit(r.url)[:2]+('',)*3)
             try:
                 if not 'Referer' in self.HEADERS:
                     self.HEADERS['Referer'] = ref
