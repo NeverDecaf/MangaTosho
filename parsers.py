@@ -222,6 +222,9 @@ class ParserError(Exception):
 class LicensedError(Exception):
     pass
 
+class DelayedError(Exception):
+    pass
+
 class SeriesParser(object):
     # these class vars should NEVER be edited by methods of this class or any subclass, doing so may break parsers.
     #required args
@@ -439,11 +442,11 @@ class SeriesParser(object):
                 ch=list(ch)
                 ch[0]=mangasql.SQLManager.formatName(ch[0])
                 if not os.path.exists(os.path.join(sname,ch[0])):
-                    images = self.get_images(ch) # throws licensedError and maybe ?parsererror?
                     iindex=0
                     tempdir= os.path.join(sname,'#temp')
                     if os.path.exists(tempdir):
                         shutil.rmtree(tempdir, onerror=mangasql.takeown)
+                    images = self.get_images(ch) # throws licensedError and maybe ?parsererror?
                     os.makedirs(tempdir)
                     for image in images:
         ##                                print('attempting to fetch image from',image)
@@ -579,12 +582,13 @@ class MangaDex(SeriesParser):
         urls = []
         vol_base = 0
         cvol = None
-        for vol in sorted(volumes.keys()):
+        for vol in sorted(volumes.keys(), key=lambda x:x or 99999): # sorts with 0 last
             for ch in sorted(volumes[vol].keys()):
                 if cvol==None:
                     cvol = vol
                 if vol != cvol:
-                    vol_base = float(nums[-1])
+                    if ch<=float(nums[-1]):
+                        vol_base = float(nums[-1])
                     if ch == 0:
                         vol_base=int(vol_base+1)
                     cvol = vol
@@ -608,7 +612,16 @@ class MangaDex(SeriesParser):
         number,cid = chapter
         query = 'https://mangadex.org/api/chapter/{}'.format(cid)
         r= self.SESSION.get(query, timeout = REQUEST_TIMEOUT)
-        r.raise_for_status()
+        delayed = 0
+        try:
+            r.raise_for_status()
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code==409:
+                ex = DelayedError()
+                ex.display='Chapter {} delayed.'.format(number)
+                raise ex
+            raise e
+            
         chjs = r.json()
         
         if chjs['status']=='OK':
@@ -616,11 +629,70 @@ class MangaDex(SeriesParser):
             cserver = chjs['server']
             if cserver.strip('/')=='data':
                 return ['https://mangadex.org/data/{}/{}'.format(chash,img) for img in chjs['page_array']]
-            return ['/'.join(cserver.strip('/'),chash.strip('/'),img.strip('/')) for img in chjs['page_array']]
+            return ['/'.join([s.strip('/') for s in (cserver,chash,img)]) for img in chjs['page_array']]
         else:
             e = ParserError('Json query failed on %s, chapter:%s'%(self.get_title(),number))
             e.display="Failed querying images for Ch.%s"%number
             raise e
+    def save_images(self,sname,chapters):
+        updated_count=0
+        delayed_err = None
+        for ch_index,ch in enumerate(chapters):
+            try:
+            # this is our num,url tuple
+                img_dl_errs = 0
+                ch=list(ch)
+                ch[0]=mangasql.SQLManager.formatName(ch[0])
+                if not os.path.exists(os.path.join(sname,ch[0])):
+                    iindex=0
+                    tempdir= os.path.join(sname,'#temp')
+                    if os.path.exists(tempdir):
+                        shutil.rmtree(tempdir, onerror=mangasql.takeown)
+                        
+                    try:
+                        images = self.get_images(ch) # throws licensedError and maybe ?parsererror?
+                    except DelayedError as e:
+                        # set some vars and return
+                        delayed_err = e
+                        if ch_index:
+                            e.last_updated = chapters[ch_index-1][0]
+                        else:
+                            e.last_updated = None
+                        e.updated_count = updated_count
+                        raise e  
+
+                    os.makedirs(tempdir)
+                    for image in images:
+                        try: # give the site another chance (maybe)
+                            try:
+                                response = self.SESSION.get(image, timeout = REQUEST_TIMEOUT, headers={'referer': self.IMAGE_REFERER})
+                            except AttributeError:
+                                response = self.SESSION.get(image, timeout = REQUEST_TIMEOUT)
+
+                            response.raise_for_status()#raise error code if occured
+                            time.sleep(random.uniform(*self.IMAGE_DOWNLOAD_DELAY))
+                            
+                            filename = os.path.join(tempdir,str(iindex)+os.path.splitext(image)[1])
+                            img = Image.open(BytesIO(response.content))
+                            img.save(os.path.splitext(filename)[0]+r'.'+img.format)
+                            iindex+=1
+                        except:
+                            if img_dl_errs<ALLOWED_IMAGE_ERRORS_PER_CHAPTER:
+                                img_dl_errs+=1
+                                pass
+                            else:
+                                raise
+                    shutil.move(tempdir,os.path.join(sname,ch[0]))
+                    if os.path.exists(tempdir):
+                        shutil.rmtree(tempdir, onerror=mangasql.takeown)
+                    updated_count+=1
+                    #sleep should be OK in this inner loop, otherwise nothing is downloaded.
+                    time.sleep(random.uniform(*CHAPTER_DELAY))
+            except Exception as e:
+                e.chapter =str(ch[0])
+                e.imagenum =str(iindex)
+                raise e
+        return updated_count
 ################################################################################
 class MangaRock(SeriesParser):
     def __init__(self,url,sessionobj=None):
@@ -748,11 +820,11 @@ class MangaRock(SeriesParser):
                 ch=list(ch)
                 ch[0]=mangasql.SQLManager.formatName(ch[0])
                 if not os.path.exists(os.path.join(sname,ch[0])):
-                    images = self.get_images(ch) # throws licensedError and maybe ?parsererror?
-                    iindex=0
                     tempdir= os.path.join(sname,'#temp')
                     if os.path.exists(tempdir):
                         shutil.rmtree(tempdir, onerror=mangasql.takeown)
+                    images = self.get_images(ch) # throws licensedError and maybe ?parsererror?
+                    iindex=0
                     os.makedirs(tempdir)
                     for image in images:
                         try: # give the site another chance (maybe)

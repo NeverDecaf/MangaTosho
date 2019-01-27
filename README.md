@@ -41,5 +41,4 @@ All colors will fade based on the amount of time since the last update. The dark
 - mangarock
 
 ###### Known Bugs
-* mangadex support on hold as the site changes too often to keep up
 * Dynasty series with no chapter numbers will fail (red)

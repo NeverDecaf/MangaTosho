@@ -261,6 +261,16 @@ class SQLManager():
                 print('updating',len(toupdate),'chapters from',logsafe_title)
                 try:
                     updated_count = series.save_images(validname,toupdate)
+                    unread_count = updated_count
+                except parsers.DelayedError as e:
+                    # this a very special error used only by mangadex (for now).
+                    # this indicates the chapter is on hold by scanlators, meaning no programmming/parser error
+                    # to handle this we should modify the value of latest chapter.
+                    updated_count = e.updated_count
+                    unread_count = updated_count
+                    if e.last_updated !=None:
+                        data[self.COLUMNS.index('Chapters')] = e.last_updated
+                        
                 except parsers.LicensedError as e:
                     errors+=1
                     errtype=3
@@ -272,6 +282,9 @@ class SQLManager():
                         errtype=3
                         errmsg='Error 403, likely licensed'
                         logging.exception('Type 3 (Licensed) ('+logsafe_title+' c.'+e.chapter+' p.'+e.imagenum+'): '+str(e))
+                    elif hasattr(e, 'display'):
+                        errmsg=e.display
+                        logging.exception('Type 1 ('+logsafe_title+' c.'+e.chapter+' p.'+e.imagenum+'): '+str(e))
                     else:
                         errmsg='HTTP Error {} on Ch.{} Page {}'.format(e.response.status_code,e.chapter,e.imagenum)
                         logging.exception('Type 1 ('+logsafe_title+' c.'+e.chapter+' p.'+e.imagenum+'): '+str(e))
