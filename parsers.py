@@ -87,7 +87,7 @@ def unescape(text):
 # sites than have been abandoned:
 # KissManga (crazy js browser verification, MangaFox (banned in the US), MangaPandaNet (taken by russian hackers), MangaTraders (not suitable for this program)
 WORKING_SITES = []
-PARSER_VERSION = 1.94 # update if this file changes in a way that is incompatible with older parsers.xml
+PARSER_VERSION = 1.95 # update if this file changes in a way that is incompatible with older parsers.xml
 
 class ParserFetch:
     ''' you should only get parsers through the fetch() method, otherwise they will not use the correct session object '''
@@ -252,6 +252,8 @@ class SeriesParser(object):
     # this is currently only used for animeA so look there for more details.
     PAGE_TEMPLATE_RE = None # matches a prefix and suffix for the url [0] [1]
     ALL_PAGES_RE = None # matches a list of all page numbers that will be sandwiched between page_template
+    IMAGE_URL_RE = None # Fallback for IMAGE_URL_XPATH if hidden in js
+    NEXT_URL_RE = None # Fallback for NEXT_URL_XPATH if hidden in js
 
     # will be used if site REQUIRES_CREDENTIALS, use class vars so we can set before creating an instance.
     USERNAME = None 
@@ -402,8 +404,11 @@ class SeriesParser(object):
                 e = LicensedError('Series '+self.get_title()+' is licensed.')
                 e.display = 'Series is licensed'
                 raise e
-            
-            pictureurl = etree.xpath(self.IMAGE_URL_XPATH)
+
+            if self.IMAGE_URL_RE:
+                pictureurl = self.IMAGE_URL_RE.findall(html)[0].replace('\\','') # this is likely js, so remove backslashes
+            else:
+                pictureurl = etree.xpath(self.IMAGE_URL_XPATH)
 ##            print('pix is',pictureurl)
             if not len(pictureurl):
                 # this means the image wasnt found. (parser is outdated)
@@ -420,9 +425,15 @@ class SeriesParser(object):
             images.append(pictureurl)
 
             try:
-                nexturl = etree.xpath(self.NEXT_URL_XPATH)
-            except XPathError: # if IGNORE_BASE_PATH is true this is the only way to escape this infinite loop.
-                break
+                if self.NEXT_URL_RE:
+                    nexturl = self.NEXT_URL_RE.findall(html)[0].replace('\\','') # this is likely js, so remove backslashes
+                else:
+                    nexturl = etree.xpath(self.NEXT_URL_XPATH)
+            except (XPathError,IndexError): # if IGNORE_BASE_PATH is true this is the only way to escape this infinite loop.
+                if self.IGNORE_BASE_PATH:
+                    break
+                else:
+                    raise
             
             newurl = urllib.parse.urljoin(url,nexturl)#join the url to correctly follow relative urls
             if newurl == url: # prevents fetching the same page twice (there is a second failsafe for this via pictureurl)
@@ -455,6 +466,8 @@ class SeriesParser(object):
                                 response = self.SESSION.get(image, timeout = REQUEST_TIMEOUT, headers={'referer': self.IMAGE_REFERER})
                             except AttributeError:
                                 response = self.SESSION.get(image, timeout = REQUEST_TIMEOUT)
+##                                new = cfscrape.create_scraper()
+##                                response=new.get(image, timeout = REQUEST_TIMEOUT)
                             #this little bit retries an image as .jpg if its .png and vice versa, its pretty much used exclusively for batoto
                             # batoto doesn't even exist so forget this part
     ##                        if response.status_code == 404:
