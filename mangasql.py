@@ -79,6 +79,9 @@ class SQLManager():
     def legacyConversions(self):
         c = self.conn.cursor()
         # change old site urls to new ones.
+        c.execute('''UPDATE series SET url=replace(url,'mangadex.org/manga/','mangadex.org/title/') WHERE site="DX" AND url LIKE "%mangadex.org/manga/%"''')
+        c.execute('''UPDATE series SET url=replace(url,'mangapark.me','mangapark.net') WHERE site="PA" AND url LIKE "%mangapark.me%"''')
+        c.execute('''UPDATE series SET url=replace(url,'mangapark.me','mangapark.net') WHERE site="PA" AND url LIKE "%mangapark.me%"''')
         c.execute('''UPDATE series SET url=replace(url,'mangahere.co','mangahere.cc') WHERE site="MH" AND url LIKE "%mangahere.co%"''')
         c.execute('''UPDATE series SET url=replace(url,'mangastream.com','readms.net') WHERE site="MS" AND url LIKE "%mangastream.com%"''')
         c.execute('''UPDATE series SET url=replace(url,'http://','https://') WHERE site="MS" AND url LIKE "http://%"''')
