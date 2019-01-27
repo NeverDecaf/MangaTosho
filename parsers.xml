@@ -16,6 +16,7 @@
 		<abbr>RO</abbr> <!-- 2 letter abbreviation of the site's name. -->
 		<site_parser_re>https?://.*mangarock.com/manga/.*</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
 		<mangarock_query_version>401</mangarock_query_version> <!-- used for json query uri -->
+		<mangarock_api_domain>https://api.mangarockhd.com</mangarock_api_domain> <!-- in case mr changes domains -->
 	</site>
 	<site name="MangaSee">
 		<!-- essential args. must supply all of these -->
@@ -226,6 +227,7 @@
 		<mangadex_dataurl_re></mangadex_dataurl_re>
 		<mangadex_page_array_re></mangadex_page_array_re>
 		<mangarock_query_version></mangarock_query_version> <!-- used for json query uri -->
+		<mangarock_api_domain></mangarock_api_domain> <!-- in case mr changes domains -->
 		<ignore_base_path>False</ignore_base_path> <!-- VERY DANGEROUS. Only use if pages of a series don't share the same base url, wrongly setting this to True can cause you to dl and entire series (or multiple) instead of 1 chapter so be careful -->
 		<image_referer></image_referer> <!-- If images are hosted on an external site you may need to override the referer header. -->
 		<image_delay></image_delay> <!-- Time (in seconds) between image fetches, may be needed to prevent rate limit. This is a range separated by ",", for example: 2,5. -->

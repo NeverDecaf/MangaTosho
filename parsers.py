@@ -550,7 +550,7 @@ class MangaDex(SeriesParser):
             self.SESSION.keep_alive = False
         self.login()
         series_id = pieces[2].split('/')[2]
-        query = 'https://mangadex.org/api/manga/{}'.format(series_id)
+        query = self.SITE_URL.strip('/')+'/api/manga/{}'.format(series_id)
         r=self.SESSION.get(query, timeout = REQUEST_TIMEOUT)
         r.raise_for_status()
         # use this very first request to set the referer header (in case of redirect)
@@ -636,7 +636,7 @@ class MangaDex(SeriesParser):
         except AttributeError:
             pass
         number,cid = chapter
-        query = 'https://mangadex.org/api/chapter/{}'.format(cid)
+        query = self.SITE_URL.strip('/')+'/api/chapter/{}'.format(cid)
         r= self.SESSION.get(query, timeout = REQUEST_TIMEOUT)
         delayed = 0
         try:
@@ -654,7 +654,7 @@ class MangaDex(SeriesParser):
             chash = chjs['hash']
             cserver = chjs['server']
             if cserver.strip('/')=='data':
-                return ['https://mangadex.org/data/{}/{}'.format(chash,img) for img in chjs['page_array']]
+                return [self.SITE_URL.strip('/')+'/data/{}/{}'.format(chash,img) for img in chjs['page_array']]
             return ['/'.join([s.strip('/') for s in (cserver,chash,img)]) for img in chjs['page_array']]
         else:
             e = ParserError('Json query failed on %s, chapter:%s'%(self.get_title(),number))
@@ -753,7 +753,7 @@ class MangaRock(SeriesParser):
             self.SESSION.keep_alive = False
         self.login()
         series_url = pieces[2].split('/')[2]
-        query = 'https://api.mangarockhd.com/query/web{}/info?oid={}&last=0'.format(self.MANGAROCK_QUERY_VERSION,series_url)
+        query = self.MANGAROCK_API_DOMAIN.strip('/')+'/query/web{}/info?oid={}&last=0'.format(self.MANGAROCK_QUERY_VERSION,series_url)
         r=self.SESSION.get(query, timeout = REQUEST_TIMEOUT)
         r.raise_for_status()
         # use this very first request to set the referer header (in case of redirect)
@@ -803,7 +803,7 @@ class MangaRock(SeriesParser):
         except AttributeError:
             pass
         number,oid = chapter
-        query = 'https://api.mangarockhd.com/query/web{}/pages?oid={}'.format(self.MANGAROCK_QUERY_VERSION,oid)
+        query = self.MANGAROCK_API_DOMAIN.strip('/')+'/query/web{}/pages?oid={}'.format(self.MANGAROCK_QUERY_VERSION,oid)
         r= self.SESSION.get(query, timeout = REQUEST_TIMEOUT)
         r.raise_for_status()
         chjs = r.json()
