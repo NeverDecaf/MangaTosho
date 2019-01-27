@@ -87,7 +87,7 @@ def unescape(text):
 # sites than have been abandoned:
 # KissManga (crazy js browser verification, MangaFox (banned in the US), MangaPandaNet (taken by russian hackers), MangaTraders (not suitable for this program)
 WORKING_SITES = []
-PARSER_VERSION = 1.95 # update if this file changes in a way that is incompatible with older parsers.xml
+PARSER_VERSION = 1.96 # update if this file changes in a way that is incompatible with older parsers.xml
 
 class ParserFetch:
     ''' you should only get parsers through the fetch() method, otherwise they will not use the correct session object '''
@@ -283,11 +283,8 @@ class SeriesParser(object):
         if sessionobj and hasattr(sessionobj,'init'):
             'session already exists and has been set up'
         else:
-            try:
-                if not 'Referer' in self.HEADERS:
-                    self.HEADERS['Referer'] = self.SITE_URL
-            except AttributeError:
-                self.HEADERS = {'Referer':self.SITE_URL}
+            if not hasattr(self,'HEADERS'):
+                self.HEADERS = {}
             if not self.UA:
                 self.UA = UserAgent(fallback='Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/37.0.2062.124 Safari/537.36')
             self._cycle_UA()
@@ -296,15 +293,25 @@ class SeriesParser(object):
             self.SESSION.mount('http://', adapter)
             
             self.SESSION.keep_alive = False
-            self.SESSION.headers.update(self.HEADERS)
-            self.SESSION.init = True
+            
         self.login()
         r=self.SESSION.get(url, timeout = REQUEST_TIMEOUT)
         r.raise_for_status()
+        # use this very first request to set the referer header (in case of redirect)
+        if not hasattr(self.SESSION,'init'):
+            ref = urllib.parse.urlunsplit(urllib.parse.urlsplit(r.history[-1].url)[:2]+('',)*3)
+            try:
+                if not 'Referer' in self.HEADERS:
+                    self.HEADERS['Referer'] = ref
+            except AttributeError:
+                self.HEADERS = {'Referer':ref}
+            self.SESSION.headers.update(self.HEADERS)
         self.HTML = r.text
         self.etree = lxmlhtml.fromstring(self.HTML)
         if not self.get_title():
             self.VALID=False
+        if self.VALID:
+            self.SESSION.init = True # only init when valid so we are sure we didn't accidentally set referer to a 404 page or something
     def _cycle_UA(self):
         self.HEADERS['User-Agent'] = self.UA.random
     def login(self):
@@ -531,11 +538,8 @@ class MangaDex(SeriesParser):
         if sessionobj and hasattr(sessionobj,'init'):
             'session already exists and has been set up'
         else:
-            try:
-                if not 'Referer' in self.HEADERS:
-                    self.HEADERS['Referer'] = self.SITE_URL
-            except AttributeError:
-                self.HEADERS = {'Referer':self.SITE_URL}
+            if not hasattr(self,'HEADERS'):
+                self.HEADERS = {}
             if not self.UA:
                 self.UA = UserAgent(fallback='Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/37.0.2062.124 Safari/537.36')
             self._cycle_UA()
@@ -544,13 +548,20 @@ class MangaDex(SeriesParser):
             self.SESSION.mount('http://', adapter)
             
             self.SESSION.keep_alive = False
-            self.SESSION.headers.update(self.HEADERS)
-            self.SESSION.init = True
         self.login()
         series_id = pieces[2].split('/')[2]
         query = 'https://mangadex.org/api/manga/{}'.format(series_id)
         r=self.SESSION.get(query, timeout = REQUEST_TIMEOUT)
         r.raise_for_status()
+        # use this very first request to set the referer header (in case of redirect)
+        if not hasattr(self.SESSION,'init'):
+            ref = urllib.parse.urlunsplit(urllib.parse.urlsplit(r.history[-1].url)[:2]+('',)*3)
+            try:
+                if not 'Referer' in self.HEADERS:
+                    self.HEADERS['Referer'] = ref
+            except AttributeError:
+                self.HEADERS = {'Referer':ref}
+            self.SESSION.headers.update(self.HEADERS)
 ##        self.HTML = r.text
         self.JSON = r.json()
 ##        self.etree = lxmlhtml.fromstring(self.HTML)
@@ -558,6 +569,8 @@ class MangaDex(SeriesParser):
             self.VALID=False
         elif not self.get_title():
             self.VALID=False
+        if self.VALID:
+            self.SESSION.init = True # only init when valid so we are sure we didn't accidentally set referer to a 404 page or something
     def get_title(self):
         #returns the title of the series
         if self.TITLE:
@@ -728,11 +741,8 @@ class MangaRock(SeriesParser):
         if sessionobj and hasattr(sessionobj,'init'):
             'session already exists and has been set up'
         else:
-            try:
-                if not 'Referer' in self.HEADERS:
-                    self.HEADERS['Referer'] = self.SITE_URL
-            except AttributeError:
-                self.HEADERS = {'Referer':self.SITE_URL}
+            if not hasattr(self,'HEADERS'):
+                self.HEADERS = {}
             if not self.UA:
                 self.UA = UserAgent(fallback='Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/37.0.2062.124 Safari/537.36')
             self._cycle_UA()
@@ -741,13 +751,20 @@ class MangaRock(SeriesParser):
             self.SESSION.mount('http://', adapter)
             
             self.SESSION.keep_alive = False
-            self.SESSION.headers.update(self.HEADERS)
-            self.SESSION.init = True
         self.login()
         series_url = pieces[2].split('/')[2]
         query = 'https://api.mangarockhd.com/query/web{}/info?oid={}&last=0'.format(self.MANGAROCK_QUERY_VERSION,series_url)
         r=self.SESSION.get(query, timeout = REQUEST_TIMEOUT)
         r.raise_for_status()
+        # use this very first request to set the referer header (in case of redirect)
+        if not hasattr(self.SESSION,'init'):
+            ref = urllib.parse.urlunsplit(urllib.parse.urlsplit(r.history[-1].url)[:2]+('',)*3)
+            try:
+                if not 'Referer' in self.HEADERS:
+                    self.HEADERS['Referer'] = ref
+            except AttributeError:
+                self.HEADERS = {'Referer':ref}
+            self.SESSION.headers.update(self.HEADERS)
 ##        self.HTML = r.text
         self.JSON = r.json()
 ##        self.etree = lxmlhtml.fromstring(self.HTML)
@@ -755,6 +772,8 @@ class MangaRock(SeriesParser):
             self.VALID=False
         elif not self.get_title():
             self.VALID=False
+        if self.VALID:
+            self.SESSION.init = True # only init when valid so we are sure we didn't accidentally set referer to a 404 page or something
     def get_title(self):
         #returns the title of the series
         if self.TITLE:

@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <sites>
 	<info>
-		<version>1.95</version>
+		<version>1.96</version>
 	</info>
 	<site name="MangaDex">
 		<!-- essential args. you will need most of these. -->
@@ -95,7 +95,7 @@
 		<!-- essential args. must supply all of these -->
 		<site_url>http://mangapark.net/</site_url> <!-- url of the main website -->
 		<abbr>PA</abbr> <!-- 2 letter abbreviation of the site's name. -->
-		<site_parser_re>https?://.*mangapark.net/manga/.*</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
+		<site_parser_re>https?://.*mangapark.(net|me)/manga/.*</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
 		<title_xpath>substring(//div[contains(@class,'cover')]/img/@title,1)</title_xpath> <!-- xpath that matches the series' title -->
 		<chapter_nums_xpath>(//div[contains(@class, 'stream')])[last()]//a[contains(@class,'visited')]/text()</chapter_nums_xpath> <!-- xpath that matches all chapter numbers on the main series page -->
 		<chapter_urls_xpath>(//div[contains(@class, 'stream')])[last()]//a[contains(@class,'visited')]/@href</chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
@@ -165,9 +165,9 @@
 	</site>
 	<site name="MangaWindow">
 		<!-- essential args. you will need most of these. -->
-		<site_url>https://mangawindow.com/</site_url> <!-- url of the main website -->
+		<site_url>https://mangawindow.net/</site_url> <!-- url of the main website -->
 		<abbr>MW</abbr> <!-- 2 letter abbreviation of the site's name. -->
-		<site_parser_re>https?://mangawindow.com/series/\d+#?</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
+		<site_parser_re>https?://mangawindow.(net|com)/series/\d+#?</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
 		<title_xpath>substring(//h3[@class='item-title']/a/text(),1)</title_xpath> <!-- xpath that matches the series' title -->
 		<chapter_nums_xpath>//div[@class='main']//a/b/text()</chapter_nums_xpath> <!-- xpath that matches all chapter numbers on the main series page -->
 		<chapter_urls_xpath>//div[@class='main']//a[@class='chapt']/@href</chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
