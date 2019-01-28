@@ -268,6 +268,8 @@ class SQLManager():
                     unread_count = e.unread_count
                     if e.last_updated !=None:
                         data[self.COLUMNS.index('Chapters')] = e.last_updated
+                    elif idx:
+                        data[self.COLUMNS.index('Chapters')] = chapters[idx][0]
                         
                 except parsers.LicensedError as e:
                     errors+=1
