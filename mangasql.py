@@ -259,14 +259,13 @@ class SQLManager():
                 errors=0
                 print('updating',len(toupdate),'chapters from',logsafe_title)
                 try:
-                    updated_count = series.save_images(validname,toupdate)
-                    unread_count = updated_count
+                    unread_count,updated_count = series.save_images(validname,toupdate)
                 except parsers.DelayedError as e:
                     # this a very special error used only by mangadex (for now).
                     # this indicates the chapter is on hold by scanlators, meaning no programmming/parser error
                     # to handle this we should modify the value of latest chapter.
                     updated_count = e.updated_count
-                    unread_count = updated_count
+                    unread_count = e.unread_count
                     if e.last_updated !=None:
                         data[self.COLUMNS.index('Chapters')] = e.last_updated
                         

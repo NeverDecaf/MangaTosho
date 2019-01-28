@@ -464,6 +464,7 @@ class SeriesParser(object):
         return images
     def save_images(self,sname,chapters):
         updated_count=0
+        unread_count=0
         for ch in chapters:
             try:
             # this is our num,url tuple
@@ -520,11 +521,12 @@ class SeriesParser(object):
                     updated_count+=1
                     #sleep should be OK in this inner loop, otherwise nothing is downloaded.
                     time.sleep(random.uniform(*CHAPTER_DELAY))
+                unread_count+=1
             except Exception as e:
                 e.chapter =str(ch[0])
                 e.imagenum =str(iindex)
                 raise e
-        return updated_count
+        return unread_count,updated_count
     
 ################################################################################
 class MangaDex(SeriesParser):
@@ -676,6 +678,7 @@ class MangaDex(SeriesParser):
             raise e
     def save_images(self,sname,chapters):
         updated_count=0
+        unread_count=0
         delayed_err = None
         for ch_index,ch in enumerate(chapters):
             try:
@@ -699,6 +702,7 @@ class MangaDex(SeriesParser):
                         else:
                             e.last_updated = None
                         e.updated_count = updated_count
+                        e.unread_count = unread_count
                         raise e  
 
                     os.makedirs(tempdir)
@@ -728,11 +732,12 @@ class MangaDex(SeriesParser):
                     updated_count+=1
                     #sleep should be OK in this inner loop, otherwise nothing is downloaded.
                     time.sleep(random.uniform(*CHAPTER_DELAY))
+                unread_count+=1
             except Exception as e:
                 e.chapter =str(ch[0])
                 e.imagenum =str(iindex)
                 raise e
-        return updated_count
+        return unread_count,updated_count
 ################################################################################
 class MangaRock(SeriesParser):
     def __init__(self,url,sessionobj=None):
@@ -862,6 +867,7 @@ class MangaRock(SeriesParser):
 
             return decoded
         updated_count=0
+        unread_count=0
         for ch in chapters:
             try:
             # this is our num,url tuple
@@ -902,11 +908,12 @@ class MangaRock(SeriesParser):
                     updated_count+=1
                     #sleep should be OK in this inner loop, otherwise nothing is downloaded.
                     time.sleep(random.uniform(*CHAPTER_DELAY))
+                unread_count+=1
             except Exception as e:
                 e.chapter =str(ch[0])
                 e.imagenum =str(iindex)
                 raise e
-        return updated_count
+        return unread_count,updated_count
 ################################################################################
 class Batoto(SeriesParser):
     def get_images(self,chapter,delay=(0,0)):
