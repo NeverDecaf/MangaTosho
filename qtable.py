@@ -6,11 +6,11 @@ from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 from mangasql import SQLManager
-import mangasql
+import parsers
 import time
 import subprocess
+import random
 from qtrayico import Systray
-from parsers import ParserFetch
 from functools import partial
 
 def isfloat(string):
@@ -85,7 +85,7 @@ class MyWindow(QMainWindow):
         QMainWindow.__init__(self, *args) 
 
 
-        self.parserFetcher = ParserFetch()
+        self.parserFetcher = parsers.ParserFetch()
         if self.parserFetcher.version_mismatch():
             msg = QMessageBox()
             msg.setWindowTitle('Version Out of Date')
@@ -424,7 +424,7 @@ class Worker(QThread):
                                 self.updateRow.emit(datum, data, err)
                         else:
                             self.errorRow.emit(datum, 0, [''])
-                        time.sleep(mangasql.DELAY) # sleep between series (same delay as between chapters)
+                        time.sleep(random.uniform(*parsers.CHAPTER_DELAY)) # sleep between series (same delay as between chapters)
                     finally:
                         thislock.unlock()
             except:
