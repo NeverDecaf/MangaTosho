@@ -332,6 +332,8 @@ class SQLManager():
                 logging.exception('Type 1-nointernet ('+logsafe_title+' c.'+str(ch[0])+' p.'+str(iindex)+'): '+str(e))
                 return 1,['No Internet Connection']
         except Exception as e:
+            if isinstance(e,ValueError) and str(e)=='Captcha':
+                e.display = 'Cloudflare Captcha Requested'
             errmsg = 'Error downloading: '
             if hasattr(e, 'display'):
                 errmsg+= e.display

@@ -125,7 +125,10 @@ class ParserFetch:
         self._generate_parsers()
         self.parsers = set(WORKING_SITES)#[globals()[cname] for cname in WORKING_SITES]
         for parser in self.parsers:
-            self.matchers.append((parser.SITE_PARSER_RE,parser,cfscrape.create_scraper()))
+            if parser.USE_CFSCRAPE:
+                self.matchers.append((parser.SITE_PARSER_RE,parser,cfscrape.create_scraper()))
+            else:
+                self.matchers.append((parser.SITE_PARSER_RE,parser,requests.session()))
             if parser.REQUIRES_CREDENTIALS:
                 self.parsers_req_creds.add(parser)
         self.updateCreds(credentials)
@@ -262,6 +265,7 @@ class SeriesParser(object):
     ALL_PAGES_RE = None # matches a list of all page numbers that will be sandwiched between page_template
     IMAGE_URL_RE = None # Fallback for IMAGE_URL_XPATH if hidden in js
     NEXT_URL_RE = None # Fallback for NEXT_URL_XPATH if hidden in js
+    USE_CFSCRAPE = True # Will use the cfscrape session instead of requests.session
 
     # will be used if site REQUIRES_CREDENTIALS, use class vars so we can set before creating an instance.
     USERNAME = None 
@@ -285,7 +289,10 @@ class SeriesParser(object):
             return
         # create a random user agent
         if not sessionobj:
-            self.SESSION = cfscrape.create_scraper()
+            if self.USE_CFSCRAPE:
+                self.SESSION = cfscrape.create_scraper()
+            else:
+                self.SESSION = requests.session()
         else:
             self.SESSION = sessionobj
         if sessionobj and hasattr(sessionobj,'init'):
@@ -294,7 +301,7 @@ class SeriesParser(object):
             if not hasattr(self,'HEADERS'):
                 self.HEADERS = {}
             if not self.UA:
-                self.UA = UserAgent(fallback='Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/37.0.2062.124 Safari/537.36')
+                self.UA = UserAgent(use_cache_server=False, fallback='Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/37.0.2062.124 Safari/537.36')
             self._cycle_UA()
             adapter = requests.adapters.HTTPAdapter(max_retries=1)
             self.SESSION.mount('https://', adapter)
@@ -324,7 +331,7 @@ class SeriesParser(object):
         if self.VALID:
             self.SESSION.init = True # only init when valid so we are sure we didn't accidentally set referer to a 404 page or something
     def _cycle_UA(self):
-        self.HEADERS['User-Agent'] = self.UA.random
+        self.HEADERS['User-Agent'] = random.choice((self.UA.chrome,self.UA.firefox))
     def login(self):
         #log in to the site if authentication is required
         # this should check to see if you are logged in before attempting a login because session objects are shared.
@@ -545,7 +552,10 @@ class MangaDex(SeriesParser):
             return
         # create a random user agent
         if not sessionobj:
-            self.SESSION = cfscrape.create_scraper()
+            if self.USE_CFSCRAPE:
+                self.SESSION = cfscrape.create_scraper()
+            else:
+                self.SESSION = requests.session()
         else:
             self.SESSION = sessionobj
         if sessionobj and hasattr(sessionobj,'init'):
@@ -554,7 +564,7 @@ class MangaDex(SeriesParser):
             if not hasattr(self,'HEADERS'):
                 self.HEADERS = {}
             if not self.UA:
-                self.UA = UserAgent(fallback='Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/37.0.2062.124 Safari/537.36')
+                self.UA = UserAgent(use_cache_server=False, fallback='Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/37.0.2062.124 Safari/537.36')
             self._cycle_UA()
             adapter = requests.adapters.HTTPAdapter(max_retries=1)
             self.SESSION.mount('https://', adapter)
@@ -754,7 +764,10 @@ class MangaRock(SeriesParser):
             return
         # create a random user agent
         if not sessionobj:
-            self.SESSION = cfscrape.create_scraper()
+            if self.USE_CFSCRAPE:
+                self.SESSION = cfscrape.create_scraper()
+            else:
+                self.SESSION = requests.session()
         else:
             self.SESSION = sessionobj
         if sessionobj and hasattr(sessionobj,'init'):
@@ -763,7 +776,7 @@ class MangaRock(SeriesParser):
             if not hasattr(self,'HEADERS'):
                 self.HEADERS = {}
             if not self.UA:
-                self.UA = UserAgent(fallback='Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/37.0.2062.124 Safari/537.36')
+                self.UA = UserAgent(use_cache_server=False, fallback='Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/37.0.2062.124 Safari/537.36')
             self._cycle_UA()
             adapter = requests.adapters.HTTPAdapter(max_retries=1)
             self.SESSION.mount('https://', adapter)
@@ -1158,8 +1171,19 @@ class MangaHere(SeriesParser):
     def __init__(self,url,sessionobj=None):
         # add this isAdult cookie to bypass the mature check
         if not sessionobj:
-            sessionobj = cfscrape.create_scraper()
+            if self.USE_CFSCRAPE:
+                sessionobj = cfscrape.create_scraper()
+            else:
+                sessionobj = requests.session()
         sessionobj.cookies.set('isAdult', '1', domain=urllib.parse.urlparse(self.SITE_URL).netloc, path='/')
+##        sessionobj.headers['Upgrade-Insecure-Requests']=1
+##        sessionobj.headers['Pragma']='no-cache'
+##        sessionobj.headers['Host']='www.mangahere.cc'
+##        sessionobj.headers['Accept-Language']='en-US,en;q=0.9'
+##        sessionobj.headers['Cache-Control']='no-cache'
+##        sessionobj.headers['Accept']='text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3'
+##        sessionobj.headers['DNT']=1
+##        sessionobj.headers['User-Agent']='Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.86 Safari/537.36'
         return super().__init__(url,sessionobj)
     
 ################################################################################

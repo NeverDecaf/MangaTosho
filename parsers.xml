@@ -45,6 +45,7 @@
 		<licensed_check_re><![CDATA[(has been licensed)]]></licensed_check_re> <!-- regex that matches if series is licensed -->
 		<is_complete_xpath>//span[@class="detail-info-right-title-tip" and text()='Completed']</is_complete_xpath> <!-- xpath that matches if the series has been marked "Complete" -->
 		<image_delay>1,1.5</image_delay> <!-- Time (in seconds) between image fetches, may be needed to prevent rate limit. Give lower then upper bounds (comma separated). -->
+		<use_cfscrape>False</use_cfscrape> <!-- Use the cfscrape session object to fetch data. Only set to false in very specific cases -->
 	</site>
 	<site name="DynastyScans">
 		<!-- essential args. must supply all of these -->
@@ -232,6 +233,7 @@
 		<image_referer></image_referer> <!-- If images are hosted on an external site you may need to override the referer header. -->
 		<image_delay></image_delay> <!-- Time (in seconds) between image fetches, may be needed to prevent rate limit. This is a range separated by ",", for example: 2,5. -->
 		<image_download_delay></image_download_delay> <!-- Same as image_delay but used when downloading the images themselves, used mainly for sites where all image urls can be fetched at once. -->
+		<use_cfscrape>True</use_cfscrape> <!-- Use the cfscrape session object to fetch data. Only set to false in very specific cases -->
 		<!-- The following 2 are a messy solution used only on animeA which no longer exists. -->
 		<page_template_re></page_template_re>
 		<all_pages_re></all_pages_re>
