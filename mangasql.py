@@ -37,7 +37,7 @@ def is_number(s):
         return False
     
 class SQLManager():
-    COLUMNS = ['Url', 'Title', 'Read', 'Chapters', 'Unread', 'Site', 'Complete', 'UpdateTime', 'Error', 'SuccessTime', 'Error Message']
+    COLUMNS = ['Url', 'Title', 'Read', 'Chapters', 'Unread', 'Site', 'Complete', 'UpdateTime', 'Error', 'SuccessTime', 'Error Message','Rating']
     
     def __init__(self, parserFetch):
         self.conn = sqlite3.connect('manga.db')
@@ -62,6 +62,10 @@ class SQLManager():
         c.execute('''INSERT OR IGNORE INTO user_settings (id, readercmd) VALUES (0,'')''')
         try:
             c.execute('''ALTER TABLE series ADD COLUMN error_msg text''')
+        except sqlite3.OperationalError:
+            pass # col exists
+        try:
+            c.execute('''ALTER TABLE series ADD COLUMN rating integer DEFAULT -1''')
         except sqlite3.OperationalError:
             pass # col exists
         c.executemany('''INSERT OR IGNORE INTO site_info (name) VALUES (?)''',[(site.__name__,) for site in parserFetch.get_req_credentials_sites()])
@@ -132,9 +136,9 @@ class SQLManager():
 ##        series = parser(url)
         title = series.get_title()
         c = self.conn.cursor()
-        data=(url,title,'N','?',0,series.get_shorthand(),0,time.time(),0,time.time(),'')
+        data=(url,title,'N','?',0,series.get_shorthand(),0,time.time(),0,time.time(),'',-1)
         try:
-            c.execute("INSERT INTO series VALUES (?,?,?,?,?,?,?,?,?,?,?)",data)
+            c.execute("INSERT INTO series VALUES ({})".format(','.join(['?']*len(self.COLUMNS))),data)
         except sqlite3.IntegrityError:
             self.conn.commit()
             c.close()
@@ -355,7 +359,7 @@ class SQLManager():
     def changeSeries(self,data,_tbl='series'):
         # REPLACE the data into the db.
         c = self.conn.cursor()
-        c.execute("REPLACE INTO `{}` VALUES (?,?,?,?,?,?,?,?,?,?,?)".format(_tbl),data)
+        c.execute("REPLACE INTO `{}` VALUES ({})".format(_tbl,','.join(['?']*len(self.COLUMNS))),data)
         self.conn.commit()
         c.close()
 

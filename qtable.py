@@ -258,7 +258,7 @@ class MyWindow(QMainWindow):
 ##        tv.setContextMenu(self.right_menu)
 
         # set the minimum size
-        tv.setMinimumSize(400, 300)
+        tv.setMinimumSize(600, 400)
 
         # hide grid
         tv.setShowGrid(False)
@@ -297,7 +297,7 @@ class MyWindow(QMainWindow):
 
         tv.setContextMenuPolicy(Qt.CustomContextMenu)
 
-        show = set(['Title','Read','Chapters','Unread','Site'])
+        show = set(['Title','Read','Chapters','Unread','Site','Rating'])
         for col in set(header)-show:
             tv.setColumnHidden(header.index(col),True)
 
@@ -458,6 +458,7 @@ class MyTableModel(QAbstractTableModel):
         self.current_col = self.headerdata.index("Read")
         self.total_col = self.headerdata.index("Chapters")
         self.title_col = self.headerdata.index("Title")
+        self.editable_cols = (self.current_col, self.headerdata.index("Rating"))
 
 ##        self.updateTimer = QTimer()
 
@@ -546,6 +547,7 @@ class MyTableModel(QAbstractTableModel):
         newdata[self.headerdata.index('SuccessTime')]=time.time()
         newdata[self.headerdata.index('Error')]=0
         newdata[self.headerdata.index('Error Message')] = None
+
         
         for i in range(len(self.arraydata[row])):
             self.arraydata[row][i] = newdata[i]
@@ -661,7 +663,7 @@ class MyTableModel(QAbstractTableModel):
         return len(self.arraydata)
 
     def readSeries(self, index):
-        if index.column()==self.current_col:
+        if index.column() in self.editable_cols:
             return
 
         locked = 0
@@ -737,11 +739,19 @@ class MyTableModel(QAbstractTableModel):
 
     def flags(self,index):
         flags = Qt.ItemIsSelectable | Qt.ItemIsEnabled
-        if index.column() == self.current_col:
+        if index.column() in self.editable_cols:
             flags|=Qt.ItemIsEditable
         return flags
  
-    def data(self, index, role): 
+    def data(self, index, role):
+        if role==Qt.DisplayRole and index.column() == self.headerdata.index('Rating'):
+            stars = min(10,int(self.arraydata[index.row()][self.headerdata.index('Rating')]))
+            if stars<0:
+                return ""
+            return "{}{}{}".format("\u2605"*(stars//2),
+                                   "\u2bea" if stars%2 else '',
+                                   "\u2606"*((10-stars)//2))
+            #"\u00bd" aka 1/2 is also an option
         if not index.isValid(): 
             return QVariant()
         elif role==Qt.BackgroundRole:
@@ -817,51 +827,6 @@ class MyTableModel(QAbstractTableModel):
         if self.sort_order == Qt.DescendingOrder:
             self.arraydata.reverse()
         self.layoutChanged.emit()
-
-
-class inputdialogdemo(QWidget):
-   def __init__(self, parent = None):
-      super(inputdialogdemo, self).__init__(parent)
-		
-      layout = QFormLayout()
-      self.btn = QPushButton("Choose from list")
-      self.btn.clicked.connect(self.getItem)
-		
-      self.le = QLineEdit()
-      layout.addRow(self.btn,self.le)
-      self.btn1 = QPushButton("get name")
-      self.btn1.clicked.connect(self.gettext)
-		
-      self.le1 = QLineEdit()
-      layout.addRow(self.btn1,self.le1)
-      self.btn2 = QPushButton("Enter an integer")
-      self.btn2.clicked.connect(self.getint)
-		
-      self.le2 = QLineEdit()
-      layout.addRow(self.btn2,self.le2)
-      self.setLayout(layout)
-      self.setWindowTitle("Input Dialog demo")
-		
-   def getItem(self):
-      items = ("C", "C++", "Java", "Python")
-		
-      item, ok = QInputDialog.getItem(self, "select input dialog", 
-         "list of languages", items, 0, False)
-			
-      if ok and item:
-         self.le.setText(item)
-			
-   def gettext(self):
-      text, ok = QInputDialog.getText(self, 'Text Input Dialog', 'Enter your name:')
-		
-      if ok:
-         self.le1.setText(str(text))
-			
-   def getint(self):
-      num,ok = QInputDialog.getInt(self,"integer input dualog","enter a number")
-		
-      if ok:
-         self.le2.setText(str(num))
          
 class SettingsDialog(QDialog):
     def __init__(self,initialSettings, parent=None):
