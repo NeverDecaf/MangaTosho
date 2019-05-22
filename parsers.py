@@ -24,7 +24,7 @@ import urllib.request, urllib.parse, urllib.error
 from lxml.etree import XPathEvalError as XPathError
 from functools import reduce
 import random
-import jsbeautifier.unpackers.packer as packer
+import jsbeautifier
 # add the cacert.pem file to the path correctly even if compiled with pyinstaller:
 # Get the base directory
 if getattr( sys , 'frozen' , None ):    # keyword 'frozen' is for setting basedir while in onefile mode in pyinstaller
@@ -87,7 +87,7 @@ def unescape(text):
 # sites than have been abandoned:
 # KissManga (crazy js browser verification, MangaFox (banned in the US), MangaPandaNet (taken by russian hackers), MangaTraders (not suitable for this program)
 WORKING_SITES = []
-PARSER_VERSION = 2.04 # update if this file changes in a way that is incompatible with older parsers.xml
+PARSER_VERSION = 2.05 # update if this file changes in a way that is incompatible with older parsers.xml
 
 class ParserFetch:
     ''' you should only get parsers through the fetch() method, otherwise they will not use the correct session object '''
@@ -1082,6 +1082,8 @@ class KissManga(SeriesParser):
 ################################################################################
 class MangaHere(SeriesParser):
     def get_images(self,chapter,delay=(0,0),fix_urls = True):
+        global beginstr
+        beginstr = ''
         #returns links to every image in the chapter where chapter is the url to the first page
         #uses a new approach where we follow links until the end of the chapter
         self.login()
@@ -1122,8 +1124,8 @@ class MangaHere(SeriesParser):
             ##############################################################
             cid = re.findall('(?<=var chapterid) ?= ?(\d*)',html)[0]
             imagepage = re.findall('(?<=var imagepage) ?= ?(\d*)',html)[0]
-            
-            unpack = packer.unpack(re.findall('(eval\(function.*)',html)[0])
+
+            unpack = jsbeautifier.beautify(re.findall('(eval\(function.*)',html)[0])
             unpack=unpack.replace('\\','')
             b = unpack.split("'+'")
             key = ''.join(b[1:-1])+b[-1][0]
@@ -1131,9 +1133,9 @@ class MangaHere(SeriesParser):
             jsurl= urllib.parse.urljoin(posixpath.dirname(url),'chapterfun.ashx?cid={}&page={}&key={}'.format(cid,imagepage,key))
             r= self.SESSION.get(jsurl, timeout = REQUEST_TIMEOUT)
             
-            unpack = packer.unpack(r.text)
-            a=re.findall('var pix="([^"]*)',unpack)[0]
-            b=re.findall('var pvalue=\["([^"]*)',unpack)[0]
+            unpack = jsbeautifier.beautify(r.text)
+            a=re.findall('var pix ?= ?"([^"]*)',unpack)[0]
+            b=re.findall('var pvalue ?= ?\["([^"]*)',unpack)[0]
             pictureurl = a+b
 ##            pictureurl = etree.xpath(self.IMAGE_URL_XPATH)
             ##############################################################

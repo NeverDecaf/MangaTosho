@@ -427,9 +427,11 @@ class Worker(QThread):
                         time.sleep(random.uniform(*parsers.CHAPTER_DELAY)) # sleep between series (same delay as between chapters)
                     finally:
                         thislock.unlock()
-            except:
+            except Exception as e:
                 fh=open('CRITICAL ERROR SEARCH QTABLE FOR THIS LINE','wb')
+                fh.write('%r'%e)
                 fh.close()
+                raise
             finally:
                 self.lock.unlock()
 
@@ -749,9 +751,9 @@ class MyTableModel(QAbstractTableModel):
             if stars<0:
                 return ""
             return "{}{}{}".format("\u2605"*(stars//2),
-                                   "\u2bea" if stars%2 else '',
+                                   "\u00bd" if stars%2 else '',
                                    "\u2606"*((10-stars)//2))
-            #"\u00bd" aka 1/2 is also an option
+            # "\u2bea" is unicode half star but isn't supported on most systems i assume
         if not index.isValid(): 
             return QVariant()
         elif role==Qt.BackgroundRole:
