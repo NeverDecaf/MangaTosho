@@ -54,6 +54,9 @@ REQUEST_TIMEOUT = 60
 ALLOWED_IMAGE_ERRORS_PER_CHAPTER = 0 # I don't like this one bit. Should be 0. If you don't care about missing images increase this.
 CHAPTER_DELAY=(4,5) # seconds between chapters, to keep from getting banned.
 
+from PIL import ImageFile
+ImageFile.LOAD_TRUNCATED_IMAGES = True
+
 def hash_no_newline(stringdata):
     #got easier in python 3 thanks to universal newline mode being the default.
     return hashlib.md5(stringdata).hexdigest()
