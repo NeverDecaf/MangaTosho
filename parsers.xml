@@ -152,7 +152,7 @@
 		<site_parser_re>https?://.*exhentai.org/g/.+</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
 		<title_xpath>substring(//h1[@id='gn']/text(),1)</title_xpath> <!-- xpath that matches the series' title -->
 		<chapter_nums_xpath>/*/text()[1]</chapter_nums_xpath> <!-- xpath that matches all chapter numbers on the main series page -->
-		<chapter_urls_xpath>//div[@class='gdtm'][1]/div/a/@href</chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
+		<chapter_urls_xpath>//div[@class='gdtl'][1]/a/@href</chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
 		<image_url_xpath>substring(//img[@id='img']/@src,1)</image_url_xpath> <!-- xpath that matches the image url on a given page of the series -->
 		<next_url_xpath>substring(//a[@id="next"]/@href,1)</next_url_xpath> <!-- xpath that matches the url of the next page on a given page of the series -->
 		<is_complete_xpath>/*/text()[1]</is_complete_xpath> <!-- xpath that matches if the series has been marked "Complete" -->
