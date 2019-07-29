@@ -13,12 +13,13 @@ Binaries are available if you are on windows, see [Releases](https://github.com/
 * Right click a series for some options, rollback is useful for dud chapters.
 * Some sites require credentials before you can use them, add these through the file menu.
 * The "Read" field can be manually edited by double clicking.
+* You can add a rating (1-10) by double clicking the rating field.
 
 Closing the main window will simply minimize it to tray. Double-click the icon to bring it back. You can also right-click the tray icon for some quick-access options.
 
 #### Series Color Guide
 Blue: All good.  
-Red: Parser error, MT needs an update.  
+Red: Parser error, MT likely needs an update.  
 Green: Other error, most likely the series is missing an image/chapter, you can increment "Read" to bypass this  
 Purple: licensed.  
 Gray: Series has been marked as complete by either you or the site. 
@@ -36,7 +37,6 @@ All colors will fade based on the amount of time since the last update. The dark
 - readms
 - mangapark
 - mangapanda
-- exhentai
 - manganelo
 - mangarock
 - mangadex
