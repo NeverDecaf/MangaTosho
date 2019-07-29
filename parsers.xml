@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <sites>
 	<info>
-		<version>2.05</version>
+		<version>2.06</version>
 	</info>
 	<site name="MangaDex">
 		<!-- essential args. you will need most of these. -->
@@ -46,6 +46,7 @@
 		<is_complete_xpath>//span[@class="detail-info-right-title-tip" and text()='Completed']</is_complete_xpath> <!-- xpath that matches if the series has been marked "Complete" -->
 		<image_delay>1,1.5</image_delay> <!-- Time (in seconds) between image fetches, may be needed to prevent rate limit. Give lower then upper bounds (comma separated). -->
 		<use_cfscrape>False</use_cfscrape> <!-- Use the cfscrape session object to fetch data. Only set to false in very specific cases -->
+		<custom_cookie_isadult>isAdult,1,www.mangahere.cc,/</custom_cookie_isadult><!-- Add any number of custom cookies, must start with prefix custom_cookie_ check session.cookies.set for syntax (csv) -->
 	</site>
 	<site name="DynastyScans">
 		<!-- essential args. must supply all of these -->
@@ -145,26 +146,6 @@
 		<chapter_nums_re><![CDATA[chapter (\d+\.?\d*)(?:v\d+)?]]></chapter_nums_re> <!-- regex used to further refine the results of chapter_nums_xpath, default is typically fine. -->
 		<aio_images_re><![CDATA[(?<=<img src=")([^"]*)(?=" alt="[^"]*chapter \d[^"]*page \d[^"]*")]]></aio_images_re> <!-- regex to match all image urls if the site includes them all on one page. -->
 	</site>
-	<site name="SadPanda">
-		<!-- essential args. you will need most of these. -->
-		<site_url>https://exhentai.org/</site_url> <!-- url of the main website -->
-		<abbr>SP</abbr> <!-- 2 letter abbreviation of the site's name. -->
-		<site_parser_re>https?://.*exhentai.org/g/.+</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
-		<title_xpath>substring(//h1[@id='gn']/text(),1)</title_xpath> <!-- xpath that matches the series' title -->
-		<chapter_nums_xpath>/*/text()[1]</chapter_nums_xpath> <!-- xpath that matches all chapter numbers on the main series page -->
-		<chapter_urls_xpath>//div[@class='gdtl'][1]/a/@href</chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
-		<image_url_xpath>substring(//img[@id='img']/@src,1)</image_url_xpath> <!-- xpath that matches the image url on a given page of the series -->
-		<next_url_xpath>substring(//a[@id="next"]/@href,1)</next_url_xpath> <!-- xpath that matches the url of the next page on a given page of the series -->
-		<is_complete_xpath>/*/text()[1]</is_complete_xpath> <!-- xpath that matches if the series has been marked "Complete" -->
-		<!-- optional args, delete these if not applicable. -->
-		<requires_credentials>True</requires_credentials> <!-- True if the site requires login to access images -->
-		<author_re>dontremoveauthornames</author_re> <!-- regex to remove author name from a series title for more uniform and clean series names. -->
-		<ex_login_url><![CDATA[https://forums.e-hentai.org/index.php?act=Login&CODE=01]]></ex_login_url>
-		<sad_panda>ceddf54195d034fab64a7d20c9b0c530</sad_panda>
-		<ignore_base_path>True</ignore_base_path> <!-- path changes every page so we need this -->
-		<image_delay>2,4</image_delay> <!-- Time (in seconds) between image fetches, may be needed to prevent rate limit. Give lower then upper bounds (comma separated). -->
-		<image_download_delay>3,5</image_download_delay> <!-- Same as image_delay but used when downloading the images themselves, used mainly for sites where all image urls can be fetched at once. -->
-	</site>
 	<site name="MangaWindow">
 		<!-- essential args. you will need most of these. -->
 		<site_url>https://mangawindow.net/</site_url> <!-- url of the main website -->
@@ -185,7 +166,7 @@
 		<title_xpath>substring(//a[@class='bigChar']/text(),1)</title_xpath> <!-- xpath that matches the series' title -->
 		<chapter_nums_xpath>//table[@class='listing']//a/@title</chapter_nums_xpath> <!-- xpath that matches all chapter numbers on the main series page -->
 		<chapter_urls_xpath>//table[@class='listing']//a/@href</chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
-		<is_complete_xpath>//p[span[@class='info'] and contains(text(),'Completed')]</is_complete_xpath> <!-- xpath that matches if the series has been marked "Complete" -->
+		<is_complete_xpath>//p[span[@class='info' and contains(text(), 'Status')] and text()[contains(.,'Completed')]]</is_complete_xpath> <!-- xpath that matches if the series has been marked "Complete" -->
 		<!-- optional args, delete these if not applicable. -->
 		<chapter_nums_re>(?:^.*Ch\.|^.*)(\d\d\d+\.?\d*)</chapter_nums_re> <!-- regex used to further refine the results of chapter_nums_xpath, default is typically fine. -->
 		<aio_images_re>push\(wrapKA\("([^"]*)</aio_images_re> <!-- regex to match all image urls if the site includes them all on one page. -->
@@ -237,6 +218,7 @@
 		<!-- The following 2 are a messy solution used only on animeA which no longer exists. -->
 		<page_template_re></page_template_re>
 		<all_pages_re></all_pages_re>
+		<custom_cookie_1></custom_cookie_1><!-- Add any number of custom cookies, must start with prefix custom_cookie_ check session.cookies.set for syntax (csv) -->
 	</site>
 	<domain_changes>
 	<conversion>MW,mangawindow.com,mangawindow.net,%mangawindow.com%</conversion>

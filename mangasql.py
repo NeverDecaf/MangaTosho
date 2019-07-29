@@ -92,8 +92,9 @@ class SQLManager():
         self.parserFetch.updateCreds(creds)
 
     def getCredentials(self):
+        site_names = str(tuple([t.__name__ for t in self.parserFetch.get_valid_parsers()])).replace("'",'"')
         c = self.conn.cursor()
-        c.execute("SELECT name,username,password FROM site_info")
+        c.execute("SELECT name,username,password FROM site_info WHERE name IN {}".format(site_names))
         triples = c.fetchall()
         c.close()
         credentials = dict([[a,[b,c]] for a,b,c in triples])

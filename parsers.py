@@ -90,7 +90,7 @@ def unescape(text):
 # sites than have been abandoned:
 # KissManga (crazy js browser verification, MangaFox (banned in the US), MangaPandaNet (taken by russian hackers), MangaTraders (not suitable for this program)
 WORKING_SITES = []
-PARSER_VERSION = 2.05 # update if this file changes in a way that is incompatible with older parsers.xml
+PARSER_VERSION = 2.06 # update if this file changes in a way that is incompatible with older parsers.xml
 
 class ParserFetch:
     ''' you should only get parsers through the fetch() method, otherwise they will not use the correct session object '''
@@ -311,6 +311,12 @@ class SeriesParser(object):
             self.SESSION.mount('http://', adapter)
             
             self.SESSION.keep_alive = False
+
+            # add custom cookies
+            for var in dir(self):
+                if var.startswith('CUSTOM_COOKIE_'):
+                    data = getattr(self,var).split(',')
+                    sessionobj.cookies.set(data[0], data[1], domain=data[2], path=data[3])
             
         self.login()
         r=self.SESSION.get(url, timeout = REQUEST_TIMEOUT)
@@ -396,6 +402,12 @@ class SeriesParser(object):
             return False
         return nums,list(zip(nums,urls))
     
+    def _get_pictureurl(self, img_url_re, html, img_url_xpath, etree, url):
+        if img_url_re:
+            return img_url_re.findall(html)[0].replace('\\','') # this is likely js, so remove backslashes
+        else:
+            return etree.xpath(img_url_xpath)
+        
     def get_images(self,chapter,delay=(0,0),fix_urls = True):
         #returns links to every image in the chapter where chapter is the url to the first page
         #uses a new approach where we follow links until the end of the chapter
@@ -433,10 +445,8 @@ class SeriesParser(object):
                 e.display = 'Series is licensed'
                 raise e
 
-            if self.IMAGE_URL_RE:
-                pictureurl = self.IMAGE_URL_RE.findall(html)[0].replace('\\','') # this is likely js, so remove backslashes
-            else:
-                pictureurl = etree.xpath(self.IMAGE_URL_XPATH)
+            pictureurl = self._get_pictureurl(self.IMAGE_URL_RE,html,self.IMAGE_URL_XPATH,etree,url)
+            
 ##            print('pix is',pictureurl)
             if not len(pictureurl):
                 # this means the image wasnt found. (parser is outdated)
@@ -495,22 +505,6 @@ class SeriesParser(object):
                                 response = self.SESSION.get(image, timeout = REQUEST_TIMEOUT, headers={'referer': self.IMAGE_REFERER})
                             except AttributeError:
                                 response = self.SESSION.get(image, timeout = REQUEST_TIMEOUT)
-##                                new = cfscrape.create_scraper()
-##                                response=new.get(image, timeout = REQUEST_TIMEOUT)
-                            #this little bit retries an image as .jpg if its .png and vice versa, its pretty much used exclusively for batoto
-                            # batoto doesn't even exist so forget this part
-    ##                        if response.status_code == 404:
-    ##                            
-    ##                            firstresponse = response
-    ##                            spliturl = urlsplit(image)
-    ##                            path,ext = os.path.splitext(spliturl.path)
-    ##                            if ext == '.jpg':
-    ##                                newpath = path+'.png'
-    ##                            elif ext == '.png':
-    ##                                newpath = path+'.jpg'
-    ##                            response = series.SESSION.get(urlunsplit((spliturl.scheme,spliturl.netloc,newpath,spliturl.query,spliturl.fragment)), timeout = parsers.REQUEST_TIMEOUT)
-    ##                            if not response.ok:
-    ##                                firstresponse.raise_for_status()
 
                             response.raise_for_status()#raise error code if occured
                             time.sleep(random.uniform(*self.IMAGE_DOWNLOAD_DELAY))
@@ -574,6 +568,12 @@ class MangaDex(SeriesParser):
             self.SESSION.mount('http://', adapter)
             
             self.SESSION.keep_alive = False
+            # add custom cookies
+            for var in dir(self):
+                if var.startswith('CUSTOM_COOKIE_'):
+                    data = getattr(self,var).split(',')
+                    sessionobj.cookies.set(data[0], data[1], domain=data[2], path=data[3])
+                    
         self.login()
         series_id = pieces[2].split('/')[2]
         query = self.SITE_URL.strip('/')+'/api/manga/{}'.format(series_id)
@@ -786,6 +786,12 @@ class MangaRock(SeriesParser):
             self.SESSION.mount('http://', adapter)
             
             self.SESSION.keep_alive = False
+            # add custom cookies
+            for var in dir(self):
+                if var.startswith('CUSTOM_COOKIE_'):
+                    data = getattr(self,var).split(',')
+                    sessionobj.cookies.set(data[0], data[1], domain=data[2], path=data[3])
+            
         self.login()
         series_url = pieces[2].split('/')[2]
         query = self.MANGAROCK_API_DOMAIN.strip('/')+'/query/web{}/info?oid={}&last=0'.format(self.MANGAROCK_QUERY_VERSION,series_url)
@@ -931,121 +937,6 @@ class MangaRock(SeriesParser):
                 raise e
         return unread_count,updated_count
 ################################################################################
-class Batoto(SeriesParser):
-    def get_images(self,chapter,delay=(0,0)):
-        # currently batoto does not require a login when accessing the reader, it is only needed for fetching the chapter list.
-        number,url = chapter
-
-        chapter_id = urllib.parse.urlsplit(url)[4]
-        url = urllib.parse.urljoin(self.BT_READER_URL,'?id=%s&p=1'%chapter_id)
-
-        html = self.SESSION.get(url, timeout = REQUEST_TIMEOUT).text
-        etree = lxmlhtml.fromstring(html)
-        # use a set to remove duplicates.
-        seen = set()
-        seen_add = seen.add
-        page_nums = [re.split('[ _]+',a)[-1] for a in etree.xpath(self.BATOTO_PAGES_XPATH) if not (a in seen or seen_add(a))]
-        images=[]
-        for page_num in page_nums:
-            time.sleep(random.uniform(*delay))
-            url = urllib.parse.urljoin(self.BT_READER_URL,'?id=%s&p=%i'%(chapter_id,int(page_num)))
-            html = self.SESSION.get(url, timeout = REQUEST_TIMEOUT).text
-            etree = lxmlhtml.fromstring(html)
-            pictureurl = etree.xpath(self.IMAGE_URL_XPATH)
-            images.append(pictureurl)
-        return images
-    
-    # we won't override login() here because we dont need it to download images, just to get the chapter list
-    # bato.to is a slow site so we want to minimize the number of requests we make 
-    def _login(self):
-        tries = 0
-        max_tries = 2
-        e = None
-        self.FORM_DATA['ips_username'] = self.USERNAME
-        self.FORM_DATA['ips_password']= self.PASSWORD
-        # this url is the key to avoiding 403 errors when attempting logins (if already logged in)
-        referer_url = '?'.join((self.BT_LOGIN_URL,urllib.parse.urlencode({i:self.QUERY_STRING[i] for i in self.QUERY_STRING if i!='do'})))
-        while tries<max_tries:
-            # no need to verify login because this method will only be called if NOT already logged in.
-            response = self.SESSION.get(referer_url, timeout = REQUEST_TIMEOUT)
-            etree = lxmlhtml.fromstring(response.text)
-            self.FORM_DATA['auth_key'] = etree.xpath(self.BT_AUTH_KEY_XPATH)
-            time.sleep(.25) # small break between requests
-            response = self.SESSION.post(self.BT_LOGIN_URL, params=self.QUERY_STRING, data=self.FORM_DATA, headers={'referer': referer_url})
-            etree = lxmlhtml.fromstring(response.text)
-            if etree.xpath(self.BT_LOGGED_IN_XPATH) and not etree.xpath(self.BT_LOGIN_FAILED_XPATH):
-                self.LOGGED_IN = True
-                return True
-            else:
-                e = ParserError('Batoto Login Failed')
-                e.display = 'Batoto login failed'
-            tries += 1
-            time.sleep(2)
-        raise e
-    
-    def __init__(self,url,sessionobj=None):
-        self.LOGGED_IN = False
-        self.FORM_DATA = {
-        'rememberMe': '1',
-        'anonymous': '1',}
-        self.QUERY_STRING = {
-        'app':'core',
-        'module':'global',
-        'section':'login',
-        'do':'process'
-        }
-        if not sessionobj or not hasattr(sessionobj,'init'):
-            self.HEADERS={'Referer':'http://bato.to/reader',
-                          'X-Requested-With':'XMLHttpRequest'}
-        retval = super().__init__(url,sessionobj)
-        if self.VALID:
-            if not self.etree.xpath(self.BT_LOGGED_IN_XPATH):
-                self._login()
-                retval = super().__init__(url,self.SESSION)
-            else:
-                self.LOGGED_IN = True
-        return retval
-################################################################################
-class SadPanda(SeriesParser):
-    EX_DELAY = (2,3)
-
-    AUTO_COMPLETE_TIME = -1
-
-    def get_images(self,chapter,delay=(0,0)):
-        imgs = super().get_images(chapter,delay)
-        if imgs and imgs[-1].endswith('509.gif'):
-            e = ParserError('Bandwidth Exceeded')
-            e.display = 'Bandwidth Exceeded'
-            raise e
-        return imgs
-    
-    def login(self):
-        if [x for x in self.SESSION.cookies if x.name == 'ipb_member_id' and x.domain == '.exhentai.org' and x.expires>time.time()]:
-            return True
-        self.FORM_DATA = {
-            'CookieDate':1,
-            'b':'d',
-            'bt':'1-1',
-            'ipb_login_submit':'Login!'
-        }
-        self.FORM_DATA['UserName'] = self.USERNAME
-        self.FORM_DATA['PassWord'] = self.PASSWORD
-        response = self.SESSION.post(self.EX_LOGIN_URL,data = self.FORM_DATA)
-        time.sleep(random.uniform(*self.EX_DELAY))
-        etree = lxmlhtml.fromstring(response.text)
-        if not etree.xpath('//div[@id="redirectwrap"]/h4[text()="Thanks"]'):
-            e = ParserError('Ex Login Failed')
-            e.display = 'Ex login failed'
-            raise e
-        panda = self.SESSION.get(self.SITE_URL, timeout = REQUEST_TIMEOUT)
-        time.sleep(random.uniform(*self.EX_DELAY))
-        if hashlib.md5(panda.content).hexdigest() == self.SAD_PANDA:
-            e = ParserError('Ex Login Failed (sadpanda)')
-            e.display = 'Ex login failed (sad panda)'
-            raise e
-        time.sleep(random.uniform(*self.EX_DELAY))
-        return True
-################################################################################
 class KissManga(SeriesParser):
     
     def get_images(self,chapter,delay=(0,0),fix_urls=False):
@@ -1084,113 +975,22 @@ class KissManga(SeriesParser):
         return None
 ################################################################################
 class MangaHere(SeriesParser):
-    def get_images(self,chapter,delay=(0,0),fix_urls = True):
-        global beginstr
-        beginstr = ''
-        #returns links to every image in the chapter where chapter is the url to the first page
-        #uses a new approach where we follow links until the end of the chapter
-        self.login()
-        try:
-            if delay==(0,0):
-                delay = self.IMAGE_DELAY
-        except AttributeError:
-            pass
-        number,url = chapter
+    def _get_pictureurl(self, img_url_re, html, img_url_xpath, etree,url):
+        cid = re.findall('(?<=var chapterid) ?= ?(\d*)',html)[0]
+        imagepage = re.findall('(?<=var imagepage) ?= ?(\d*)',html)[0]
 
-        ## If all image urls are easily parsable from the first page, we can finish up quickly.
-        if self.AIO_IMAGES_RE:
-            html = self.SESSION.get(url, timeout = REQUEST_TIMEOUT).text
-            all_images=re.compile(self.AIO_IMAGES_RE)
-            return [c if (c.startswith('http://') or not fix_urls) else urllib.parse.urljoin(self.SITE_URL,c) for c in [c.replace('\\','') for c in all_images.findall(html)]]
-        ##
-        images=[]
-        first_chapter = True # first chapter sometimes has a slightly different url so we will refresh it after the first page.
-        pieces = urllib.parse.urlsplit(url)
-        url = urllib.parse.urlunsplit(pieces[:3]+(self.SKIP_MATURE or pieces[3],)+pieces[4:])
-        chapter_path = posixpath.dirname(pieces[2])
+        unpack = jsbeautifier.beautify(re.findall('(eval\(function.*)',html)[0])
+        unpack=unpack.replace('\\','')
+        b = unpack.split("'+'")
+        key = ''.join(b[1:-1])+b[-1][0]
 
-        while self.IGNORE_BASE_PATH or posixpath.dirname(urllib.parse.urlsplit(url)[2]) == chapter_path:
-##            print('reading',url)
-            r= self.SESSION.get(url, timeout = REQUEST_TIMEOUT)
-            html = r.text
-            etree = lxmlhtml.fromstring(html)
-            
-            time.sleep(random.uniform(*delay))
-            
-            if self.LICENSED_CHECK_RE!=None and self.LICENSED_CHECK_RE.search(html)!=None:
-                e = LicensedError('Series '+self.get_title()+' is licensed.')
-                e.display = 'Series is licensed'
-                raise e
-
-            ##############################################################
-            ###this section is the only part changed from SeriesParser####
-            ##############################################################
-            cid = re.findall('(?<=var chapterid) ?= ?(\d*)',html)[0]
-            imagepage = re.findall('(?<=var imagepage) ?= ?(\d*)',html)[0]
-
-            unpack = jsbeautifier.beautify(re.findall('(eval\(function.*)',html)[0])
-            unpack=unpack.replace('\\','')
-            b = unpack.split("'+'")
-            key = ''.join(b[1:-1])+b[-1][0]
-
-            jsurl= urllib.parse.urljoin(posixpath.dirname(url),'chapterfun.ashx?cid={}&page={}&key={}'.format(cid,imagepage,key))
-            r= self.SESSION.get(jsurl, timeout = REQUEST_TIMEOUT)
-            
-            unpack = jsbeautifier.beautify(r.text)
-            a=re.findall('var pix ?= ?"([^"]*)',unpack)[0]
-            b=re.findall('var pvalue ?= ?\["([^"]*)',unpack)[0]
-            pictureurl = a+b
-##            pictureurl = etree.xpath(self.IMAGE_URL_XPATH)
-            ##############################################################
-            ##############################################################
-            ##############################################################
-##            print('pix is',pictureurl)
-            if not len(pictureurl):
-                # this means the image wasnt found. (parser is outdated)
-                e = ParserError('Image Parsing failed on %s, chapter:%s'%(self.get_title(),number))
-                e.display="Failed parsing images for Ch.%s"%number
-                raise e
-            # do some small url repairs
-            if fix_urls:
-                repair = urllib.parse.urlsplit(self.SITE_URL)
-                img_url = urllib.parse.urlsplit(pictureurl)
-                pictureurl = urllib.parse.urlunsplit([repair[i] if i<2 and not img_url[i] else img_url[i] for i in range(len(img_url))])
-            if pictureurl in images: #prevents loops
-                break
-            images.append(pictureurl)
-
-            try:
-                nexturl = etree.xpath(self.NEXT_URL_XPATH)
-            except XPathError: # if IGNORE_BASE_PATH is true this is the only way to escape this infinite loop.
-                break
-            
-            newurl = urllib.parse.urljoin(url,nexturl)#join the url to correctly follow relative urls
-            if newurl == url: # prevents fetching the same page twice (there is a second failsafe for this via pictureurl)
-                break
-            url = newurl
-            if first_chapter:
-                first_chapter = False
-                chapter_path = posixpath.dirname(urllib.parse.urlsplit(url)[2])
-##            print('next url is',url)
-        return images
-    def __init__(self,url,sessionobj=None):
-        # add this isAdult cookie to bypass the mature check
-        if not sessionobj:
-            if self.USE_CFSCRAPE:
-                sessionobj = cfscrape.create_scraper()
-            else:
-                sessionobj = requests.session()
-        sessionobj.cookies.set('isAdult', '1', domain=urllib.parse.urlparse(self.SITE_URL).netloc, path='/')
-##        sessionobj.headers['Upgrade-Insecure-Requests']=1
-##        sessionobj.headers['Pragma']='no-cache'
-##        sessionobj.headers['Host']='www.mangahere.cc'
-##        sessionobj.headers['Accept-Language']='en-US,en;q=0.9'
-##        sessionobj.headers['Cache-Control']='no-cache'
-##        sessionobj.headers['Accept']='text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3'
-##        sessionobj.headers['DNT']=1
-##        sessionobj.headers['User-Agent']='Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.86 Safari/537.36'
-        return super().__init__(url,sessionobj)
-    
+        jsurl= urllib.parse.urljoin(posixpath.dirname(url),'chapterfun.ashx?cid={}&page={}&key={}'.format(cid,imagepage,key))
+        r= self.SESSION.get(jsurl, timeout = REQUEST_TIMEOUT)
+        
+        unpack = jsbeautifier.beautify(r.text)
+        a=re.findall('var pix ?= ?"([^"]*)',unpack)[0]
+        b=re.findall('var pvalue ?= ?\["([^"]*)',unpack)[0]
+        return a+b
 ################################################################################
 def update_parsers(currentversion,targethash):
     currentversion=float(currentversion)
