@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <sites>
 	<info>
-		<version>2.06</version>
+		<version>2.07</version>
 	</info>
 	<site name="MangaDex">
 		<!-- essential args. you will need most of these. -->
@@ -17,6 +17,7 @@
 		<site_parser_re>https?://.*mangarock.com/manga/.*</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
 		<mangarock_query_version>401</mangarock_query_version> <!-- used for json query uri -->
 		<mangarock_api_domain>https://api.mangarockhd.com</mangarock_api_domain> <!-- in case mr changes domains -->
+		<skip_mature>country=Free</skip_mature> <!-- fragment added to the url to skip mature warnings (example: skip=1) -->
 	</site>
 	<site name="MangaSee">
 		<!-- essential args. must supply all of these -->
@@ -40,7 +41,7 @@
 		<chapter_urls_xpath>//ul[@class="detail-main-list"]/li/a/@href</chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
 		<image_url_xpath>substring(//img[@id='image']/@src,1)</image_url_xpath> <!-- xpath that matches the image url on a given page of the series -->
 		<next_url_xpath>substring(//a[text()='&gt;']/@href,1)</next_url_xpath> <!-- xpath that matches the url of the next page on a given page of the series -->
-		<!-- optional args, delete these if not applicable. --> @data-page containing a/@href following a class="active
+		<!-- optional args, delete these if not applicable. -->
 		<chapter_nums_re>Ch\.(\d+\.?\d*)</chapter_nums_re> <!-- regex used to further refine the results of chapter_nums_xpath, default is typically fine. -->
 		<licensed_check_re><![CDATA[(has been licensed)]]></licensed_check_re> <!-- regex that matches if series is licensed -->
 		<is_complete_xpath>//span[@class="detail-info-right-title-tip" and text()='Completed']</is_complete_xpath> <!-- xpath that matches if the series has been marked "Complete" -->
@@ -195,7 +196,7 @@
 		<chapter_nums_re>(\d+\.?\d*)(?:v\d+)? *\Z</chapter_nums_re> <!-- regex used to further refine the results of chapter_nums_xpath, default is typically fine. -->
 		<image_url_re></image_url_re> <!-- fallback for image_url_xpath, will override if this is included -->
 		<next_url_re></next_url_re> <!-- fallback for next_url_xpath, will override if this is included -->
-		<skip_mature></skip_mature> <!-- fragment added to the url to skip mature warnings (example: ?skip=1) -->
+		<skip_mature></skip_mature> <!-- fragment added to the url to skip mature warnings (example: skip=1) -->
 		<licensed_check_re></licensed_check_re> <!-- regex that matches if series is licensed -->
 		<requires_credentials></requires_credentials> <!-- True if the site requires login to access images -->
 		<reverse></reverse> <!-- True if chapters are listed in reverse numerical order (latest chapter first) this is True by default. -->

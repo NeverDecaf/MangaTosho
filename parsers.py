@@ -90,7 +90,7 @@ def unescape(text):
 # sites than have been abandoned:
 # KissManga (crazy js browser verification, MangaFox (banned in the US), MangaPandaNet (taken by russian hackers), MangaTraders (not suitable for this program)
 WORKING_SITES = []
-PARSER_VERSION = 2.06 # update if this file changes in a way that is incompatible with older parsers.xml
+PARSER_VERSION = 2.07 # update if this file changes in a way that is incompatible with older parsers.xml
 
 class ParserFetch:
     ''' you should only get parsers through the fetch() method, otherwise they will not use the correct session object '''
@@ -285,7 +285,12 @@ class SeriesParser(object):
         self.UA = None
         self.TITLE = None
         pieces = urllib.parse.urlsplit(url)
-        url = urllib.parse.urlunsplit(pieces[:3]+(self.SKIP_MATURE or pieces[3],)+pieces[4:])
+        querydict = urllib.parse.parse_qs(pieces.query)
+        if self.SKIP_MATURE:
+            k,v = self.SKIP_MATURE.split('=')
+            querydict[k]=v
+        querystr = urllib.parse.urlencode(querydict,True)
+        url = urllib.parse.urlunsplit(pieces[:3]+(querystr,)+pieces[4:])
         self.MAIN_URL = url
         if self.SITE_PARSER_RE.match(url)==None:
             self.VALID=False
@@ -428,7 +433,12 @@ class SeriesParser(object):
         images=[]
         first_chapter = True # first chapter sometimes has a slightly different url so we will refresh it after the first page.
         pieces = urllib.parse.urlsplit(url)
-        url = urllib.parse.urlunsplit(pieces[:3]+(self.SKIP_MATURE or pieces[3],)+pieces[4:])
+        querydict = urllib.parse.parse_qs(pieces.query)
+        if self.SKIP_MATURE:
+            k,v = self.SKIP_MATURE.split('=')
+            querydict[k]=v
+        querystr = urllib.parse.urlencode(querydict,True)
+        url = urllib.parse.urlunsplit(pieces[:3]+(querystr,)+pieces[4:])
         chapter_path = posixpath.dirname(pieces[2])
 
         while self.IGNORE_BASE_PATH or posixpath.dirname(urllib.parse.urlsplit(url)[2]) == chapter_path:
@@ -542,7 +552,12 @@ class MangaDex(SeriesParser):
         self.UA = None
         self.TITLE = None
         pieces = urllib.parse.urlsplit(url)
-        url = urllib.parse.urlunsplit(pieces[:3]+(self.SKIP_MATURE or pieces[3],)+pieces[4:])
+        querydict = urllib.parse.parse_qs(pieces.query)
+        if self.SKIP_MATURE:
+            k,v = self.SKIP_MATURE.split('=')
+            querydict[k]=v
+        querystr = urllib.parse.urlencode(querydict,True)
+        url = urllib.parse.urlunsplit(pieces[:3]+(querystr,)+pieces[4:])
         self.MAIN_URL = url
         if self.SITE_PARSER_RE.match(url)==None:
             self.VALID=False
@@ -760,7 +775,12 @@ class MangaRock(SeriesParser):
         self.UA = None
         self.TITLE = None
         pieces = urllib.parse.urlsplit(url)
-        url = urllib.parse.urlunsplit(pieces[:3]+(self.SKIP_MATURE or pieces[3],)+pieces[4:])
+        querydict = urllib.parse.parse_qs(pieces.query)
+        if self.SKIP_MATURE:
+            k,v = self.SKIP_MATURE.split('=')
+            querydict[k]=v
+        querystr = urllib.parse.urlencode(querydict,True)
+        url = urllib.parse.urlunsplit(pieces[:3]+(querystr,)+pieces[4:])
         self.MAIN_URL = url
         if self.SITE_PARSER_RE.match(url)==None:
             self.VALID=False
@@ -794,7 +814,14 @@ class MangaRock(SeriesParser):
             
         self.login()
         series_url = pieces[2].split('/')[2]
-        query = self.MANGAROCK_API_DOMAIN.strip('/')+'/query/web{}/info?oid={}&last=0'.format(self.MANGAROCK_QUERY_VERSION,series_url)
+        API_DOMAIN = urllib.parse.urlsplit(self.MANGAROCK_API_DOMAIN)
+        API_QUERY_ARGS = {'last':'0'}
+        if self.SKIP_MATURE:
+            k,v = self.SKIP_MATURE.split('=')
+            API_QUERY_ARGS[k]=v
+        API_QUERY_ARGS['oid']=series_url
+        
+        query = urllib.parse.urlunsplit((API_DOMAIN.scheme,API_DOMAIN.netloc,'/query/web{}/info'.format(self.MANGAROCK_QUERY_VERSION),urllib.parse.urlencode(API_QUERY_ARGS,True),API_DOMAIN.fragment))
         r=self.SESSION.get(query, timeout = REQUEST_TIMEOUT)
         r.raise_for_status()
         # use this very first request to set the referer header (in case of redirect)
@@ -847,7 +874,13 @@ class MangaRock(SeriesParser):
         except AttributeError:
             pass
         number,oid = chapter
-        query = self.MANGAROCK_API_DOMAIN.strip('/')+'/query/web{}/pages?oid={}'.format(self.MANGAROCK_QUERY_VERSION,oid)
+        API_DOMAIN = urllib.parse.urlsplit(self.MANGAROCK_API_DOMAIN)
+        API_QUERY_ARGS = {}
+        if self.SKIP_MATURE:
+            k,v = self.SKIP_MATURE.split('=')
+            API_QUERY_ARGS[k]=v
+        API_QUERY_ARGS['oid']=oid
+        query = urllib.parse.urlunsplit((API_DOMAIN.scheme,API_DOMAIN.netloc,'/query/web{}/pages'.format(self.MANGAROCK_QUERY_VERSION),urllib.parse.urlencode(API_QUERY_ARGS,True),API_DOMAIN.fragment))
         r= self.SESSION.get(query, timeout = REQUEST_TIMEOUT)
         r.raise_for_status()
         chjs = r.json()
