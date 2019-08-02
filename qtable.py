@@ -851,7 +851,7 @@ class SettingsDialog(QDialog):
         top.setLayout(optionsLayout)
         bottom.setLayout(confirmLayout)
 
-        optionsLayout.addRow("<b>Add credentials to allow these sites:</b>",None)
+        optionsLayout.addRow("<b>Add credentials to enable these sites:</b>",None)
         self.options = {}
 
         for site in initialSettings:

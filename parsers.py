@@ -90,7 +90,7 @@ def unescape(text):
 # sites than have been abandoned:
 # KissManga (crazy js browser verification, MangaFox (banned in the US), MangaPandaNet (taken by russian hackers), MangaTraders (not suitable for this program)
 WORKING_SITES = []
-PARSER_VERSION = 2.07 # update if this file changes in a way that is incompatible with older parsers.xml
+PARSER_VERSION = 2.08 # update if this file changes in a way that is incompatible with older parsers.xml
 
 class ParserFetch:
     ''' you should only get parsers through the fetch() method, otherwise they will not use the correct session object '''
@@ -1025,12 +1025,186 @@ class MangaHere(SeriesParser):
         b=re.findall('var pvalue ?= ?\["([^"]*)',unpack)[0]
         return a+b
 ################################################################################
+class SadPanda(SeriesParser):
+    EX_DELAY = (2,3)
+    RETRY_ATTEMPTS = 3
+    AUTO_COMPLETE_TIME = -1
+    
+    def save_images(self,sname,chapters):
+        'A combination of get_images and save_images'
+        updated_count=0
+        unread_count=0
+        for ch_i,ch in enumerate(chapters):
+            try:
+            # this is our num,url tuple
+                img_dl_errs = 0
+                ch=list(ch)
+                ch[0]=mangasql.SQLManager.formatName(ch[0])
+                if not os.path.exists(os.path.join(sname,ch[0])):
+                    iindex=0
+                    tempdir= os.path.join(sname,'#temp')
+                    if os.path.exists(tempdir):
+                        shutil.rmtree(tempdir, onerror=mangasql.takeown)
+##                    images = self.get_images(ch) # throws licensedError and maybe ?parsererror?
+                    os.makedirs(tempdir)
+                    ### get_images
+                    delay=self.IMAGE_DELAY
+                    number,url = ch
+
+                    images=[]
+                    first_chapter = True # first chapter sometimes has a slightly different url so we will refresh it after the first page.
+                    pieces = urllib.parse.urlsplit(url)
+                    url = urllib.parse.urlunsplit(pieces[:3]+(self.SKIP_MATURE or pieces[3],)+pieces[4:])
+                    chapter_path = posixpath.dirname(pieces[2])
+                    TRIES_PER_PAGE = self.RETRY_ATTEMPTS
+
+                    while self.IGNORE_BASE_PATH or posixpath.dirname(urllib.parse.urlsplit(url)[2]) == chapter_path:
+                        retries503=self.RETRY_ATTEMPTS
+                        while retries503>0:
+                            retries503-=1
+                            try:
+                                r= self.SESSION.get(url, timeout = REQUEST_TIMEOUT)
+                                r.raise_for_status()
+                                break
+                            except requests.exceptions.HTTPError as e:
+                                # Need to check its an 404, 503, 500, 403 etc.
+                                if 503 == e.response.status_code:
+                                    'retry only for 503'
+                                    time.sleep(1)
+                                else:
+                                    raise
+                        r.raise_for_status()
+                        html = r.text
+                        etree = lxmlhtml.fromstring(html)
+                        total_count = etree.xpath("//div[@class='sn']/div/span[2]/text()")
+                        time.sleep(random.uniform(*delay))
+                        
+                        if self.LICENSED_CHECK_RE!=None and self.LICENSED_CHECK_RE.search(html)!=None:
+                            e = LicensedError('Series '+self.get_title()+' is licensed.')
+                            e.display = 'Series is licensed'
+                            raise e
+
+                        if self.IMAGE_URL_RE:
+                            pictureurl = self.IMAGE_URL_RE.findall(html)[0].replace('\\','') # this is likely js, so remove backslashes
+                        else:
+                            pictureurl = etree.xpath(self.IMAGE_URL_XPATH)
+                            
+                        backupurl = etree.xpath("//a[@id='loadfail']/@onclick")
+                        backupurl='{}?nl={}'.format(url.split('?')[0],backupurl[0].split("'")[1])
+
+                        
+                        if not len(pictureurl):
+                            # this means the image wasnt found. (parser is outdated)
+                            e = ParserError('Image Parsing failed on %s, chapter:%s'%(self.get_title(),number))
+                            e.display="Failed parsing images for Ch.%s"%number
+                            raise e
+                        # do some small url repairs
+                        repair = urllib.parse.urlsplit(self.SITE_URL)
+                        img_url = urllib.parse.urlsplit(pictureurl)
+                        pictureurl = urllib.parse.urlunsplit([repair[i] if i<2 and not img_url[i] else img_url[i] for i in range(len(img_url))])
+                        if len(images)>(int(total_count[0])+2): #prevents loops
+                            break
+                        if pictureurl.endswith('509.gif'):
+                            e = ParserError('Bandwidth Exceeded')
+                            e.display = 'Bandwidth Exceeded'
+                            raise e
+                        
+                        image = pictureurl
+                        # end of get_images
+                        try: # use backup url if image fails to dl
+                            try:
+                                try:
+                                    response = self.SESSION.get(image, timeout = 2, headers={'referer': self.IMAGE_REFERER})
+                                except AttributeError:
+                                    response = self.SESSION.get(image, timeout = 2)
+                            except:
+##                            except requests.exceptions.Timeout:
+                                TRIES_PER_PAGE-=1
+                                if TRIES_PER_PAGE<=0:
+                                    raise
+                                url = backupurl
+                                continue
+                            TRIES_PER_PAGE = self.RETRY_ATTEMPTS
+                            response.raise_for_status()#raise error code if occured
+                            time.sleep(random.uniform(*self.IMAGE_DOWNLOAD_DELAY))
+                            
+                            filename = os.path.join(tempdir,str(iindex)+os.path.splitext(image)[1])
+                            img = Image.open(BytesIO(response.content))
+                            img.save(os.path.splitext(filename)[0]+r'.'+img.format)
+                            iindex+=1
+                        except Exception as e:
+                            TRIES_PER_PAGE = self.RETRY_ATTEMPTS
+                            if img_dl_errs<ALLOWED_IMAGE_ERRORS_PER_CHAPTER:
+                                img_dl_errs+=1
+                                pass
+                            else:
+                                raise
+                        images.append(pictureurl)
+                        try:
+                            if self.NEXT_URL_RE:
+                                nexturl = self.NEXT_URL_RE.findall(html)[0].replace('\\','') # this is likely js, so remove backslashes
+                            else:
+                                nexturl = etree.xpath(self.NEXT_URL_XPATH)
+                        except (XPathError,IndexError): # if IGNORE_BASE_PATH is true this is the only way to escape this infinite loop.
+                            if self.IGNORE_BASE_PATH:
+                                break
+                            else:
+                                raise
+                        
+                        newurl = urllib.parse.urljoin(url,nexturl)#join the url to correctly follow relative urls
+                        if newurl == url: # prevents fetching the same page twice (there is a second failsafe for this via pictureurl)
+                            break
+                        url = newurl
+                        if first_chapter:
+                            first_chapter = False
+                            chapter_path = posixpath.dirname(urllib.parse.urlsplit(url)[2])
+                    ### get images end
+
+                    shutil.move(tempdir,os.path.join(sname,ch[0]))
+                    if os.path.exists(tempdir):
+                        shutil.rmtree(tempdir, onerror=mangasql.takeown)
+                    updated_count+=1
+                    time.sleep(random.uniform(*CHAPTER_DELAY))
+                unread_count+=1
+            except Exception as e:
+                e.chapter =str(ch[0])
+                e.imagenum =str(iindex)
+                raise e
+        return unread_count,updated_count
+    
+    def login(self):
+        if [x for x in self.SESSION.cookies if x.name == 'ipb_member_id' and x.domain == '.e-hentai.org' and x.expires>time.time()]:
+            return True
+        self.FORM_DATA = {
+            'CookieDate':1,
+            'b':'d',
+            'bt':'1-1',
+            'ipb_login_submit':'Login!'
+        }
+        self.FORM_DATA['UserName'] = self.USERNAME
+        self.FORM_DATA['PassWord'] = self.PASSWORD
+        response = self.SESSION.post(self.EX_LOGIN_URL,data = self.FORM_DATA)
+        time.sleep(random.uniform(*self.EX_DELAY))
+        etree = lxmlhtml.fromstring(response.text)
+        if not etree.xpath('//div[@id="redirectwrap"]/h4[text()="Thanks"]'):
+            e = ParserError('Ex Login Failed')
+            e.display = 'Ex login failed'
+            raise e
+        panda = self.SESSION.get(self.SITE_URL, timeout = REQUEST_TIMEOUT)
+        time.sleep(random.uniform(*self.EX_DELAY))
+        if hashlib.md5(panda.content).hexdigest() == self.SAD_PANDA:
+            e = ParserError('Ex Login Failed (sadpanda)')
+            e.display = 'Ex login failed (sad panda)'
+            raise e
+        time.sleep(random.uniform(*self.EX_DELAY))
+        return True
+################################################################################
 def update_parsers(currentversion,targethash):
     currentversion=float(currentversion)
     r=requests.get('https://raw.githubusercontent.com/NeverDecaf/MangaTosho/master/parsers.xml', timeout = REQUEST_TIMEOUT)
     with open('parsers.tmp', 'wb') as f:
         f.write(r.content)
-    #must reload to file to ensure it was written correctly
+    #must reload file to ensure it was written correctly
     with open('parsers.tmp', 'rb') as f:
         stringdata=f.read()
         temphash = hash_no_newline(stringdata)
