@@ -78,6 +78,7 @@ class MyWindow(QMainWindow):
     updateSeries = pyqtSignal(int)
     removeSeries = pyqtSignal(QModelIndex, int)
     rollbackSeries = pyqtSignal(QModelIndex)
+    exploreSeries = pyqtSignal(QModelIndex)
     completeSeries = pyqtSignal(QModelIndex)
     editSeriesUrl = pyqtSignal(QModelIndex,'QString')
 
@@ -147,6 +148,10 @@ class MyWindow(QMainWindow):
 
         self.removeAction=QAction("&Remove", self)
         self.right_menu = RightClickMenu(self.removeAction)
+
+        self.explorerAction=QAction("&Show in Explorer", self)
+        if os.name=='nt':
+            self.right_menu.addAction(self.explorerAction)
         
         self.updateAction=QAction("&Update", self)
         self.right_menu.addAction(self.updateAction)
@@ -311,6 +316,7 @@ class MyWindow(QMainWindow):
         self.updateSeries[int].connect(tm.updateSeries)
         self.removeSeries[QModelIndex, int].connect(tm.removeSeries)
         self.rollbackSeries[QModelIndex].connect(tm.rollbackSeries)
+        self.exploreSeries[QModelIndex].connect(tm.openInFileExplorer)
         self.completeSeries[QModelIndex].connect(tm.completeSeries)
         self.editSeriesUrl[QModelIndex,str].connect(tm.editSeriesUrl)
         tv.customContextMenuRequested[QPoint].connect(self.alart)
@@ -375,6 +381,8 @@ class MyWindow(QMainWindow):
                     QMessageBox.information(self, 'Error changing URL', 'New URL is the same as existing one.')
                 else:
                     QMessageBox.information(self, 'Error changing URL', 'New URL is not valid for this site (%s)'%site)
+        if self.explorerAction==localpos:
+            self.exploreSeries.emit(self.tv.indexAt(pos))
         
 class RightClickMenu(QMenu):
     def __init__(self, removeAction, parent=None):
@@ -611,6 +619,22 @@ class MyTableModel(QAbstractTableModel):
                 lock.unlock()
         return True
     
+    def openInFileExplorer(self,index):
+        import ctypes
+        ctypes.windll.ole32.CoInitialize(None)
+        toopen=os.path.abspath(SQLManager.cleanName(self.arraydata[index.row()][self.headerdata.index('Title')]))
+        try:
+            chapters = sorted(os.listdir(toopen))
+            if len(chapters):
+                toopen = os.path.join(toopen,chapters[0])
+        except:
+            pass
+        upath = os.path.abspath(toopen)
+        pidl = ctypes.windll.shell32.ILCreateFromPathW(upath)
+        ctypes.windll.shell32.SHOpenFolderAndSelectItems(pidl, 0, None, 0)
+        ctypes.windll.shell32.ILFree(pidl)
+        ctypes.windll.ole32.CoUninitialize()
+            
     def removeSeries(self,index,removedata):
         self.beginRemoveRows(QModelIndex(),index.row(),index.row())
         title=self.arraydata[index.row()][self.headerdata.index('Title')]
