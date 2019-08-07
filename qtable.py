@@ -12,7 +12,7 @@ import subprocess
 import random
 from qtrayico import Systray
 from functools import partial
-import queue
+import collections,queue
 from constants import *
 
 def isfloat(string):
@@ -389,17 +389,14 @@ def is_number(s):
     except ValueError:
         return False
 
-class Deque(queue.Queue):
+class UniqueDeque(queue.Queue):
+    'Double-ended queue which allows only unique items to be inserted'
+    def __init__(self, maxsize=0, key=lambda x:str(x)):
+        'key can be passed and is used when comparing elements (for appending, not sorting)'
+        super().__init__(maxsize)
+        self.keyfunc = key
+        
     def putLeft(self, item, block=True, timeout=None):
-        '''Put an item into the "front" of the queue.
-        If optional args 'block' is true and 'timeout' is None (the default),
-        block if necessary until a free slot is available. If 'timeout' is
-        a non-negative number, it blocks at most 'timeout' seconds and raises
-        the Full exception if no free slot was available within that time.
-        Otherwise ('block' is false), put an item on the queue if a free slot
-        is immediately available, else raise the Full exception ('timeout'
-        is ignored in that case).
-        '''
         with self.not_full:
             if self.maxsize > 0:
                 if not block:
@@ -417,9 +414,33 @@ class Deque(queue.Queue):
                         if remaining <= 0.0:
                             raise queue.Full
                         self.not_full.wait(remaining)
-            self.queue.appendleft(item)
+            self._putLeft(item)
             self.unfinished_tasks += 1
             self.not_empty.notify()
+    # Initialize the queue representation
+    def _init(self, maxsize):
+        self.queue = collections.deque()
+        self.set = set()
+
+    def _qsize(self):
+        return len(self.queue)
+
+    # Put a new item in the queue
+    def _put(self, item):
+        if self.keyfunc(item) not in self.set:
+            self.queue.append(item)
+            self.set.add(self.keyfunc(item))
+
+    def _putLeft(self, item):
+        if self.keyfunc(item) not in self.set:
+            self.queue.appendleft(item)
+            self.set.add(self.keyfunc(item))
+
+    # Get an item from the queue
+    def _get(self):
+        item = self.queue.popleft()
+        self.set.discard(self.keyfunc(item))
+        return item
         
 class UpdateThread(QThread):
     errorRow = pyqtSignal('PyQt_PyObject', 'PyQt_PyObject', 'PyQt_PyObject')
@@ -439,6 +460,7 @@ class UpdateThread(QThread):
             site_lock = self.site_locks.setdefault(datum[self.headerdata.index('Site')],QSemaphore(MAX_SIMULTANEOUS_UPDATES_PER_SITE))
             if not site_lock.tryAcquire():
                 self.queue.put(datum) # re-queue the data
+                time.sleep(10) # lazy solution
                 return
             sitelock_aquired = True
             lockset = self.series_locks.setdefault(datum[self.headerdata.index('Url')],[QMutex(),0])
@@ -486,8 +508,7 @@ class MyTableModel(QAbstractTableModel):
     dataChanged = pyqtSignal(QModelIndex, QModelIndex)
     layoutAboutToBeChanged = pyqtSignal()
     layoutChanged = pyqtSignal()
-    updateQueue = Deque()
-    updateThreads=[]
+    
 
     def __init__(self, headerdata, parserFetch, parent=None, *args): 
         """ datain: a list of lists
@@ -518,6 +539,10 @@ class MyTableModel(QAbstractTableModel):
         self.second_sort_column=self.headerdata.index("Title")
         
         self.setReader(self.sql.getReader())
+
+        self.updateThreads=[]
+        self.updateQueue = UniqueDeque(key = lambda x: x[self.headerdata.index("Url")])
+        
         for i in range(MAX_UPDATE_THREADS):
             thread = UpdateThread(self.sql,self.headerdata,self.site_locks,self.series_locks,self.updateQueue)
             thread.updateRow['PyQt_PyObject', 'PyQt_PyObject', 'PyQt_PyObject'].connect(self.updateRow)
@@ -527,7 +552,7 @@ class MyTableModel(QAbstractTableModel):
 
         timer = QTimer(self)
         timer.timeout.connect(self.updateAll)
-        timer.start(60000)
+        timer.start(SERIES_UPDATE_FREQ)
         self.updateAll()
         
     def setCredentials(self,creds):
