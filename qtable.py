@@ -12,6 +12,7 @@ import subprocess
 import random
 from qtrayico import Systray
 from functools import partial
+import queue
 
 def isfloat(string):
     try:
@@ -396,57 +397,68 @@ def is_number(s):
         return True
     except ValueError:
         return False
-    
-class Worker(QThread):
+
+class UpdateThread(QThread):
     errorRow = pyqtSignal('PyQt_PyObject', 'PyQt_PyObject', 'PyQt_PyObject')
     updateRow = pyqtSignal('PyQt_PyObject', 'PyQt_PyObject', 'PyQt_PyObject')
 
-    def __init__(self, data, sqlmanager, headerdata, lock, series_locks, parent = None):
+    def __init__(self, data, sqlmanager, headerdata, lock, series_locks, update_queue, parent = None):
         QThread.__init__(self, parent)
         self.sql=sqlmanager
         self.data=data
         self.headerdata=headerdata
         self.lock=lock
         self.series_locks=series_locks
-    def run(self):
-        self.updateAll()
-    def updateAll(self):
+        self.queue = update_queue
+
+    def updateSeries(self,datum):
+        try:
+            self.lock.lock()
+            lockset = self.series_locks.setdefault(datum[self.headerdata.index('Url')],[QMutex(),0])
+            thislock = lockset[0]
+            thislock.lock()
             try:
-                self.lock.lock()
-                for datum in self.data:
-                    lockset = self.series_locks.setdefault(datum[self.headerdata.index('Url')],[QMutex(),0])
-                    thislock = lockset[0]
-                    thislock.lock()
-                    try:
-                        complete = datum[self.headerdata.index('Complete')]
-                        if complete:
-                            continue
-                        err,data = self.sql.updateSeries(datum)
-                        if err>0:
-                            self.errorRow.emit(datum, err, data)
-                        elif len(data):
-                            if lockset[1]:
-                                # means a change occured mid-update, in this case we don't want to overwrite the data.
-                                lockset[1]=0
-                            else:
-                                self.updateRow.emit(datum, data, err)
-                        else:
-                            self.errorRow.emit(datum, 0, [''])
-                        time.sleep(random.uniform(*parsers.CHAPTER_DELAY)) # sleep between series (same delay as between chapters)
-                    finally:
-                        thislock.unlock()
-            except Exception as e:
-                fh=open('CRITICAL ERROR SEARCH QTABLE FOR THIS LINE','wb')
-                fh.write('%r'%e)
-                fh.close()
-                raise
+                complete = datum[self.headerdata.index('Complete')]
+                if complete:
+                    return
+                err,data = self.sql.updateSeries(datum) # this method does not access the sqlite db and therefore can function in a separate thread.
+                if err>0:
+                    self.errorRow.emit(datum, err, data)
+                elif len(data):
+                    if lockset[1]:
+                        # means a change occured mid-update, in this case we don't want to overwrite the data.
+                        lockset[1]=0
+                    else:
+                        self.updateRow.emit(datum, data, err)
+                else:
+                    self.errorRow.emit(datum, 0, [''])
+                time.sleep(random.uniform(*parsers.CHAPTER_DELAY)) # sleep between series (same delay as between chapters)
             finally:
-                self.lock.unlock()
+                thislock.unlock()
+        except Exception as e:
+            fh=open('CRITICAL ERROR SEARCH QTABLE FOR THIS LINE','wb')
+            fh.write('%r'%e)
+            fh.close()
+            raise
+        finally:
+            self.lock.unlock()
+            
+    def run(self):
+        while True:
+            data = self.queue.get()
+            if data is None:
+                break
+            self.updateSeries(data)
+
+    def stop(self):
+        self.queue.put(None)
+        self.wait()
 
 class MyTableModel(QAbstractTableModel): 
     dataChanged = pyqtSignal(QModelIndex, QModelIndex)
     layoutAboutToBeChanged = pyqtSignal()
     layoutChanged = pyqtSignal()
+    updateQueue = queue.LifoQueue()
 
     def __init__(self, headerdata, parserFetch, parent=None, *args): 
         """ datain: a list of lists
@@ -470,8 +482,6 @@ class MyTableModel(QAbstractTableModel):
         self.title_col = self.headerdata.index("Title")
         self.editable_cols = (self.current_col, self.headerdata.index("Rating"))
 
-##        self.updateTimer = QTimer()
-
         self.sort_order=Qt.AscendingOrder
         self.sort_column=self.headerdata.index("Unread")
 
@@ -479,7 +489,16 @@ class MyTableModel(QAbstractTableModel):
         self.second_sort_column=self.headerdata.index("Title")
         
         self.setReader(self.sql.getReader())
-        
+
+        self.thread = UpdateThread(self.arraydata,self.sql,self.headerdata,self.lock,self.series_locks,self.updateQueue)
+        self.thread.updateRow['PyQt_PyObject', 'PyQt_PyObject', 'PyQt_PyObject'].connect(self.updateRow)
+        self.thread.errorRow['PyQt_PyObject', 'PyQt_PyObject', 'PyQt_PyObject'].connect(self.errorRow)
+##        self.thread.finished.connect(self.waitThenUpdate)
+        self.thread.start()
+
+        timer = QTimer(self)
+        timer.timeout.connect(self.updateAll)
+        timer.start(60000)
         self.updateAll()
         
     def setCredentials(self,creds):
@@ -520,32 +539,15 @@ class MyTableModel(QAbstractTableModel):
             self.resort()
             QMessageBox.information(self.myparent, 'Series Added','New series was added successfully.')
             self.updateSeries(self.arraydata.index(data))
-            
 
     def updateSeries(self,index):
-        #Just do the same as updateAll except with an array of size 1.
-        #create the business thread
-        self.thread = Worker([self.arraydata[index]],self.sql,self.headerdata,self.lock,self.series_locks)
-        
-        self.thread.updateRow['PyQt_PyObject', 'PyQt_PyObject', 'PyQt_PyObject'].connect(self.updateRow)
-        self.thread.errorRow['PyQt_PyObject', 'PyQt_PyObject', 'PyQt_PyObject'].connect(self.errorRow)
-        #no need for a finished() signal as we only want to run this once.
-##        self.connect(self.thread, SIGNAL("finished()"),self.waitThenUpdate)
-        
-        self.thread.start()
+        self.series_locks.setdefault(self.arraydata[index][self.headerdata.index('Url')],[QMutex(),0])
+        self.updateQueue.put(self.arraydata[index])
 
-    def waitThenUpdate(self):
-        QTimer.singleShot(60*60*1000,self.updateAll)#update after 1h. may want to increase or scale based on # of series
-        
     def updateAll(self):
-        #create the business thread
-        self.thread = Worker(self.arraydata,self.sql,self.headerdata,self.lock,self.series_locks)
-        self.thread.updateRow['PyQt_PyObject', 'PyQt_PyObject', 'PyQt_PyObject'].connect(self.updateRow)
-        self.thread.errorRow['PyQt_PyObject', 'PyQt_PyObject', 'PyQt_PyObject'].connect(self.errorRow)
-        self.thread.finished.connect(self.waitThenUpdate)
-        
-        self.thread.start()
-        #use QTimer to call this again after a break
+        for d in self.sql.getToUpdate():
+            self.series_locks.setdefault(d[self.headerdata.index('Url')],[QMutex(),0])
+            self.updateQueue.put(d)
 
     def updateRow(self,olddata,newdata,errcode):
         try:
@@ -557,6 +559,7 @@ class MyTableModel(QAbstractTableModel):
         newdata[self.headerdata.index('SuccessTime')]=time.time()
         newdata[self.headerdata.index('Error')]=0
         newdata[self.headerdata.index('Error Message')] = None
+        newdata[self.headerdata.index('LastUpdateAttempt')]=time.time()
 
         
         for i in range(len(self.arraydata[row])):
@@ -594,6 +597,7 @@ class MyTableModel(QAbstractTableModel):
         self.arraydata[row][self.headerdata.index('Error Message')] = errmsg[0]
         if errcode<1:
             self.arraydata[row][self.headerdata.index('SuccessTime')]=time.time()
+        self.arraydata[row][self.headerdata.index('LastUpdateAttempt')]=time.time()
         self.dataChanged.emit(idx, idx2)
         self.sql.changeSeries(self.arraydata[row])
 

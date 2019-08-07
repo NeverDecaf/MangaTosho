@@ -14,7 +14,7 @@ from requests.packages.urllib3.exceptions import NewConnectionError
 from urllib.parse import urlsplit,urlunsplit
 import stat
 LOGGING=False # If true, will log individual series errors to Series_Errors.log
-
+MIN_UPDATE_FREQ = 36400
 
 if os.path.exists('DEBUG_TEST'):
     LOGGING=True
@@ -37,7 +37,7 @@ def is_number(s):
         return False
     
 class SQLManager():
-    COLUMNS = ['Url', 'Title', 'Read', 'Chapters', 'Unread', 'Site', 'Complete', 'UpdateTime', 'Error', 'SuccessTime', 'Error Message','Rating']
+    COLUMNS = ['Url', 'Title', 'Read', 'Chapters', 'Unread', 'Site', 'Complete', 'UpdateTime', 'Error', 'SuccessTime', 'Error Message','Rating','LastUpdateAttempt']
     
     def __init__(self, parserFetch):
         self.conn = sqlite3.connect('manga.db')
@@ -66,6 +66,10 @@ class SQLManager():
             pass # col exists
         try:
             c.execute('''ALTER TABLE series ADD COLUMN rating integer DEFAULT -1''')
+        except sqlite3.OperationalError:
+            pass # col exists
+        try:
+            c.execute('''ALTER TABLE series ADD COLUMN last_update_attempt number DEFAULT 0''')
         except sqlite3.OperationalError:
             pass # col exists
         c.executemany('''INSERT OR IGNORE INTO site_info (name) VALUES (?)''',[(site.__name__,) for site in parserFetch.get_req_credentials_sites()])
@@ -352,6 +356,15 @@ class SQLManager():
         #gets a list of lists containing all data
         c = self.conn.cursor()
         c.execute('''SELECT * FROM series''')
+        series = c.fetchall()
+        self.conn.commit()
+        c.close()
+        return list(list(x) for x in series)
+
+    def getToUpdate(self, update_all=0):
+        # get data for series which are eligible for update
+        c = self.conn.cursor()
+        c.execute('''SELECT * FROM series WHERE NOT complete AND last_update_attempt<strftime('%s', 'now')-?''',(update_all or MIN_UPDATE_FREQ,))
         series = c.fetchall()
         self.conn.commit()
         c.close()
