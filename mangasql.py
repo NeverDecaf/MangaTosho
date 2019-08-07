@@ -14,7 +14,7 @@ from requests.packages.urllib3.exceptions import NewConnectionError
 from urllib.parse import urlsplit,urlunsplit
 import stat
 LOGGING=False # If true, will log individual series errors to Series_Errors.log
-MIN_UPDATE_FREQ = 36400
+MIN_UPDATE_FREQ = 60*60*2 # 2 hrs
 
 if os.path.exists('DEBUG_TEST'):
     LOGGING=True

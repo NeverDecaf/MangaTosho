@@ -12,7 +12,10 @@ import subprocess
 import random
 from qtrayico import Systray
 from functools import partial
-import queue
+from collections import deque
+
+MAX_UPDATE_THREADS = 8
+MAX_SIMULTANEOUS_UPDATES_PER_SITE = 1
 
 def isfloat(string):
     try:
@@ -402,18 +405,24 @@ class UpdateThread(QThread):
     errorRow = pyqtSignal('PyQt_PyObject', 'PyQt_PyObject', 'PyQt_PyObject')
     updateRow = pyqtSignal('PyQt_PyObject', 'PyQt_PyObject', 'PyQt_PyObject')
 
-    def __init__(self, data, sqlmanager, headerdata, lock, series_locks, update_queue, parent = None):
+    def __init__(self, sqlmanager, headerdata, site_locks, series_locks, update_queue, parent = None):
         QThread.__init__(self, parent)
         self.sql=sqlmanager
-        self.data=data
         self.headerdata=headerdata
-        self.lock=lock
+        self.site_locks=site_locks
         self.series_locks=series_locks
         self.queue = update_queue
 
     def updateSeries(self,datum):
+        sitelock_aquired = False
         try:
-            self.lock.lock()
+##            self.lock.lock()
+            site_lock = self.site_locks.setdefault(datum[self.headerdata.index('Site')],QSemaphore(MAX_SIMULTANEOUS_UPDATES_PER_SITE))
+            if not site_lock.tryAcquire():
+                self.queue.append(datum) # re-queue the data
+                time.sleep(1)
+                return
+            sitelock_aquired = True
             lockset = self.series_locks.setdefault(datum[self.headerdata.index('Url')],[QMutex(),0])
             thislock = lockset[0]
             thislock.lock()
@@ -436,29 +445,36 @@ class UpdateThread(QThread):
             finally:
                 thislock.unlock()
         except Exception as e:
-            fh=open('CRITICAL ERROR SEARCH QTABLE FOR THIS LINE','wb')
+            fh=open('CRITICAL ERROR SEARCH QTABLE FOR THIS LINE','w')
             fh.write('%r'%e)
             fh.close()
             raise
         finally:
-            self.lock.unlock()
+            if sitelock_aquired:
+                site_lock.release()
+##            self.lock.unlock()
             
     def run(self):
         while True:
-            data = self.queue.get()
-            if data is None:
-                break
-            self.updateSeries(data)
+            try:
+                data = self.queue.popleft()
+                if data is None:
+                    break
+            except IndexError:
+                time.sleep(10)
+            else:
+                self.updateSeries(data)
 
     def stop(self):
-        self.queue.put(None)
+        self.queue.appendleft(None)
         self.wait()
 
 class MyTableModel(QAbstractTableModel): 
     dataChanged = pyqtSignal(QModelIndex, QModelIndex)
     layoutAboutToBeChanged = pyqtSignal()
     layoutChanged = pyqtSignal()
-    updateQueue = queue.LifoQueue()
+    updateQueue = deque()
+    updateThreads=[]
 
     def __init__(self, headerdata, parserFetch, parent=None, *args): 
         """ datain: a list of lists
@@ -471,7 +487,7 @@ class MyTableModel(QAbstractTableModel):
         self.myparent = parent
         self.sql=SQLManager(parserFetch)
         # create lock for threads
-        self.lock = QMutex()
+        self.site_locks = {}
         self.series_locks = {}
         
         self.arraydata = self.sql.getSeries()
@@ -489,12 +505,12 @@ class MyTableModel(QAbstractTableModel):
         self.second_sort_column=self.headerdata.index("Title")
         
         self.setReader(self.sql.getReader())
-
-        self.thread = UpdateThread(self.arraydata,self.sql,self.headerdata,self.lock,self.series_locks,self.updateQueue)
-        self.thread.updateRow['PyQt_PyObject', 'PyQt_PyObject', 'PyQt_PyObject'].connect(self.updateRow)
-        self.thread.errorRow['PyQt_PyObject', 'PyQt_PyObject', 'PyQt_PyObject'].connect(self.errorRow)
-##        self.thread.finished.connect(self.waitThenUpdate)
-        self.thread.start()
+        for i in range(MAX_UPDATE_THREADS):
+            thread = UpdateThread(self.sql,self.headerdata,self.site_locks,self.series_locks,self.updateQueue)
+            thread.updateRow['PyQt_PyObject', 'PyQt_PyObject', 'PyQt_PyObject'].connect(self.updateRow)
+            thread.errorRow['PyQt_PyObject', 'PyQt_PyObject', 'PyQt_PyObject'].connect(self.errorRow)
+            thread.start()
+            self.updateThreads.append(thread)
 
         timer = QTimer(self)
         timer.timeout.connect(self.updateAll)
@@ -541,13 +557,13 @@ class MyTableModel(QAbstractTableModel):
             self.updateSeries(self.arraydata.index(data))
 
     def updateSeries(self,index):
-        self.series_locks.setdefault(self.arraydata[index][self.headerdata.index('Url')],[QMutex(),0])
-        self.updateQueue.put(self.arraydata[index])
+        self.series_locks.setdefault(self.arraydata[index.row()][self.headerdata.index('Url')],[QMutex(),0])
+        self.updateQueue.appendleft(self.arraydata[index])
 
     def updateAll(self):
         for d in self.sql.getToUpdate():
             self.series_locks.setdefault(d[self.headerdata.index('Url')],[QMutex(),0])
-            self.updateQueue.put(d)
+            self.updateQueue.append(d)
 
     def updateRow(self,olddata,newdata,errcode):
         try:
@@ -641,6 +657,7 @@ class MyTableModel(QAbstractTableModel):
             
     def removeSeries(self,index,removedata):
         self.beginRemoveRows(QModelIndex(),index.row(),index.row())
+        self.series_locks.setdefault(self.arraydata[index.row()][self.headerdata.index('Url')],[QMutex(),0])[1]=0
         title=self.arraydata[index.row()][self.headerdata.index('Title')]
         url=self.arraydata[index.row()][self.headerdata.index('Url')]
         del self.arraydata[index.row()]
