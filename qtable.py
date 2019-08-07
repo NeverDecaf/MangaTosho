@@ -12,7 +12,7 @@ import subprocess
 import random
 from qtrayico import Systray
 from functools import partial
-from collections import deque
+import queue
 
 MAX_UPDATE_THREADS = 8
 MAX_SIMULTANEOUS_UPDATES_PER_SITE = 1
@@ -400,7 +400,38 @@ def is_number(s):
         return True
     except ValueError:
         return False
-
+class Deque(queue.Queue):
+    def putLeft(self, item, block=True, timeout=None):
+        '''Put an item into the "front" of the queue.
+        If optional args 'block' is true and 'timeout' is None (the default),
+        block if necessary until a free slot is available. If 'timeout' is
+        a non-negative number, it blocks at most 'timeout' seconds and raises
+        the Full exception if no free slot was available within that time.
+        Otherwise ('block' is false), put an item on the queue if a free slot
+        is immediately available, else raise the Full exception ('timeout'
+        is ignored in that case).
+        '''
+        with self.not_full:
+            if self.maxsize > 0:
+                if not block:
+                    if self._qsize() >= self.maxsize:
+                        raise queue.Full
+                elif timeout is None:
+                    while self._qsize() >= self.maxsize:
+                        self.not_full.wait()
+                elif timeout < 0:
+                    raise ValueError("'timeout' must be a non-negative number")
+                else:
+                    endtime = time() + timeout
+                    while self._qsize() >= self.maxsize:
+                        remaining = endtime - time()
+                        if remaining <= 0.0:
+                            raise queue.Full
+                        self.not_full.wait(remaining)
+            self.queue.appendleft(item)
+            self.unfinished_tasks += 1
+            self.not_empty.notify()
+        
 class UpdateThread(QThread):
     errorRow = pyqtSignal('PyQt_PyObject', 'PyQt_PyObject', 'PyQt_PyObject')
     updateRow = pyqtSignal('PyQt_PyObject', 'PyQt_PyObject', 'PyQt_PyObject')
@@ -416,11 +447,9 @@ class UpdateThread(QThread):
     def updateSeries(self,datum):
         sitelock_aquired = False
         try:
-##            self.lock.lock()
             site_lock = self.site_locks.setdefault(datum[self.headerdata.index('Site')],QSemaphore(MAX_SIMULTANEOUS_UPDATES_PER_SITE))
             if not site_lock.tryAcquire():
-                self.queue.append(datum) # re-queue the data
-                time.sleep(1)
+                self.queue.put(datum) # re-queue the data
                 return
             sitelock_aquired = True
             lockset = self.series_locks.setdefault(datum[self.headerdata.index('Url')],[QMutex(),0])
@@ -452,28 +481,23 @@ class UpdateThread(QThread):
         finally:
             if sitelock_aquired:
                 site_lock.release()
-##            self.lock.unlock()
             
     def run(self):
         while True:
-            try:
-                data = self.queue.popleft()
-                if data is None:
-                    break
-            except IndexError:
-                time.sleep(10)
-            else:
-                self.updateSeries(data)
+            data = self.queue.get()
+            if data is None:
+                break
+            self.updateSeries(data)
 
     def stop(self):
-        self.queue.appendleft(None)
+        self.queue.putLeft(None)
         self.wait()
 
 class MyTableModel(QAbstractTableModel): 
     dataChanged = pyqtSignal(QModelIndex, QModelIndex)
     layoutAboutToBeChanged = pyqtSignal()
     layoutChanged = pyqtSignal()
-    updateQueue = deque()
+    updateQueue = Deque()
     updateThreads=[]
 
     def __init__(self, headerdata, parserFetch, parent=None, *args): 
@@ -556,14 +580,14 @@ class MyTableModel(QAbstractTableModel):
             QMessageBox.information(self.myparent, 'Series Added','New series was added successfully.')
             self.updateSeries(self.arraydata.index(data))
 
-    def updateSeries(self,index):
-        self.series_locks.setdefault(self.arraydata[index.row()][self.headerdata.index('Url')],[QMutex(),0])
-        self.updateQueue.appendleft(self.arraydata[index])
+    def updateSeries(self,indexrow):
+        self.series_locks.setdefault(self.arraydata[indexrow][self.headerdata.index('Url')],[QMutex(),0])
+        self.updateQueue.putLeft(self.arraydata[indexrow])
 
     def updateAll(self):
         for d in self.sql.getToUpdate():
             self.series_locks.setdefault(d[self.headerdata.index('Url')],[QMutex(),0])
-            self.updateQueue.append(d)
+            self.updateQueue.put(d)
 
     def updateRow(self,olddata,newdata,errcode):
         try:
