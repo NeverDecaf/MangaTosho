@@ -25,6 +25,8 @@ from lxml.etree import XPathEvalError as XPathError
 from functools import reduce
 import random
 import jsbeautifier
+from constants import *
+
 # add the cacert.pem file to the path correctly even if compiled with pyinstaller:
 # Get the base directory
 if getattr( sys , 'frozen' , None ):    # keyword 'frozen' is for setting basedir while in onefile mode in pyinstaller
@@ -49,10 +51,6 @@ except:
 os.environ["PATH"] += os.pathsep + basedir
 # only import cfscrape AFTER setting PATH
 import cfscrape
-
-REQUEST_TIMEOUT = 60
-ALLOWED_IMAGE_ERRORS_PER_CHAPTER = 0 # I don't like this one bit. Should be 0. If you don't care about missing images increase this.
-CHAPTER_DELAY=(4,5) # seconds between chapters, to keep from getting banned.
 
 from PIL import ImageFile
 ImageFile.LOAD_TRUNCATED_IMAGES = True
@@ -89,11 +87,9 @@ def unescape(text):
 
 # sites than have been abandoned:
 # KissManga (crazy js browser verification, MangaFox (banned in the US), MangaPandaNet (taken by russian hackers), MangaTraders (not suitable for this program)
-WORKING_SITES = []
-PARSER_VERSION = 2.08 # update if this file changes in a way that is incompatible with older parsers.xml
-
 class ParserFetch:
     ''' you should only get parsers through the fetch() method, otherwise they will not use the correct session object '''
+    WORKING_SITES = []
     
     def get_valid_parsers(self):
         return self.parsers
@@ -116,7 +112,6 @@ class ParserFetch:
         return self.parsers_req_creds
     
     def __init__(self, credentials = {}):
-        global WORKING_SITES
         self.matchers=[]
         self.parsers_req_creds=set()
         self.version_uptodate = 0
@@ -126,7 +121,7 @@ class ParserFetch:
 ##            raise
             'ignore all exceptions to avoid a program-ending failure. should log them somewhere though.'
         self._generate_parsers()
-        self.parsers = set(WORKING_SITES)#[globals()[cname] for cname in WORKING_SITES]
+        self.parsers = set(self.WORKING_SITES)#[globals()[cname] for cname in self.WORKING_SITES]
         for parser in self.parsers:
             if parser.USE_CFSCRAPE:
                 self.matchers.append((parser.SITE_PARSER_RE,parser,cfscrape.create_scraper()))
@@ -200,7 +195,6 @@ class ParserFetch:
                     return update_parsers(PARSER_VERSION,targethash)
                     
     def _generate_parsers(self):
-        global WORKING_SITES
         tree = ET.parse('parsers.xml')
         root = tree.getroot()
         is_class_member = lambda member: inspect.isclass(member) and member.__module__ == __name__
@@ -212,9 +206,9 @@ class ParserFetch:
             data={k.upper(): {'True':True,'False':False,'None':None}.get(v,re.compile(v,re.IGNORECASE) if k=='site_parser_re' else re.compile(v,re.IGNORECASE) if k.endswith('_re') else tuple(map(float,v.split(','))) if k.endswith('_delay') else v) for k, v in list(self.__children_as_dict(site).items()) if v!=None}
             if classname!='TemplateSite':
                 if classname in clsmembers:
-                    WORKING_SITES.append(type(classname,(clsmembers[classname],),data))
+                    self.WORKING_SITES.append(type(classname,(clsmembers[classname],),data))
                 else:
-                    WORKING_SITES.append(type(classname,(SeriesParser,),data))
+                    self.WORKING_SITES.append(type(classname,(SeriesParser,),data))
     @staticmethod
     def _get_conversions():
         conversions = []

@@ -13,9 +13,7 @@ import random
 from qtrayico import Systray
 from functools import partial
 import queue
-
-MAX_UPDATE_THREADS = 8
-MAX_SIMULTANEOUS_UPDATES_PER_SITE = 1
+from constants import *
 
 def isfloat(string):
     try:
@@ -23,15 +21,6 @@ def isfloat(string):
         return True
     except:
         return False
-    
-def resource_path(relative_path):
-    """ Get absolute path to resource, works for dev and for PyInstaller """
-    try:
-        # PyInstaller creates a temp folder and stores path in _MEIPASS
-        base_path = sys._MEIPASS
-    except Exception:
-        base_path = os.path.abspath(".")
-    return os.path.join(base_path, relative_path)
 
 class trayIcon(Systray):
     def __init__(self,window):
@@ -53,7 +42,6 @@ class trayIcon(Systray):
         self.actions.append(self.readerAction)
         self.actions.append(self.quitAction)
 
-MMCE=resource_path("!MMCE_Win32\MMCE_Win32.exe")
 def main():
     from PyQt5 import QtGui
 
@@ -257,7 +245,7 @@ class MyWindow(QMainWindow):
         tv = QTableView()
         self.tv=tv
         # set the table model
-        header = SQLManager.COLUMNS # ['Url', 'Title', 'Read', 'Chapters', 'Unread', 'Site', 'Complete', 'UpdateTime', 'Error', 'SuccessTime']
+        header = TABLE_COLUMNS # ['Url', 'Title', 'Read', 'Chapters', 'Unread', 'Site', 'Complete', 'UpdateTime', 'Error', 'SuccessTime']
         tm = MyTableModel(header, self.parserFetcher, self)
         self.tm=tm
 ##        im=ColoredCell()
@@ -400,6 +388,7 @@ def is_number(s):
         return True
     except ValueError:
         return False
+
 class Deque(queue.Queue):
     def putLeft(self, item, block=True, timeout=None):
         '''Put an item into the "front" of the queue.
@@ -963,8 +952,6 @@ class SettingsDialog(QDialog):
 if __name__ == "__main__":
     # chdir to the correct directory to ensure configs, etc. are loaded correctly.
     import os,sys
-
-
     try:
         sys._MEIPASS
         os.chdir(os.path.dirname(sys.argv[0]))

@@ -13,11 +13,7 @@ from requests import exceptions
 from requests.packages.urllib3.exceptions import NewConnectionError
 from urllib.parse import urlsplit,urlunsplit
 import stat
-LOGGING=False # If true, will log individual series errors to Series_Errors.log
-MIN_UPDATE_FREQ = 60*60*2 # 2 hrs
-
-if os.path.exists('DEBUG_TEST'):
-    LOGGING=True
+from constants import *
 
 #######################################################
 ######takeown + zip, utlility functions################
@@ -143,7 +139,7 @@ class SQLManager():
         c = self.conn.cursor()
         data=(url,title,'N','?',0,series.get_shorthand(),0,time.time(),0,time.time(),'',-1)
         try:
-            c.execute("INSERT INTO series VALUES ({})".format(','.join(['?']*len(self.COLUMNS))),data)
+            c.execute("INSERT INTO series VALUES ({})".format(','.join(['?']*len(TABLE_COLUMNS))),data)
         except sqlite3.IntegrityError:
             self.conn.commit()
             c.close()
@@ -221,14 +217,14 @@ class SQLManager():
         errtype = 1
         errmsg = ''
         data=list(data)
-        logsafe_title = data[self.COLUMNS.index('Title')]
+        logsafe_title = data[TABLE_COLUMNS.index('Title')]
         try:
             # this isnt ideal but it works and thats all we care about for logging
-            logsafe_title = str(str(data[self.COLUMNS.index('Title')]).encode('utf8'))
+            logsafe_title = str(str(data[TABLE_COLUMNS.index('Title')]).encode('utf8'))
         except:# UnicodeEncodeError:
             logsafe_title = '[Could not encode name]'
         try:
-            series = self.parserFetch.fetch(data[self.COLUMNS.index('Url')])
+            series = self.parserFetch.fetch(data[TABLE_COLUMNS.index('Url')])
             if not isinstance(series,parsers.SeriesParser):
 ##            if not series:
                 if series==-3:
@@ -242,7 +238,7 @@ class SQLManager():
                     #client error
                     logging.exception('Type 2 (failed accessing series page for '+logsafe_title+' due to client error 4xx)')
                     return 2,['Webpage could not be reached.']
-                if self.parserFetch.match(data[self.COLUMNS.index('Url')]) is not None:#got a match, but still invalid (this means the title wasnt parsed correctly)
+                if self.parserFetch.match(data[TABLE_COLUMNS.index('Url')]) is not None:#got a match, but still invalid (this means the title wasnt parsed correctly)
                     logging.exception('Type 1 (couldnt parse series title for '+logsafe_title+')')
                     return 1,['Parser needs updating.']
                 #else is None aka invalid site
@@ -253,18 +249,18 @@ class SQLManager():
                 logging.exception('Type 1 (Parser Error: No chapters found: '+logsafe_title+')')
                 return errtype,['Parser Error: No chapters found.'] # type 1 is a generic parser error
 ##            if chapters[-1][0]!=data[3] or data[2]!=chapters[-1][0]: #[3]=latest != newlatest or last_read != newlatest, this makes more work but gives us 100% accuracy so we must
-            if chapters[-1][0]!=data[self.COLUMNS.index('Chapters')] or data[self.COLUMNS.index('Read')]!=chapters[-1][0]:
-                data[self.COLUMNS.index('Chapters')] = chapters[-1][0] #update our latest chapter
+            if chapters[-1][0]!=data[TABLE_COLUMNS.index('Chapters')] or data[TABLE_COLUMNS.index('Read')]!=chapters[-1][0]:
+                data[TABLE_COLUMNS.index('Chapters')] = chapters[-1][0] #update our latest chapter
 ##                print nums
                 try:
-                    idx = nums.index(data[self.COLUMNS.index('Read')]) #[2]=last read ch
+                    idx = nums.index(data[TABLE_COLUMNS.index('Read')]) #[2]=last read ch
                 except:#
                     idx=-1
-                    if is_number(data[self.COLUMNS.index('Read')]): # we try to fit the last read into the nums somwhere, even though the file doesn't exist.
-                        idx=SQLManager.fitnumber(float(data[self.COLUMNS.index('Read')]),nums)-1
+                    if is_number(data[TABLE_COLUMNS.index('Read')]): # we try to fit the last read into the nums somwhere, even though the file doesn't exist.
+                        idx=SQLManager.fitnumber(float(data[TABLE_COLUMNS.index('Read')]),nums)-1
                 toupdate = chapters[idx+1:]
                 unread_count = 0
-                validname = SQLManager.cleanName(data[self.COLUMNS.index('Title')])#[1]=name of series
+                validname = SQLManager.cleanName(data[TABLE_COLUMNS.index('Title')])#[1]=name of series
                 errors=0
                 print('updating',len(toupdate),'chapters from',logsafe_title)
                 try:
@@ -276,9 +272,9 @@ class SQLManager():
                     updated_count = e.updated_count
                     unread_count = e.unread_count
                     if e.last_updated !=None:
-                        data[self.COLUMNS.index('Chapters')] = e.last_updated
+                        data[TABLE_COLUMNS.index('Chapters')] = e.last_updated
                     elif idx:
-                        data[self.COLUMNS.index('Chapters')] = chapters[idx][0]
+                        data[TABLE_COLUMNS.index('Chapters')] = chapters[idx][0]
                         
                 except parsers.LicensedError as e:
                     errors+=1
@@ -308,11 +304,11 @@ class SQLManager():
                         
 ##                print 'finished with',errors,'errors'
                 if errors==0:# and unread_count>0: # commenting this allows for an initial update, we also need it commented for successtime to be accurate.
-                    data[self.COLUMNS.index('Unread')] = unread_count
-                    data[self.COLUMNS.index('Error')] = 0 #set error to 0
+                    data[TABLE_COLUMNS.index('Unread')] = unread_count
+                    data[TABLE_COLUMNS.index('Error')] = 0 #set error to 0
                     try:
-                        if time.time() - series.AUTO_COMPLETE_TIME > data[self.COLUMNS.index('UpdateTime')]:
-                            data[self.COLUMNS.index('Complete')] = int(series.is_complete())
+                        if time.time() - series.AUTO_COMPLETE_TIME > data[TABLE_COLUMNS.index('UpdateTime')]:
+                            data[TABLE_COLUMNS.index('Complete')] = int(series.is_complete())
                     except:
                         errmsg = 'Failure parsing series completion'
                         logging.exception('Type 2 ('+logsafe_title+'): Failure parsing series completion '+str(e))
@@ -328,8 +324,8 @@ class SQLManager():
             else:
                 #no update needed but we should check autocopmlete
                 #important that we only update here if the series is complete, otherwise it will reset last update time incorrectly.
-                if not data[self.COLUMNS.index('Error')] and int(series.is_complete()) and time.time() - series.AUTO_COMPLETE_TIME > data[self.COLUMNS.index('UpdateTime')]:
-                    data[self.COLUMNS.index('Complete')] = int(series.is_complete())
+                if not data[TABLE_COLUMNS.index('Error')] and int(series.is_complete()) and time.time() - series.AUTO_COMPLETE_TIME > data[TABLE_COLUMNS.index('UpdateTime')]:
+                    data[TABLE_COLUMNS.index('Complete')] = int(series.is_complete())
                     return 0,data
                 
             return 0,[]
@@ -373,7 +369,7 @@ class SQLManager():
     def changeSeries(self,data,_tbl='series'):
         # REPLACE the data into the db.
         c = self.conn.cursor()
-        c.execute("REPLACE INTO `{}` VALUES ({})".format(_tbl,','.join(['?']*len(self.COLUMNS))),data)
+        c.execute("REPLACE INTO `{}` VALUES ({})".format(_tbl,','.join(['?']*len(TABLE_COLUMNS))),data)
         self.conn.commit()
         c.close()
 
@@ -387,7 +383,7 @@ class SQLManager():
             return -1
         reldata.append(path)
 ##        localcopy = data.copy()
-##        localcopy[self.COLUMNS.index('Read')] = float(last_read)
+##        localcopy[TABLE_COLUMNS.index('Read')] = float(last_read)
         c = self.conn.cursor()
         c.execute("REPLACE INTO `history` VALUES (?,?,?,?)",reldata)
         self.conn.commit()
