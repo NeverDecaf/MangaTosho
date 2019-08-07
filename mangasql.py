@@ -127,26 +127,24 @@ class SQLManager():
     def addSeries(self,url):
         try:
             series = self.parserFetch.fetch(url)
-##        parser=self.parserFetch.match(url)
             if not isinstance(series,parsers.SeriesParser):
                 return None
-##            if not series:
-##                return None
         except:
             return -1
-##        series = parser(url)
         title = series.get_title()
         c = self.conn.cursor()
-        data=(url,title,'N','?',0,series.get_shorthand(),0,time.time(),0,time.time(),'',-1)
+        data=(url,title,'N','?',0,series.get_shorthand(),0,time.time(),0,time.time())
         try:
-            c.execute("INSERT INTO series VALUES ({})".format(','.join(['?']*len(TABLE_COLUMNS))),data)
+            c.execute("INSERT INTO series (url,title,last_read,latest,unread,site,complete,update_time,error,last_success) VALUES ({})".format(','.join(['?']*len(data))),data)
         except sqlite3.IntegrityError:
             self.conn.commit()
             c.close()
             return False # returns false if the data already exists in your db.
         self.conn.commit()
+        r=c.execute("SELECT * FROM series WHERE url=?",(url,))
+        res = r.fetchone()
         c.close()
-        return list(data)
+        return list(res)
         
     @staticmethod
     def formatName(name):

@@ -13,7 +13,8 @@ MAX_SIMULTANEOUS_UPDATES_PER_SITE = 1
 MMCE=resource_path("!MMCE_Win32\MMCE_Win32.exe")
 
 # from mangasql
-TABLE_COLUMNS = ['Url', 'Title', 'Read', 'Chapters', 'Unread', 'Site', 'Complete', 'UpdateTime', 'Error', 'SuccessTime', 'Error Message', 'Rating', 'LastUpdateAttempt']
+TABLE_COLUMNS = ['Url', 'Title', 'Read', 'Chapters', 'Unread', 'Site', 'Complete', 'UpdateTime',
+                 'Error', 'SuccessTime', 'Error Message', 'Rating', 'LastUpdateAttempt']
 LOGGING=False # If true, will log individual series errors to Series_Errors.log
 MIN_UPDATE_FREQ = 60*60*2 # 2 hrs, this is per series.
 if os.path.exists('DEBUG_TEST'):
