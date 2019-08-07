@@ -195,6 +195,8 @@ class ParserFetch:
                     return update_parsers(PARSER_VERSION,targethash)
                     
     def _generate_parsers(self):
+        global ADVERT_IMAGE_HASHES
+        ADVERT_IMAGE_HASHES = set()
         tree = ET.parse('parsers.xml')
         root = tree.getroot()
         is_class_member = lambda member: inspect.isclass(member) and member.__module__ == __name__
@@ -209,6 +211,10 @@ class ParserFetch:
                     self.WORKING_SITES.append(type(classname,(clsmembers[classname],),data))
                 else:
                     self.WORKING_SITES.append(type(classname,(SeriesParser,),data))
+        for md5hash in root.find('advert_hashes').iter():
+            ADVERT_IMAGE_HASHES.add(md5hash.text)
+            
+            
     @staticmethod
     def _get_conversions():
         conversions = []
@@ -514,8 +520,12 @@ class SeriesParser(object):
                             time.sleep(random.uniform(*self.IMAGE_DOWNLOAD_DELAY))
                             
                             filename = os.path.join(tempdir,str(iindex)+os.path.splitext(image)[1])
-                            img = Image.open(BytesIO(response.content))
-                            img.save(os.path.splitext(filename)[0]+r'.'+img.format)
+                            imgbytes = BytesIO(response.content)
+                            imghash = hashlib.md5(imgbytes.read()).hexdigest()
+                            if imghash not in ADVERT_IMAGE_HASHES:
+                                # dont save ads
+                                img = Image.open(imgbytes)
+                                img.save(os.path.splitext(filename)[0]+r'.'+img.format)
                             iindex+=1
                         except:
                             if img_dl_errs<ALLOWED_IMAGE_ERRORS_PER_CHAPTER:
@@ -739,8 +749,12 @@ class MangaDex(SeriesParser):
                             time.sleep(random.uniform(*self.IMAGE_DOWNLOAD_DELAY))
                             
                             filename = os.path.join(tempdir,str(iindex)+os.path.splitext(image)[1])
-                            img = Image.open(BytesIO(response.content))
-                            img.save(os.path.splitext(filename)[0]+r'.'+img.format)
+                            imgbytes = BytesIO(response.content)
+                            imghash = hashlib.md5(imgbytes.read()).hexdigest()
+                            if imghash not in ADVERT_IMAGE_HASHES:
+                                # dont save ads
+                                img = Image.open(imgbytes)
+                                img.save(os.path.splitext(filename)[0]+r'.'+img.format)
                             iindex+=1
                         except:
                             if img_dl_errs<ALLOWED_IMAGE_ERRORS_PER_CHAPTER:
@@ -939,11 +953,14 @@ class MangaRock(SeriesParser):
 
                             response.raise_for_status()#raise error code if occured
                             time.sleep(random.uniform(*self.IMAGE_DOWNLOAD_DELAY))
-                            
+
                             filename = os.path.join(tempdir,str(iindex)+os.path.splitext(image)[1])
-                            buf = decodeMRI(response.content)
-                            img = Image.open(buf)
-                            img.save(os.path.splitext(filename)[0]+r'.jpeg') # force conversion to jpeg as mmce doesnt support webp
+                            imgbytes = decodeMRI(response.content)
+                            imghash = hashlib.md5(imgbytes.read()).hexdigest()
+                            if imghash not in ADVERT_IMAGE_HASHES:
+                                # dont save ads
+                                img = Image.open(imgbytes)
+                                img.save(os.path.splitext(filename)[0]+r'.jpeg') # force conversion to jpeg as mmce doesnt support webp
                             iindex+=1
                         except:
                             if img_dl_errs<ALLOWED_IMAGE_ERRORS_PER_CHAPTER:
@@ -1121,10 +1138,14 @@ class SadPanda(SeriesParser):
                             TRIES_PER_PAGE = self.RETRY_ATTEMPTS
                             response.raise_for_status()#raise error code if occured
                             time.sleep(random.uniform(*self.IMAGE_DOWNLOAD_DELAY))
-                            
+
                             filename = os.path.join(tempdir,str(iindex)+os.path.splitext(image)[1])
-                            img = Image.open(BytesIO(response.content))
-                            img.save(os.path.splitext(filename)[0]+r'.'+img.format)
+                            imgbytes = BytesIO(response.content)
+                            imghash = hashlib.md5(imgbytes.read()).hexdigest()
+                            if imghash not in ADVERT_IMAGE_HASHES:
+                                # dont save ads
+                                img = Image.open(imgbytes)
+                                img.save(os.path.splitext(filename)[0]+r'.'+img.format)
                             iindex+=1
                         except Exception as e:
                             TRIES_PER_PAGE = self.RETRY_ATTEMPTS

@@ -256,4 +256,7 @@
 	example: MW,mangawindow.com,mangawindow.net,%mangawindow.com%
 	-->
 	</domain_changes>
+	<advert_hashes>
+	<mangazoneapp_ad>920d54b4c6afc696cae7dcd07f549d49</mangazoneapp_ad> <!-- found on mangatown (and sites that rip from it, e.g. mangahere -->
+	</advert_hashes>
 </sites>
