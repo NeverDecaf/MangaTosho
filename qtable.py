@@ -389,6 +389,7 @@ def is_number(s):
     except ValueError:
         return False
 
+#https://github.com/python/cpython/blob/3.6/Lib/queue.py
 class UniqueDeque(queue.Queue):
     'Double-ended queue which allows only unique items to be inserted'
     def __init__(self, maxsize=0, key=lambda x:str(x)):
@@ -678,21 +679,10 @@ class MyTableModel(QAbstractTableModel):
         return True
     
     def openInFileExplorer(self,index):
-        import ctypes
-        ctypes.windll.ole32.CoInitialize(None)
         toopen=os.path.abspath(SQLManager.cleanName(self.arraydata[index.row()][self.headerdata.index('Title')]))
-        try:
-            chapters = sorted(os.listdir(toopen))
-            if len(chapters):
-                toopen = os.path.join(toopen,chapters[0])
-        except:
-            pass
-        upath = os.path.abspath(toopen)
-        pidl = ctypes.windll.shell32.ILCreateFromPathW(upath)
-        ctypes.windll.shell32.SHOpenFolderAndSelectItems(pidl, 0, None, 0)
-        ctypes.windll.shell32.ILFree(pidl)
-        ctypes.windll.ole32.CoUninitialize()
-            
+        if os.path.exists(toopen):
+            subprocess.Popen('explorer.exe "{}"'.format(os.path.abspath(toopen)))
+     
     def removeSeries(self,index,removedata):
         self.beginRemoveRows(QModelIndex(),index.row(),index.row())
         self.series_locks.setdefault(self.arraydata[index.row()][self.headerdata.index('Url')],[QMutex(),0])[1]=0
