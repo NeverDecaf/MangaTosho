@@ -26,6 +26,7 @@ from functools import reduce
 import random
 import jsbeautifier
 from constants import *
+import subprocess
 
 # add the cacert.pem file to the path correctly even if compiled with pyinstaller:
 # Get the base directory
@@ -168,6 +169,8 @@ class ParserFetch:
                     return -1
                 except requests.exceptions.Timeout:
                     return -1
+                except subprocess.CalledProcessError:
+                    return -3 # error thrown by cfscrape
         return None
     def updateCreds(self,credentials):
         for parser in self.parsers_req_creds:
