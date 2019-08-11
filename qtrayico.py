@@ -90,7 +90,7 @@ class Systray(QtWidgets.QWidget):
         for action in self.actions:
                 self.trayIconMenu.addAction(action)
 
-        self.trayIcon = QtWidgets.QSystemTrayIcon(QtGui.QIcon(resource_path("book.ico")), self)#was (self)
+        self.trayIcon = QtWidgets.QSystemTrayIcon(QtGui.QIcon(resource_path("book_tray.ico")), self)#was (self)
         self.trayIcon.setContextMenu(self.trayIconMenu)
         self.trayIcon.activated.connect(self.click_trap)
         
