@@ -55,11 +55,6 @@ import cfscrape
 
 from PIL import ImageFile
 ImageFile.LOAD_TRUNCATED_IMAGES = True
-
-def hash_no_newline(stringdata):
-    #got easier in python 3 thanks to universal newline mode being the default.
-    return hashlib.md5(stringdata).hexdigest()
-    return hashlib.md5(stringdata.replace('\n','').replace('\r','')).hexdigest()
 ##
 # Removes HTML or XML character references and entities from a text string.
 #
@@ -184,16 +179,14 @@ class ParserFetch:
     def _update_parsers(self):
         # auto-update the parsers xml file if possible.
         if not os.path.exists('NO_PARSER_UPDATE'):
-            r=requests.get('https://raw.githubusercontent.com/NeverDecaf/MangaTosho/master/parsers.md5', timeout = REQUEST_TIMEOUT)
-            targethash = r.text
+            r=requests.get('https://api.github.com/repos/NeverDecaf/MangaTosho/contents/parsers.xml', timeout = REQUEST_TIMEOUT)
+            targethash = r.json()['sha']
             if not os.path.exists('parsers.xml'):
                 return update_parsers(PARSER_VERSION,targethash)
             else:
                 with open('parsers.xml', 'rb') as f:
-                    stringdata = f.read()
-                    currenthash = hash_no_newline(stringdata)
-##                    root = ET.fromstring(stringdata)#.getroot()
-##                    currentversion = root.find('info').find('version').content
+                    content = f.read()
+                    currenthash = hashlib.sha1(b"blob %i\0"%len(content) + content).hexdigest()
                 if targethash!=currenthash:
                     return update_parsers(PARSER_VERSION,targethash)
                     
@@ -1224,11 +1217,11 @@ def update_parsers(currentversion,targethash):
         f.write(r.content)
     #must reload file to ensure it was written correctly
     with open('parsers.tmp', 'rb') as f:
-        stringdata=f.read()
-        temphash = hash_no_newline(stringdata)
+        content=f.read()
+        temphash = hashlib.sha1(b"blob %i\0"%len(content) + content).hexdigest()
     if temphash==targethash:
         #compare version numbers with simultaneously will test for valid xml
-        root = ET.fromstring(stringdata)#.getroot()
+        root = ET.fromstring(content)#.getroot()
         newversion = float(root.find('info').find('version').text)
         if currentversion==newversion:
             shutil.copy('parsers.tmp','parsers.xml')
