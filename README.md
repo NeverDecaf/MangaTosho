@@ -26,20 +26,22 @@ Gray: Series has been marked as complete by either you or the site.
 
 All colors will fade based on the amount of time since the last update. The darker the color the longer the time. A light green or red will likely fix itself over time but a darker one indicates a permanent problem.
 
-#### Supported sites (likely outdated):
-- mangareader
-- dynasty-scans
-- kissmanga
-- mangahere
-- mangawindow
-- mangaseeonline
-- mangakakalot
-- readms
-- mangapark
-- mangapanda
-- manganelo
-- mangarock
-- mangadex
+#### Supported sites:
+- MangaDex
+- MangaRock
+- MangaSee
+- MangaHere
+- DynastyScans
+- MangaReader
+- MangaPanda
+- MangaPark
+- MangaStream
+- MangaKakalot
+- MangaNelo
+- MangaWindow
+- KissManga
+- SadPanda
+- TemplateSite
 
 ###### Known Bugs
 * Dynasty series with no chapter numbers will fail (red)
