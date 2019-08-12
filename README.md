@@ -41,7 +41,6 @@ All colors will fade based on the amount of time since the last update. The dark
 - MangaWindow
 - KissManga
 - SadPanda
-- TemplateSite
 
 ###### Known Bugs
 * Dynasty series with no chapter numbers will fail (red)
