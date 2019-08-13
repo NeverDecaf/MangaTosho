@@ -1083,7 +1083,6 @@ class OptionsDialog(QDialog):
         optionsLayout.addRow(self.options['start_hidden'])
 
         if os.name!='nt':
-            self.options['start_hidden'].setDisabled(True)
             self.options['start_with_windows'].setDisabled(True)
 
         self.saveButton=QPushButton('Save')
