@@ -543,8 +543,9 @@ class MyWindow(QMainWindow):
 
         # set column width to fit contents
         tv.resizeColumnsToContents()
-
-        # set row height
+        
+        if tv.columnWidth(TABLE_COLUMNS.index('Title')) < 250:
+            tv.setColumnWidth(TABLE_COLUMNS.index('Title'),250)
 ##        tv.resizeRowsToContents()
 ##        nrows = len(self.tabledata)
 ##        for row in xrange(nrows):
@@ -583,8 +584,8 @@ class MyWindow(QMainWindow):
         #initial sort
         tv.sortByColumn(header.index('Title'),Qt.AscendingOrder)
         tv.sortByColumn(header.index('Unread'),Qt.DescendingOrder)
-        
-        
+
+
         return tv
     
     def alart(self,pos):

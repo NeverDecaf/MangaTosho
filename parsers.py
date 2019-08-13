@@ -1227,7 +1227,7 @@ def update_parsers(currentversion,targethash):
         root = ET.fromstring(content)#.getroot()
         newversion = float(root.find('info').find('version').text)
         if currentversion==newversion:
-            shutil.copy('parsers.tmp','parsers.xml')
+            shutil.move(os.path.abspath('parsers.tmp'),os.path.abspath('parsers.xml'))
         else:
             return -1
     return 0
