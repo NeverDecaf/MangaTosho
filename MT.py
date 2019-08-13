@@ -1198,12 +1198,12 @@ class MyTableModel(QAbstractTableModel):
                     return ONGOING_ICON
             elif index.column() == self.headerdata.index('Unread') and self.arraydata[index.row()][self.headerdata.index('Unread')]:
                 return UNREAD_ICON
-            elif index.column() == self.headerdata.index('Chapters') and self.arraydata[index.row()][self.headerdata.index('Error')] in (1,2):
-                if time.time() - self.arraydata[index.row()][self.headerdata.index('SuccessTime')] < SEVERE_ERROR_TIME:
+            elif index.column() == self.headerdata.index('Chapters') and self.arraydata[index.row()][self.headerdata.index('Error')] in (1,2,3):
+                if self.arraydata[index.row()][self.headerdata.index('Error')] in (1,2) and time.time() - self.arraydata[index.row()][self.headerdata.index('SuccessTime')] < SEVERE_ERROR_TIME:
                     return ERROR_ICON
                 else:
                     return SEVERE_ERROR_ICON
-            elif index.column() == self.headerdata.index('Site') and self.arraydata[index.row()][self.headerdata.index('Error')] in (3,4):
+            elif index.column() == self.headerdata.index('Site') and self.arraydata[index.row()][self.headerdata.index('Error')] == 4:
                 return RIP_ICON
             else:
                 return QVariant()
