@@ -487,7 +487,11 @@ class UpdateThread(QThread):
     def updateSeries(self,datum):
         sitelock_aquired = False
         try:
-            site_lock = self.site_locks[datum[self.headerdata.index('Site')]]
+            try:
+                site_lock = self.site_locks[datum[self.headerdata.index('Site')]]
+            except KeyError:
+                self.errorRow.emit(datum, 4,['Parser Error: Site/series no longer supported.'])
+                return
             if not site_lock.tryAcquire():
                 self.queue.put(datum) # re-queue the data
                 time.sleep(1) # lazy solution
