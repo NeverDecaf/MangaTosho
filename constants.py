@@ -1,4 +1,5 @@
 import sys,os
+from PyQt5.QtGui import QIcon
 # from qtable
 def resource_path(relative_path):
     """ Get absolute path to resource, works for dev and for PyInstaller """
@@ -13,6 +14,16 @@ MAX_UPDATE_THREADS = 8
 MAX_SIMULTANEOUS_UPDATES_PER_SITE = 1
 MMCE=resource_path("!MMCE_Win32\MMCE_Win32.exe")
 SERIES_UPDATE_FREQ = 1000*60*20 #20m, time between update queueing
+STALLED_TIME = 86400 * 100 # days before marked stalled
+SEVERE_ERROR_TIME = 86400 * 14 #error considered severe if no updates in this time.
+
+COMPLETE_ICON_PATH = 'complete.png'
+STALLED_ICON_PATH = 'stalled.png'
+ONGOING_ICON_PATH = 'ongoing.png'
+UNREAD_ICON_PATH = 'unread.png'
+ERROR_ICON_PATH = 'error.png'
+SEVERE_ERROR_ICON_PATH = 'severe_error.png'
+RIP_ICON_PATH = 'rip.png'
 
 # from mangasql
 TABLE_COLUMNS = ['Url', 'Title', 'Read', 'Chapters', 'Unread', 'Site', 'Complete', 'UpdateTime',
