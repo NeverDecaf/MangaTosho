@@ -181,8 +181,9 @@ class StarDelegate(QStyledItemDelegate):
         starRating = index.data()
         if isinstance(starRating, StarRating):
 
-            if option.state & QStyle.State_Selected:
-                option.palette.setBrush(option.palette.Background,option.palette.highlight())
+            if option.state  & QStyle.State_Selected:
+                if option.state & QStyle.State_Active:
+                    option.palette.setBrush(option.palette.Background,option.palette.highlight())
             else:
                 option.palette.setBrush(option.palette.Background,index.data(Qt.BackgroundRole))
             starRating.paint(painter, option.rect, option.palette,
