@@ -14,6 +14,7 @@ from qtrayico import Systray
 from functools import partial
 import collections,queue
 from constants import *
+import math
 
 def isfloat(string):
     try:
@@ -63,6 +64,167 @@ def resource_path(relative_path):
         base_path = os.path.abspath(".")
     return os.path.join(base_path, relative_path)
 
+STAR_POLYGON = QPolygonF()
+for i in range(5):
+    STAR_POLYGON << QPointF(0.5 + 0.45 * math.cos((0.8 * i - 0.5) * math.pi),
+                                0.5 + 0.45 * math.sin((0.8 * i - 0.5) * math.pi))
+DIAMOND_POLYGON = QPolygonF()
+DIAMOND_POLYGON << QPointF(0.4, 0.5) \
+                    << QPointF(0.5, 0.4) \
+                    << QPointF(0.6, 0.5) \
+                    << QPointF(0.5, 0.6) \
+                    << QPointF(0.4, 0.5)
+# based on stardelegate example: https://github.com/baoboa/pyqt5/blob/master/examples/itemviews/stardelegate.py
+class StarRating(object):
+    # enum EditMode
+    Editable, ReadOnly = range(2)
+
+    PaintingScaleFactor = 20
+
+    def __init__(self, starCount=1, maxStarCount=5):
+        self._starCount = starCount
+        self._maxStarCount = maxStarCount
+        self.starPolygon = STAR_POLYGON
+        self.diamondPolygon = DIAMOND_POLYGON
+
+
+    def starCount(self):
+        return self._starCount
+
+    def maxStarCount(self):
+        return self._maxStarCount
+
+    def setStarCount(self, starCount):
+        self._starCount = starCount
+
+    def setMaxStarCount(self, maxStarCount):
+        self._maxStarCount = maxStarCount
+
+    def sizeHint(self):
+        return self.PaintingScaleFactor * QSize(self._maxStarCount, 1) / 2
+
+    def paint(self, painter, rect, palette, editMode):
+        painter.save()
+
+        painter.setRenderHint(QPainter.Antialiasing, True)
+        painter.setPen(Qt.NoPen)
+        
+        if editMode == StarRating.Editable:
+            painter.setBrush(palette.highlight())
+        else:
+            painter.setBrush(palette.windowText())
+        painter.fillRect(rect, palette.window())
+
+        yOffset = (rect.height() - self.PaintingScaleFactor) / 2
+        painter.translate(rect.x(), rect.y() + yOffset)
+        painter.scale(self.PaintingScaleFactor, self.PaintingScaleFactor)
+        half = QRectF(0.5,0,0.5,1)
+        for i in range(self._maxStarCount):
+            if i < self._starCount:
+                painter.drawPolygon(self.starPolygon, Qt.WindingFill)
+                if not i%2:
+                    painter.fillRect(half,palette.window())
+            elif editMode == StarRating.Editable:
+                painter.drawPolygon(self.diamondPolygon, Qt.WindingFill)
+            if i%2:
+                painter.translate(1.0, 0.0)
+        painter.restore()
+
+
+class StarEditor(QWidget):
+
+    editingFinished = pyqtSignal()
+
+    def __init__(self, parent = None):
+        super(StarEditor, self).__init__(parent)
+
+        self._starRating = StarRating()
+
+        self.setMouseTracking(True)
+        self.setAutoFillBackground(True)
+
+    def setStarRating(self, starRating):
+        self._starRating = starRating
+
+    def starRating(self):
+        return int(self._starRating.starCount())
+
+    def sizeHint(self):
+        return self._starRating.sizeHint()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        self._starRating.paint(painter, self.rect(), self.palette(),
+                StarRating.Editable)
+
+    def mouseMoveEvent(self, event):
+        star = self.starAtPosition(event.x())
+
+        if star != self._starRating.starCount() and star != -1:
+            self._starRating.setStarCount(star)
+            self.update()
+
+    def mouseReleaseEvent(self, event):
+        self.editingFinished.emit()
+
+    def starAtPosition(self, x):
+        # Enable a star, if pointer crosses the center horizontally.
+        starwidth = self._starRating.sizeHint().width() // self._starRating.maxStarCount()
+        star = (x + starwidth / 2) // starwidth
+        if 0 <= star <= self._starRating.maxStarCount():
+            return star
+
+        return -1
+
+class StarDelegate(QStyledItemDelegate):
+    def paint(self, painter, option, index):
+        starRating = index.data()
+        if isinstance(starRating, StarRating):
+
+            if option.state & QStyle.State_Selected:
+                option.palette.setBrush(option.palette.Background,option.palette.highlight())
+            else:
+                option.palette.setBrush(option.palette.Background,index.data(Qt.BackgroundRole))
+            starRating.paint(painter, option.rect, option.palette,
+                    StarRating.ReadOnly)
+        else:
+            super(StarDelegate, self).paint(painter, option, index)
+
+    def sizeHint(self, option, index):
+        starRating = index.data()
+        if isinstance(starRating, StarRating):
+            return starRating.sizeHint()
+        else:
+            return super(StarDelegate, self).sizeHint(option, index)
+
+    def createEditor(self, parent, option, index):
+        starRating = index.data()
+        if isinstance(starRating, StarRating):
+            editor = StarEditor(parent)
+            editor.editingFinished.connect(self.commitAndCloseEditor)
+            return editor
+        else:
+            return super(StarDelegate, self).createEditor(parent, option, index)
+
+    def setEditorData(self, editor, index):
+        starRating = index.data()
+        if isinstance(starRating, StarRating):
+            editor.setStarRating(starRating)
+        else:
+            super(StarDelegate, self).setEditorData(editor, index)
+
+    def setModelData(self, editor, model, index):
+        starRating = index.data()
+        if isinstance(starRating, StarRating):
+            model.setData(index, editor.starRating())
+        else:
+            super(StarDelegate, self).setModelData(editor, model, index)
+
+    def commitAndCloseEditor(self):
+        editor = self.sender()
+        self.commitData.emit(editor)
+        self.closeEditor.emit(editor)
+    
 class MyWindow(QMainWindow): 
     addSeries = pyqtSignal('QString')
     updateSeries = pyqtSignal(int)
@@ -267,6 +429,7 @@ class MyWindow(QMainWindow):
         # create the view
         tv = QTableView()
         self.tv=tv
+        
         # set the table model
         header = TABLE_COLUMNS # ['Url', 'Title', 'Read', 'Chapters', 'Unread', 'Site', 'Complete', 'UpdateTime', 'Error', 'SuccessTime']
         tm = MyTableModel(header, self.sqlmanager, self)
@@ -274,7 +437,7 @@ class MyWindow(QMainWindow):
 ##        im=ColoredCell()
 ##        im.setSourceModel(tm)
         tv.setModel(tm)
-
+        self.tv.setItemDelegate(StarDelegate())
 ##        tv.setContextMenu(self.right_menu)
 
         # set the minimum size
@@ -296,6 +459,9 @@ class MyWindow(QMainWindow):
         hh = tv.horizontalHeader()
         hh.setStretchLastSection(True)
         hh.setHighlightSections(False)
+
+##        hh.setStretchLastSection(False)
+##        hh.setSectionResizeMode(1,QHeaderView.Stretch)
 
         # set column width to fit contents
         tv.resizeColumnsToContents()
@@ -567,9 +733,9 @@ class MyTableModel(QAbstractTableModel):
         
         self.site_locks = {}
         self.series_locks = {}
-        
+
         self.arraydata = self.sql.getSeries()
-        self.headerdata = headerdata
+        self.headerdata = headerdata + [' ']
         
         self.current_col = self.headerdata.index("Read")
         self.total_col = self.headerdata.index("Chapters")
@@ -736,7 +902,7 @@ class MyTableModel(QAbstractTableModel):
         self.sql.changeSeries(self.arraydata[row])
 
     def setData(self, index, value, role=Qt.EditRole, user=False):
-        if not user and not value.replace('.','',1).isdigit(): # enforces float values for chapter num
+        if index.column() == TABLE_COLUMNS.index('Read') and not user and not value.replace('.','',1).isdigit(): # enforces float values for chapter num
             return False
         locked = 0
         if self.arraydata[index.row()][self.headerdata.index('Url')] in self.series_locks:
@@ -901,7 +1067,9 @@ class MyTableModel(QAbstractTableModel):
         if role==Qt.DisplayRole and index.column() == self.headerdata.index('Rating'):
             stars = min(10,int(self.arraydata[index.row()][self.headerdata.index('Rating')]))
             if stars<0:
+                return StarRating(0,10)
                 return ""
+            return StarRating(stars,10)
             return "{}{}{}".format("\u2605"*(stars//2),
                                    "\u00bd" if stars%2 else '',
                                    "\u2606"*((10-stars)//2))
@@ -944,7 +1112,10 @@ class MyTableModel(QAbstractTableModel):
                 return 'Updated %i days ago'%((time.time()-self.arraydata[row][self.headerdata.index('UpdateTime')])//86400)        
         elif role != Qt.DisplayRole: 
             return QVariant()
-        return QVariant(self.arraydata[index.row()][index.column()])
+        if index.column() < len(self.headerdata) -1 :
+            return QVariant(self.arraydata[index.row()][index.column()])
+        
+        return QVariant()
 
     def headerData(self, col, orientation, role):
         if orientation == Qt.Horizontal and role == Qt.DisplayRole:
@@ -966,18 +1137,12 @@ class MyTableModel(QAbstractTableModel):
         
     def sortAction(self):
         self.layoutAboutToBeChanged.emit()
-##        self.arraydata = sorted(self.arraydata, key=operator.itemgetter(self.second_sort_column))
-##        if self.second_sort_order == Qt.DescendingOrder:
-##            self.arraydata.reverse()
-##        self.arraydata = sorted(self.arraydata, key=operator.itemgetter(self.sort_column,self.title_col))
         if self.sort_column == self.headerdata.index('Title'):
             self.arraydata = sorted(self.arraydata, key=operator.itemgetter(self.sort_column))
         elif self.sort_column == self.headerdata.index('Site'):
             self.arraydata = sorted(self.arraydata, key=operator.itemgetter(self.sort_column,self.title_col))
         else:
             self.arraydata = sorted(self.arraydata, key=lambda x: (SQLManager.formatName(x[self.sort_column]),x[self.title_col]))
-            
-##        self.arraydata = sorted(self.arraydata, key=lambda x: (float(x[self.sort_column]),self.title_col))
         if self.sort_order == Qt.DescendingOrder:
             self.arraydata.reverse()
         self.layoutChanged.emit()
