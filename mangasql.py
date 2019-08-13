@@ -37,6 +37,7 @@ class SQLManager():
     
     def __init__(self, parserFetch):
         self.conn = sqlite3.connect('manga.db')
+        self.conn.row_factory = sqlite3.Row
         self.parserFetch = parserFetch
         c = self.conn.cursor()
         c.execute('''CREATE TABLE IF NOT EXISTS series
@@ -68,6 +69,14 @@ class SQLManager():
             c.execute('''ALTER TABLE series ADD COLUMN last_update_attempt number DEFAULT 0''')
         except sqlite3.OperationalError:
             pass # col exists
+        for col in ('global_threadsmax int DEFAULT {}'.format(MAX_UPDATE_THREADS),
+                    'site_threadsmax int DEFAULT {}'.format(MAX_SIMULTANEOUS_UPDATES_PER_SITE),
+                    'start_hidden int DEFAULT 0',
+                    'start_with_windows int DEFAULT 0'):
+            try:
+                c.execute('''ALTER TABLE user_settings ADD COLUMN {}'''.format(col))
+            except sqlite3.OperationalError:
+                pass # col exists
         c.executemany('''INSERT OR IGNORE INTO site_info (name) VALUES (?)''',[(site.__name__,) for site in parserFetch.get_req_credentials_sites()])
         self.conn.commit()
         c.close()
@@ -79,6 +88,9 @@ class SQLManager():
         else:
             logging.basicConfig(level=logging.DEBUG, stream=BytesIO())
             logging.disable(logging.ERROR)
+
+    def close(self):
+        self.conn.close()
 
     def legacyConversions(self):
         c = self.conn.cursor()
@@ -113,7 +125,7 @@ class SQLManager():
     def setReader(self, cmd):
         cmd = str(cmd)
         c = self.conn.cursor()
-        c.execute("REPLACE INTO user_settings (id,readercmd) VALUES (0,?)",(cmd,))
+        c.execute("UPDATE user_settings set readercmd=? WHERE id=0",(cmd,))
         self.conn.commit()
         c.close()
         
@@ -123,6 +135,20 @@ class SQLManager():
         cmd = c.fetchall()
         c.close()
         return cmd[0][0]
+
+    def writeSettings(self, settings_dict):
+        c = self.conn.cursor()
+        query = 'UPDATE user_settings SET {}=? WHERE id=0'.format('=?, '.join(settings_dict.keys()))
+        c.execute(query, [v if v==None else str(v) for v in list(settings_dict.values())])
+        self.conn.commit()
+        c.close()
+
+    def readSettings(self):
+        c = self.conn.cursor()
+        c.execute("SELECT * FROM user_settings WHERE id=0")
+        data = c.fetchone()
+        c.close()
+        return data
         
     def addSeries(self,url):
         try:

@@ -104,6 +104,9 @@ class ParserFetch:
             ret += '<br/>'.join(v) + "</font>"
         return ret
 
+    def get_valid_site_abbrs(self):
+        return [parser.ABBR for parser in self.get_valid_parsers()]
+
     def get_req_credentials_sites(self):
         return self.parsers_req_creds
     

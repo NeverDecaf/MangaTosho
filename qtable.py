@@ -52,8 +52,6 @@ def main():
     w.setWindowTitle('MT')
     w.setWindowIcon(QtGui.QIcon(resource_path("book.ico")))
     x=trayIcon(w)
-    if '-q' not in sys.argv and '/q' not in sys.argv and '/silent' not in sys.argv:
-        w.show()
     sys.exit(app.exec_())
 
 def resource_path(relative_path):
@@ -86,7 +84,7 @@ class MyWindow(QMainWindow):
             msg.setIcon(QMessageBox.Warning)
             msg.setText('Parsers will not longer be up-to-date until you update to a newer version of <a href="https://github.com/NeverDecaf/MangaTosho/releases/latest">MangaTosho</a>.')
             msg.exec_()
-
+        self.sqlmanager = SQLManager(self.parserFetcher)
         # create table
         self.table = self.createTable() 
 
@@ -98,15 +96,6 @@ class MyWindow(QMainWindow):
         
         fileMenu = menubar.addMenu('&File')
         fileMenu.addAction(self.saddAction)
-
-        self.readerAction=QAction(self.tr("&Change Reader"), self)
-        self.readerAction.triggered.connect(self.changeReaderEvent)
-        fileMenu.addAction(self.readerAction)
-
-        self.credsAction= QAction(self.tr("&Add Credentials"), self)
-        self.credsAction.triggered.connect(self.addCredentials)
-        fileMenu.addAction(self.credsAction)
-
 
         self.historyMenu = menubar.addMenu('&History')
         
@@ -120,6 +109,19 @@ class MyWindow(QMainWindow):
         self.legendAction=QAction(self.tr("&Color Legend"), self)
         self.legendAction.triggered.connect(self.colorLegend)
 
+        self.settingsMenu = menubar.addMenu('&Settings')
+
+        self.readerAction=QAction(self.tr("&Change Reader"), self)
+        self.readerAction.triggered.connect(self.changeReaderEvent)
+        self.settingsMenu.addAction(self.readerAction)
+
+        self.credsAction= QAction(self.tr("&Add Credentials"), self)
+        self.credsAction.triggered.connect(self.addCredentials)
+        self.settingsMenu.addAction(self.credsAction)
+
+        self.optionsAction= QAction(self.tr("&Options"), self)
+        self.optionsAction.triggered.connect(self.setOptions)
+        self.settingsMenu.addAction(self.optionsAction)
         
         helpMenu = menubar.addMenu('&Help')
         helpMenu.addAction(self.sinfoAction)
@@ -158,6 +160,19 @@ class MyWindow(QMainWindow):
         self.right_menu.addAction(self.completeAction)
 
         self.setHistory(self.tm.getHistory())
+
+        settings_dict = self.sqlmanager.readSettings()
+        if os.name=='nt':
+            settings = QSettings(r"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run", QSettings.NativeFormat)
+            if int(settings_dict['start_with_windows']) == 2:
+                cmd = '"{}"'.format(sys.argv[0])
+                if int(settings_dict['start_hidden']) == 2:
+                    cmd += ' -q'
+                settings.setValue("MT",cmd)
+            else:
+                settings.remove("MT")
+        if '-q' not in sys.argv and '/q' not in sys.argv and '/silent' not in sys.argv and 0==int(settings_dict['start_hidden']):
+            self.show()
         
     def setHistory(self,data):
         self.historyMenu.clear()
@@ -233,11 +248,19 @@ class MyWindow(QMainWindow):
             self.tm.setReader(reply[0])
         
     def addCredentials(self):
-        d=SettingsDialog(self.tm.getCredentials(),self)
+        d=CredsDialog(self.tm.getCredentials(),self)
         d.exec_()
         if d.getValues():
             settings = d.getValues()
             self.tm.setCredentials(settings)
+        d.deleteLater()
+        
+    def setOptions(self):
+        d=OptionsDialog(self.tm.getSettings(),self)
+        d.exec_()
+        if d.getValues():
+            settings = d.getValues()
+            self.tm.applySettings(settings)
         d.deleteLater()
 
     def createTable(self):
@@ -246,7 +269,7 @@ class MyWindow(QMainWindow):
         self.tv=tv
         # set the table model
         header = TABLE_COLUMNS # ['Url', 'Title', 'Read', 'Chapters', 'Unread', 'Site', 'Complete', 'UpdateTime', 'Error', 'SuccessTime']
-        tm = MyTableModel(header, self.parserFetcher, self)
+        tm = MyTableModel(header, self.sqlmanager, self)
         self.tm=tm
 ##        im=ColoredCell()
 ##        im.setSourceModel(tm)
@@ -392,6 +415,7 @@ def is_number(s):
 #https://github.com/python/cpython/blob/3.6/Lib/queue.py
 class UniqueDeque(queue.Queue):
     'Double-ended queue which allows only unique items to be inserted'
+    'None can be inserted any number of times, and ignores key func'
     def __init__(self, maxsize=0, key=lambda x:str(x)):
         'key can be passed and is used when comparing elements (for appending, not sorting)'
         super().__init__(maxsize)
@@ -428,19 +452,24 @@ class UniqueDeque(queue.Queue):
 
     # Put a new item in the queue
     def _put(self, item):
-        if self.keyfunc(item) not in self.set:
+        if item is None:
+            self.queue.append(item)
+        elif self.keyfunc(item) not in self.set:
             self.queue.append(item)
             self.set.add(self.keyfunc(item))
 
     def _putLeft(self, item):
-        if self.keyfunc(item) not in self.set:
+        if item is None:
+            self.queue.appendleft(item)
+        elif self.keyfunc(item) not in self.set:
             self.queue.appendleft(item)
             self.set.add(self.keyfunc(item))
 
     # Get an item from the queue
     def _get(self):
         item = self.queue.popleft()
-        self.set.discard(self.keyfunc(item))
+        if item is not None:
+            self.set.discard(self.keyfunc(item))
         return item
         
 class UpdateThread(QThread):
@@ -458,10 +487,10 @@ class UpdateThread(QThread):
     def updateSeries(self,datum):
         sitelock_aquired = False
         try:
-            site_lock = self.site_locks.setdefault(datum[self.headerdata.index('Site')],QSemaphore(MAX_SIMULTANEOUS_UPDATES_PER_SITE))
+            site_lock = self.site_locks[datum[self.headerdata.index('Site')]]
             if not site_lock.tryAcquire():
                 self.queue.put(datum) # re-queue the data
-                time.sleep(10) # lazy solution
+                time.sleep(1) # lazy solution
                 return
             sitelock_aquired = True
             lockset = self.series_locks.setdefault(datum[self.headerdata.index('Url')],[QMutex(),0])
@@ -505,13 +534,23 @@ class UpdateThread(QThread):
         self.queue.putLeft(None)
         self.wait()
 
+class SiteLocker(QThread):
+    def __init__(self, tolock, lockamt, parent=None):
+        QThread.__init__(self, parent)
+        self.semaphores = tolock
+        self.numlocks = lockamt
+
+    def run(self):
+        for sema in self.semaphores.values():
+            sema.acquire(self.numlocks)
+    
 class MyTableModel(QAbstractTableModel): 
     dataChanged = pyqtSignal(QModelIndex, QModelIndex)
     layoutAboutToBeChanged = pyqtSignal()
     layoutChanged = pyqtSignal()
     
 
-    def __init__(self, headerdata, parserFetch, parent=None, *args): 
+    def __init__(self, headerdata, sqlmanager, parent=None, *args): 
         """ datain: a list of lists
             headerdata: a list of strings
         """
@@ -520,8 +559,8 @@ class MyTableModel(QAbstractTableModel):
         
 
         self.myparent = parent
-        self.sql=SQLManager(parserFetch)
-        # create lock for threads
+        self.sql = sqlmanager
+        
         self.site_locks = {}
         self.series_locks = {}
         
@@ -541,15 +580,21 @@ class MyTableModel(QAbstractTableModel):
         
         self.setReader(self.sql.getReader())
 
-        self.updateThreads=[]
         self.updateQueue = UniqueDeque(key = lambda x: x[self.headerdata.index("Url")])
+
+        init_settings = self.getSettings()
+        # also set the reg keys
+        self.global_threadsmax = int(init_settings['global_threadsmax'])
+        self.site_threadsmax = int(init_settings['site_threadsmax'])
         
-        for i in range(MAX_UPDATE_THREADS):
-            thread = UpdateThread(self.sql,self.headerdata,self.site_locks,self.series_locks,self.updateQueue)
+        for site in self.sql.parserFetch.get_valid_site_abbrs():
+            self.site_locks[site] = QSemaphore(self.site_threadsmax)
+        
+        for i in range(self.site_threadsmax):
+            thread = UpdateThread(self.sql,self.headerdata,self.site_locks,self.series_locks,self.updateQueue,parent=self)
             thread.updateRow['PyQt_PyObject', 'PyQt_PyObject', 'PyQt_PyObject'].connect(self.updateRow)
             thread.errorRow['PyQt_PyObject', 'PyQt_PyObject', 'PyQt_PyObject'].connect(self.errorRow)
             thread.start()
-            self.updateThreads.append(thread)
 
         timer = QTimer(self)
         timer.timeout.connect(self.updateAll)
@@ -574,6 +619,36 @@ class MyTableModel(QAbstractTableModel):
 
     def getReader(self):
         return self.readercmd
+
+    def applySettings(self, settings_dict):
+        self.sql.writeSettings(settings_dict)
+        #apply site settings:
+        if int(settings_dict['site_threadsmax']) > self.site_threadsmax:
+            for sema in self.site_locks.values():
+                sema.release(int(settings_dict['site_threadsmax'])-self.site_threadsmax)
+        elif int(settings_dict['site_threadsmax']) < self.site_threadsmax:
+            SiteLocker(self.site_locks,self.site_threadsmax-int(settings_dict['site_threadsmax']),self).start()
+        #apply global settings:
+        if int(settings_dict['global_threadsmax']) > self.global_threadsmax:
+            for i in range(int(settings_dict['global_threadsmax'])-self.global_threadsmax):
+                thread = UpdateThread(self.sql,self.headerdata,self.site_locks,self.series_locks,self.updateQueue,parent=self)
+                thread.updateRow['PyQt_PyObject', 'PyQt_PyObject', 'PyQt_PyObject'].connect(self.updateRow)
+                thread.errorRow['PyQt_PyObject', 'PyQt_PyObject', 'PyQt_PyObject'].connect(self.errorRow)
+                thread.start()
+        elif int(settings_dict['global_threadsmax']) < self.global_threadsmax:
+            for i in range(self.global_threadsmax-int(settings_dict['global_threadsmax'])):
+                self.updateQueue.putLeft(None)
+        #apply startup settings:
+        if os.name=='nt':
+            settings = QSettings(r"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run", QSettings.NativeFormat)
+            if int(settings_dict['start_with_windows']) == 2:
+                cmd = '"{}"'.format(sys.argv[0])
+                if int(settings_dict['start_hidden']) == 2:
+                    cmd += ' -q'
+                settings.setValue("MT",cmd)
+
+    def getSettings(self):
+        return self.sql.readSettings()
 
     def addSeries(self,url):
         data=self.sql.addSeries(str(url))
@@ -903,12 +978,12 @@ class MyTableModel(QAbstractTableModel):
             self.arraydata.reverse()
         self.layoutChanged.emit()
          
-class SettingsDialog(QDialog):
+class CredsDialog(QDialog):
     def __init__(self,initialSettings, parent=None):
         from PyQt5.QtCore import Qt
 
 
-        super(SettingsDialog, self).__init__(parent)
+        super(CredsDialog, self).__init__(parent)
         self.result=None
         self.setWindowTitle(self.tr("Credentials"))
         self.setWindowFlags(self.windowFlags() &~ Qt.WindowContextHelpButtonHint)
@@ -962,7 +1037,78 @@ class SettingsDialog(QDialog):
             self.result[key] = (str(self.options[key][0].text()),str(self.options[key][1].text()))
         self.close()
         
+class OptionsDialog(QDialog):
+    def __init__(self, initialSettings, parent=None):
+        from PyQt5.QtCore import Qt
+        super(OptionsDialog, self).__init__(parent)
+        self.result=None
+        self.setWindowTitle(self.tr("Credentials"))
+        self.setWindowFlags(self.windowFlags() &~ Qt.WindowContextHelpButtonHint)
 
+        mainLayout = QVBoxLayout()
+        mainLayout.setAlignment(Qt.AlignCenter)
+
+        optionsLayout = QFormLayout()
+        confirmLayout = QGridLayout()
+
+        top=QWidget()
+        bottom=QWidget()
+        top.setLayout(optionsLayout)
+        bottom.setLayout(confirmLayout)
+
+        self.options = {}
+        
+        optionsLayout.addRow("Maximum simultaneous downloads:",None)
+        self.options['global_threadsmax'] = QSpinBox()
+        self.options['global_threadsmax'].setRange(1,64)
+        self.options['global_threadsmax'].setValue(int(initialSettings['global_threadsmax']))
+        optionsLayout.addRow(self.options['global_threadsmax'])
+        self.options['global_threadsmax'].valueChanged.connect(self.setSiteMax)
+
+        optionsLayout.addRow("Maximum simultaneous downloads per site:",None)
+        self.options['site_threadsmax'] = QSpinBox()
+        self.options['site_threadsmax'].setRange(1,64)
+        self.options['site_threadsmax'].setValue(int(initialSettings['site_threadsmax']))
+        optionsLayout.addRow(self.options['site_threadsmax'])
+
+        self.options['start_with_windows'] = QCheckBox("Start with Windows")
+        self.options['start_with_windows'].setCheckState(int(initialSettings['start_with_windows']))
+        optionsLayout.addRow(self.options['start_with_windows'])
+        self.options['start_hidden'] = QCheckBox("Start minimized to tray")
+        self.options['start_hidden'].setCheckState(int(initialSettings['start_hidden']))
+        optionsLayout.addRow(self.options['start_hidden'])
+
+        if os.name!='nt':
+            self.options['start_hidden'].setDisabled(True)
+            self.options['start_with_windows'].setDisabled(True)
+
+        self.saveButton=QPushButton('Save')
+        self.cancelButton=QPushButton('Cancel')
+        
+        confirmLayout.addWidget(self.saveButton,0,0)
+        confirmLayout.addWidget(self.cancelButton,0,1)
+        
+        self.cancelButton.released.connect(self.close)
+        self.saveButton.released.connect(self.saveValues)
+
+        mainLayout.addWidget(top)
+        mainLayout.addWidget(bottom)
+        self.setLayout(mainLayout)
+        
+    def setSiteMax(self):
+        self.options['site_threadsmax'].setMaximum(self.options['global_threadsmax'].value())
+        
+    def getValues(self):
+        return self.result
+    
+    def saveValues(self):
+        self.result={}
+        for key in self.options:
+            try:
+                self.result[key] = self.options[key].value()
+            except AttributeError:
+                self.result[key] = self.options[key].checkState()
+        self.close()
         
 if __name__ == "__main__":
     # chdir to the correct directory to ensure configs, etc. are loaded correctly.
