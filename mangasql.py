@@ -73,7 +73,7 @@ class SQLManager():
                     'site_threadsmax int DEFAULT {}'.format(MAX_SIMULTANEOUS_UPDATES_PER_SITE),
                     'start_hidden int DEFAULT 0',
                     'start_with_windows int DEFAULT 0',
-                    'series_update_freq int DEFAULT {}'.format(MIN_UPDATE_FREQ),
+                    'series_update_freq int DEFAULT {}'.format(MIN_UPDATE_FREQ//60),
                     ):
             try:
                 c.execute('''ALTER TABLE user_settings ADD COLUMN {}'''.format(col))
