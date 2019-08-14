@@ -288,7 +288,7 @@ class SQLManager():
                 unread_count = 0
                 validname = SQLManager.cleanName(data[TABLE_COLUMNS.index('Title')])#[1]=name of series
                 errors=0
-                print('updating',len(toupdate),'chapters from',logsafe_title)
+                print(time.strftime('%m/%d %H:%M'),'updating',len(toupdate),'chapters from',logsafe_title)
                 try:
                     unread_count,updated_count = series.save_images(validname,toupdate)
                 except parsers.DelayedError as e:
