@@ -30,6 +30,7 @@ TABLE_COLUMNS = ['Url', 'Title', 'Read', 'Chapters', 'Unread', 'Site', 'Complete
                  'Error', 'SuccessTime', 'Error Message', 'Rating', 'LastUpdateAttempt']
 LOGGING=False # If true, will log individual series errors to Series_Errors.log
 MIN_UPDATE_FREQ = 60*60*4 #4 hrs, this is per series.
+MAX_UPDATE_FREQ = 60*60*24 #24 hrs, this is per series.
 if os.path.exists('DEBUG_TEST'):
     LOGGING=True
 

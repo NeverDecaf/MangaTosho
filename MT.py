@@ -924,7 +924,8 @@ class MyTableModel(QAbstractTableModel):
         self.updateQueue.putLeft(self.arraydata[indexrow])
 
     def updateAll(self):
-        for d in self.sql.getToUpdate():
+        settings = self.getSettings()
+        for d in self.sql.getToUpdate(60*int(settings['series_update_freq'])):
             self.series_locks.setdefault(d[self.headerdata.index('Url')],[QMutex(),0])
             self.updateQueue.put(d)
 
@@ -940,7 +941,6 @@ class MyTableModel(QAbstractTableModel):
         newdata[self.headerdata.index('Error Message')] = None
         newdata[self.headerdata.index('LastUpdateAttempt')]=time.time()
 
-        
         for i in range(len(self.arraydata[row])):
             self.arraydata[row][i] = newdata[i]
         idx = self.createIndex(row,0)
@@ -1325,6 +1325,12 @@ class OptionsDialog(QDialog):
         bottom.setLayout(confirmLayout)
 
         self.options = {}
+
+        optionsLayout.addRow("Series update checking frequency (minutes):",None)
+        self.options['series_update_freq'] = QSpinBox()
+        self.options['series_update_freq'].setRange(SERIES_UPDATE_FREQ//60000, MAX_UPDATE_FREQ//60)
+        self.options['series_update_freq'].setValue(int(initialSettings['series_update_freq']))
+        optionsLayout.addRow(self.options['series_update_freq'])
         
         optionsLayout.addRow("Maximum simultaneous downloads:",None)
         self.options['global_threadsmax'] = QSpinBox()
