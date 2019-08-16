@@ -1,7 +1,6 @@
 import sqlite3
 import parsers
 import time
-import os.path
 import os
 import shutil
 import zipfile
@@ -36,7 +35,7 @@ class SQLManager():
     COLUMNS = ['Url', 'Title', 'Read', 'Chapters', 'Unread', 'Site', 'Complete', 'UpdateTime', 'Error', 'SuccessTime', 'Error Message','Rating','LastUpdateAttempt']
     
     def __init__(self, parserFetch):
-        self.conn = sqlite3.connect('manga.db')
+        self.conn = sqlite3.connect(storage_path('manga.db'))
         self.conn.row_factory = sqlite3.Row
         self.parserFetch = parserFetch
         c = self.conn.cursor()
@@ -86,7 +85,7 @@ class SQLManager():
         self.getCredentials() # to update the parserfetch correctly.
         self.legacyConversions()
         if LOGGING:
-            logging.basicConfig(level=logging.ERROR, filename='Series_Errors.log')
+            logging.basicConfig(level=logging.ERROR, filename=storage_path('Series_Errors.log'))
         else:
             logging.basicConfig(level=logging.DEBUG, stream=BytesIO())
             logging.disable(logging.ERROR)
@@ -205,7 +204,7 @@ class SQLManager():
         self.conn.commit()
         c.close()
         if removeData:
-            validname = SQLManager.cleanName(removeData)
+            validname = storage_path(SQLManager.cleanName(removeData))
             if os.path.exists(validname):
                 try:
                     shutil.rmtree(validname, onerror=takeown)
@@ -219,7 +218,7 @@ class SQLManager():
         c.close()
         validname = SQLManager.cleanName(title)
         chaptername = SQLManager.formatName(last_read)
-        chapter = os.path.join(validname,chaptername)
+        chapter = storage_path(os.path.join(validname,chaptername))
         if os.path.exists(chapter):
                 shutil.rmtree(chapter, onerror=takeown)
                 

@@ -29,30 +29,13 @@ from constants import *
 import subprocess
 
 # add the cacert.pem file to the path correctly even if compiled with pyinstaller:
-# Get the base directory
-if getattr( sys , 'frozen' , None ):    # keyword 'frozen' is for setting basedir while in onefile mode in pyinstaller
-    basedir = sys._MEIPASS
-else:
-    basedir = os.path.dirname( __file__ )
-    basedir = os.path.normpath( basedir )
-
-if hasattr(sys,'_MEIPASS'):
-    # Locate the SSL certificate for requests
-    # we should only do this if this is running as an executable.
-    os.environ['REQUESTS_CA_BUNDLE'] = os.path.join(basedir , 'certifi', 'cacert.pem')
-
-# need to set working directory for this to work with pyinstaller:
+# we should only do this if this is running as an executable.
 try:
     sys._MEIPASS
-    os.chdir(os.path.dirname(sys.argv[0]))
+    os.environ['REQUESTS_CA_BUNDLE'] = resource_path(os.path.join('certifi', 'cacert.pem'))
 except:
-    os.chdir(os.path.dirname(os.path.realpath(__file__)))
-
-# we also need to add the resources directory to path to use the bundled nodejs
-os.environ["PATH"] += os.pathsep + basedir
-# only import cfscrape AFTER setting PATH
+    pass
 import cfscrape
-
 from PIL import ImageFile
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 ##
@@ -184,10 +167,10 @@ class ParserFetch:
         if not os.path.exists('NO_PARSER_UPDATE'):
             r=requests.get('https://api.github.com/repos/NeverDecaf/MangaTosho/contents/parsers.xml', timeout = REQUEST_TIMEOUT)
             targethash = r.json()['sha']
-            if not os.path.exists('parsers.xml'):
+            if not os.path.exists(storage_path('parsers.xml')):
                 return update_parsers(PARSER_VERSION,targethash)
             else:
-                with open('parsers.xml', 'rb') as f:
+                with open(storage_path('parsers.xml'), 'rb') as f:
                     content = f.read()
                     currenthash = hashlib.sha1(b"blob %i\0"%len(content) + content).hexdigest()
                 if targethash!=currenthash:
@@ -196,7 +179,7 @@ class ParserFetch:
     def _generate_parsers(self):
         global ADVERT_IMAGE_HASHES
         ADVERT_IMAGE_HASHES = set()
-        tree = ET.parse('parsers.xml')
+        tree = ET.parse(storage_path('parsers.xml'))
         root = tree.getroot()
         is_class_member = lambda member: inspect.isclass(member) and member.__module__ == __name__
         clsmembers = dict(inspect.getmembers(sys.modules[__name__], is_class_member))
@@ -217,7 +200,7 @@ class ParserFetch:
     @staticmethod
     def _get_conversions():
         conversions = []
-        tree = ET.parse('parsers.xml')
+        tree = ET.parse(storage_path('parsers.xml'))
         root = tree.getroot()
         for conv in root.find('domain_changes').iter('conversion'):
             conversions.append(conv.text.split(','))
@@ -495,6 +478,7 @@ class SeriesParser(object):
     def save_images(self,sname,chapters):
         updated_count=0
         unread_count=0
+        sname = storage_path(sname)
         for ch in chapters:
             try:
             # this is our num,url tuple
@@ -712,6 +696,7 @@ class MangaDex(SeriesParser):
         updated_count=0
         unread_count=0
         delayed_err = None
+        sname = storage_path(sname)
         for ch_index,ch in enumerate(chapters):
             try:
             # this is our num,url tuple
@@ -931,6 +916,7 @@ class MangaRock(SeriesParser):
             return decoded
         updated_count=0
         unread_count=0
+        sname = storage_path(sname)
         for ch in chapters:
             try:
             # this is our num,url tuple
@@ -1045,6 +1031,7 @@ class SadPanda(SeriesParser):
         'A combination of get_images and save_images'
         updated_count=0
         unread_count=0
+        sname = storage_path(sname)
         for ch_i,ch in enumerate(chapters):
             try:
             # this is our num,url tuple
@@ -1217,10 +1204,10 @@ class SadPanda(SeriesParser):
 def update_parsers(currentversion,targethash):
     currentversion=float(currentversion)
     r=requests.get('https://raw.githubusercontent.com/NeverDecaf/MangaTosho/master/parsers.xml', timeout = REQUEST_TIMEOUT)
-    with open('parsers.tmp', 'wb') as f:
+    with open(storage_path('parsers.tmp'), 'wb') as f:
         f.write(r.content)
     #must reload file to ensure it was written correctly
-    with open('parsers.tmp', 'rb') as f:
+    with open(storage_path('parsers.tmp'), 'rb') as f:
         content=f.read()
         temphash = hashlib.sha1(b"blob %i\0"%len(content) + content).hexdigest()
     if temphash==targethash:
@@ -1228,7 +1215,7 @@ def update_parsers(currentversion,targethash):
         root = ET.fromstring(content)#.getroot()
         newversion = float(root.find('info').find('version').text)
         if currentversion==newversion:
-            shutil.move(os.path.abspath('parsers.tmp'),os.path.abspath('parsers.xml'))
+            shutil.move(storage_path('parsers.tmp'),storage_path('parsers.xml'))
         else:
             return -1
     return 0

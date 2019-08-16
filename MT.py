@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
+import os,sys
 import re
 import operator
-import os
-import sys
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
@@ -11,7 +10,7 @@ import parsers
 import time
 import subprocess
 import random
-from qtrayico import Systray
+from qtrayico import Systray, HideableWindow
 from functools import partial
 import collections,queue
 from constants import *
@@ -23,6 +22,20 @@ def isfloat(string):
         return True
     except:
         return False
+def set_registry(windows_startup, minimized):
+    if os.name=='nt':
+        settings = QSettings(r"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run", QSettings.NativeFormat)
+        if windows_startup:
+            try:
+                sys._MEIPASS
+                cmd = '"{}"'.format(sys.executable)
+            except:
+                cmd = '"{}"'.format(__file__)
+            if minimized:
+                cmd += ' -q'
+            settings.setValue("MT",cmd)
+        else:
+            settings.remove("MT")
 
 class trayIcon(Systray):
     def __init__(self,window):
@@ -43,34 +56,7 @@ class trayIcon(Systray):
         self.actions.append(self.addAction)
         self.actions.append(self.readerAction)
         self.actions.append(self.quitAction)
-
-def main():
-    global COMPLETE_ICON,STALLED_ICON,ONGOING_ICON,UNREAD_ICON,ERROR_ICON,RIP_ICON,SEVERE_ERROR_ICON
-    app = QApplication(sys.argv)
-    SEVERE_ERROR_ICON = QPixmap(resource_path(SEVERE_ERROR_ICON_PATH))
-    COMPLETE_ICON = QPixmap(resource_path(COMPLETE_ICON_PATH))
-    STALLED_ICON = QPixmap(resource_path(STALLED_ICON_PATH))
-    ONGOING_ICON = QPixmap(resource_path(ONGOING_ICON_PATH))
-    UNREAD_ICON = QPixmap(resource_path(UNREAD_ICON_PATH))
-    ERROR_ICON = QPixmap(resource_path(ERROR_ICON_PATH))
-    RIP_ICON = QPixmap(resource_path(RIP_ICON_PATH))
-##    app.setStyle('Plastique')
-    app.setQuitOnLastWindowClosed(False)
-    w = MyWindow()
-    w.setWindowTitle('MT')
-    w.setWindowIcon(QIcon(resource_path("book.ico")))
-    x=trayIcon(w)
-    sys.exit(app.exec_())
-
-def resource_path(relative_path):
-    """ Get absolute path to resource, works for dev and for PyInstaller """
-    try:
-        # PyInstaller creates a temp folder and stores path in _MEIPASS
-        base_path = sys._MEIPASS
-    except Exception:
-        base_path = os.path.abspath(".")
-    return os.path.join(base_path, relative_path)
-
+    
 STAR_POLYGON = QPolygonF()
 for i in range(5):
     STAR_POLYGON << QPointF(0.5 + 0.45 * math.cos((0.8 * i - 0.5) * math.pi),
@@ -235,7 +221,7 @@ class StarDelegate(QStyledItemDelegate):
         self.commitData.emit(editor)
         self.closeEditor.emit(editor)
 
-class MyWindow(QMainWindow): 
+class MyWindow(HideableWindow): 
     addSeries = pyqtSignal('QString')
     updateSeries = pyqtSignal(int)
     removeSeries = pyqtSignal(QModelIndex, int)
@@ -334,15 +320,7 @@ class MyWindow(QMainWindow):
         self.setHistory(self.tm.getHistory())
 
         settings_dict = self.sqlmanager.readSettings()
-        if os.name=='nt':
-            settings = QSettings(r"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run", QSettings.NativeFormat)
-            if int(settings_dict['start_with_windows']) == 2:
-                cmd = '"{}"'.format(sys.argv[0])
-                if int(settings_dict['start_hidden']) == 2:
-                    cmd += ' -q'
-                settings.setValue("MT",cmd)
-            else:
-                settings.remove("MT")
+        set_registry(int(settings_dict['start_with_windows']) == 2, int(settings_dict['start_hidden']) == 2)
         if '-q' not in sys.argv and '/q' not in sys.argv and '/silent' not in sys.argv and 0==int(settings_dict['start_hidden']):
             self.show()
         
@@ -353,26 +331,6 @@ class MyWindow(QMainWindow):
             self.historyMenu.addAction(tmpaction)
             tmpaction.triggered.connect(partial(self.tm.readpath,path))
 
-    def closeEvent(self,event): #override default close functionality to minimize to tray instead
-         self.geometry = self.saveGeometry()
-         self.state = self.saveState()
-         self.hide()
-         event.ignore()
-         
-    def showEvent(self,event):
-        if not event.spontaneous():
-            if self.geometry:
-##                self.restoreGeometry(self.geometry)
-##                self.restoreState(self.state)
-##                self.showMinimized() # hide the window while we set the geometry
-                QTimer.singleShot(0,self.restorePosition)
-                
-            
-    def restorePosition(self):
-        if self.state:
-            self.restoreGeometry(self.geometry)
-            self.restoreState(self.state) # restore state second to avoid flashing
-##            QTimer.singleShot(0,self.show)
     def sinfoevent(self):
         QMessageBox.information(self, 'Supported Manga Sites',self.parserFetcher.get_valid_sites())
 
@@ -475,9 +433,9 @@ class MyWindow(QMainWindow):
     def openreader(self):
         if os.name=='nt':
             if self.tm.readercmd=='MMCE':
-                subprocess.Popen(resource_path(MMCE))
+                subprocess.Popen('"{}"'.format(resource_path(MMCE)))
             else:
-                subprocess.Popen(self.tm.readercmd)
+                subprocess.Popen('"{}"'.format(self.tm.readercmd))
         else:
             subprocess.Popen(self.tm.readercmd, shell=True)
 
@@ -764,7 +722,7 @@ class UpdateThread(QThread):
             finally:
                 thislock.unlock()
         except Exception as e:
-            fh=open('CRITICAL ERROR SEARCH QTABLE FOR THIS LINE','w')
+            fh=open(storage_path('CRITICAL ERROR SEARCH QTABLE FOR THIS LINE'),'w')
             fh.write('%r'%e)
             fh.close()
             raise
@@ -888,13 +846,7 @@ class MyTableModel(QAbstractTableModel):
             for i in range(self.global_threadsmax-int(settings_dict['global_threadsmax'])):
                 self.updateQueue.putLeft(None)
         #apply startup settings:
-        if os.name=='nt':
-            settings = QSettings(r"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run", QSettings.NativeFormat)
-            if int(settings_dict['start_with_windows']) == 2:
-                cmd = '"{}"'.format(sys.argv[0])
-                if int(settings_dict['start_hidden']) == 2:
-                    cmd += ' -q'
-                settings.setValue("MT",cmd)
+        set_registry(int(settings_dict['start_with_windows']) == 2, int(settings_dict['start_hidden']) == 2)
 
     def getSettings(self):
         return self.sql.readSettings()
@@ -1003,7 +955,7 @@ class MyTableModel(QAbstractTableModel):
         return True
     
     def openInFileExplorer(self,index):
-        toopen=os.path.abspath(SQLManager.cleanName(self.arraydata[index.row()][self.headerdata.index('Title')]))
+        toopen=storage_path(SQLManager.cleanName(self.arraydata[index.row()][self.headerdata.index('Title')]))
         if os.path.exists(toopen):
             subprocess.Popen('explorer.exe "{}"'.format(os.path.abspath(toopen)))
      
@@ -1077,7 +1029,7 @@ class MyTableModel(QAbstractTableModel):
         try:
             last=self.arraydata[index.row()][self.headerdata.index('Read')]#last read chapter
 
-            sdir=SQLManager.cleanName(self.arraydata[index.row()][self.headerdata.index('Title')])#name of series
+            sdir=storage_path(SQLManager.cleanName(self.arraydata[index.row()][self.headerdata.index('Title')]))#name of series
             if os.path.exists(sdir):
                 chapters = sorted(os.listdir(sdir))
             else:
@@ -1124,9 +1076,9 @@ class MyTableModel(QAbstractTableModel):
     def readpath(self, path):
         if os.name=='nt':
             if self.readercmd=='MMCE':
-                subprocess.Popen(resource_path(MMCE)+' "'+os.path.realpath(path)+'"')
+                subprocess.Popen('"{}" "{}"'.format(resource_path(MMCE),os.path.realpath(path)))
             else:
-                subprocess.Popen(self.readercmd+' "'+os.path.realpath(path)+'"')
+                subprocess.Popen('"{}" "{}"'.format(self.readercmd,os.path.realpath(path)))
         else:
             subprocess.Popen(self.readercmd+' "'+os.path.realpath(path)+'"', shell=True)
         
@@ -1384,11 +1336,18 @@ class OptionsDialog(QDialog):
         self.close()
         
 if __name__ == "__main__":
-    # chdir to the correct directory to ensure configs, etc. are loaded correctly.
-    import os,sys
-    try:
-        sys._MEIPASS
-        os.chdir(os.path.dirname(sys.argv[0]))
-    except:
-        os.chdir(os.path.dirname(os.path.realpath(__file__)))
-    main()
+    main_app = QApplication(sys.argv)
+    SEVERE_ERROR_ICON = QPixmap(SEVERE_ERROR_ICON_PATH)
+    COMPLETE_ICON = QPixmap(COMPLETE_ICON_PATH)
+    STALLED_ICON = QPixmap(STALLED_ICON_PATH)
+    ONGOING_ICON = QPixmap(ONGOING_ICON_PATH)
+    UNREAD_ICON = QPixmap(UNREAD_ICON_PATH)
+    ERROR_ICON = QPixmap(ERROR_ICON_PATH)
+    RIP_ICON = QPixmap(RIP_ICON_PATH)
+##    main_app.setStyle('Plastique')
+    main_app.setQuitOnLastWindowClosed(False)
+    main_window = MyWindow()
+    main_window.setWindowTitle('MT')
+    main_window.setWindowIcon(QIcon(resource_path("book.ico")))
+    tray_icon = trayIcon(main_window)
+    sys.exit(main_app.exec_())

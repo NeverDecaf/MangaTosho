@@ -1,13 +1,26 @@
 import sys,os
-from PyQt5.QtGui import QIcon
+##try:
+##    sys._MEIPASS
+##    os.chdir(os.path.dirname(sys.executable))
+##except:
+##    os.chdir(os.path.dirname(os.path.realpath(__file__)))
+from PyQt5.QtGui import QIcon       
 # from qtable
 def resource_path(relative_path):
     """ Get absolute path to resource, works for dev and for PyInstaller """
     try:
-        # PyInstaller creates a temp folder and stores path in _MEIPASS
         base_path = sys._MEIPASS
     except Exception:
-        base_path = os.path.abspath(".")
+        base_path = os.path.dirname(os.path.realpath(__file__))
+    return os.path.join(base_path, relative_path)
+
+def storage_path(relative_path):
+    """ Get absolute path to dir where .exe or .py is located. """
+    try:
+        sys._MEIPASS
+        base_path = os.path.dirname(sys.executable)
+    except Exception:
+        base_path = os.path.dirname(os.path.realpath(__file__))
     return os.path.join(base_path, relative_path)
 
 MAX_UPDATE_THREADS = 8
@@ -17,13 +30,13 @@ SERIES_UPDATE_FREQ = 1000*60*20 #20m, time between update queueing
 STALLED_TIME = 86400 * 100 # days before marked stalled
 SEVERE_ERROR_TIME = 86400 * 14 #error considered severe if no updates in this time.
 
-COMPLETE_ICON_PATH = 'complete.png'
-STALLED_ICON_PATH = 'stalled.png'
-ONGOING_ICON_PATH = 'ongoing.png'
-UNREAD_ICON_PATH = 'unread.png'
-ERROR_ICON_PATH = 'error.png'
-SEVERE_ERROR_ICON_PATH = 'severe_error.png'
-RIP_ICON_PATH = 'rip.png'
+COMPLETE_ICON_PATH = resource_path('complete.png')
+STALLED_ICON_PATH = resource_path('stalled.png')
+ONGOING_ICON_PATH = resource_path('ongoing.png')
+UNREAD_ICON_PATH = resource_path('unread.png')
+ERROR_ICON_PATH = resource_path('error.png')
+SEVERE_ERROR_ICON_PATH = resource_path('severe_error.png')
+RIP_ICON_PATH = resource_path('rip.png')
 
 # from mangasql
 TABLE_COLUMNS = ['Url', 'Title', 'Read', 'Chapters', 'Unread', 'Site', 'Complete', 'UpdateTime',
@@ -31,7 +44,7 @@ TABLE_COLUMNS = ['Url', 'Title', 'Read', 'Chapters', 'Unread', 'Site', 'Complete
 LOGGING=False # If true, will log individual series errors to Series_Errors.log
 MIN_UPDATE_FREQ = 60*60*4 #4 hrs, this is per series.
 MAX_UPDATE_FREQ = 60*60*24 #24 hrs, this is per series.
-if os.path.exists('DEBUG_TEST'):
+if os.path.exists(storage_path('DEBUG_TEST')):
     LOGGING=True
 
 # from parsers
