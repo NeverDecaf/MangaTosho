@@ -55,9 +55,12 @@ class Systray(QtWidgets.QWidget):
 
         self.trayIcon = QtWidgets.QSystemTrayIcon(QtGui.QIcon(resource_path("book_tray.ico")), self)#was (self)
         self.trayIcon.setContextMenu(self.trayIconMenu)
-        self.trayIcon.activated.connect(self.click_trap)
-        
-    def click_trap(self, value):
-        if value == QtWidgets.QSystemTrayIcon.DoubleClick: 
+        self.trayIcon.activated.connect(self.toggle_show)
+    
+    def toggle_show(self, value):
+        if self.main_window.isHidden():
             self.main_window.showNormal()
             self.main_window.activateWindow()
+        else:
+            self.main_window.close()
+
