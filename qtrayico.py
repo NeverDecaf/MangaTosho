@@ -58,9 +58,10 @@ class Systray(QtWidgets.QWidget):
         self.trayIcon.activated.connect(self.toggle_show)
     
     def toggle_show(self, value):
-        if self.main_window.isHidden():
-            self.main_window.showNormal()
-            self.main_window.activateWindow()
-        else:
-            self.main_window.close()
+        if value == QtWidgets.QSystemTrayIcon.Trigger:
+            if self.main_window.isHidden():
+                self.main_window.showNormal()
+                self.main_window.activateWindow()
+            else:
+                self.main_window.close()
 
