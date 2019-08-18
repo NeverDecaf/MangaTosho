@@ -173,9 +173,8 @@ class StarDelegate(QStyledItemDelegate):
     def paint(self, painter, option, index):
         starRating = index.data()
         if isinstance(starRating, StarRating):
-
             if option.state  & QStyle.State_Selected:
-                if option.state & QStyle.State_Active:
+                if option.state & QStyle.State_Active or sys.platform != 'win32':
                     option.palette.setBrush(option.palette.Background,option.palette.highlight())
             else:
                 option.palette.setBrush(option.palette.Background,index.data(Qt.BackgroundRole))
@@ -301,9 +300,8 @@ class MyWindow(HideableWindow):
         self.removeAction=QAction("&Remove", self)
         self.right_menu = RightClickMenu(self.removeAction)
 
-        self.explorerAction=QAction("&Show in Explorer", self)
-        if os.name=='nt':
-            self.right_menu.addAction(self.explorerAction)
+        self.explorerAction=QAction("&Open Directory", self)
+        self.right_menu.addAction(self.explorerAction)
         
         self.updateAction=QAction("&Update", self)
         self.right_menu.addAction(self.updateAction)
@@ -957,7 +955,12 @@ class MyTableModel(QAbstractTableModel):
     def openInFileExplorer(self,index):
         toopen=storage_path(SQLManager.cleanName(self.arraydata[index.row()][self.headerdata.index('Title')]))
         if os.path.exists(toopen):
-            subprocess.Popen('explorer.exe "{}"'.format(os.path.abspath(toopen)))
+            if sys.platform == 'darwin':
+                subprocess.call('open "{}"'.format(toopen), shell=True)
+            if sys.platform == 'win32':
+                subprocess.call(['explorer','"{}"'.format(toopen)])
+            else:
+                subprocess.call('xdg-open "{}"'.format(toopen), shell=True)
      
     def removeSeries(self,index,removedata):
         self.beginRemoveRows(QModelIndex(),index.row(),index.row())
