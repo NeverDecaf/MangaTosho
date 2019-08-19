@@ -958,7 +958,7 @@ class MyTableModel(QAbstractTableModel):
             if sys.platform == 'darwin':
                 subprocess.call('open "{}"'.format(toopen), shell=True)
             if sys.platform == 'win32':
-                subprocess.call(['explorer','"{}"'.format(toopen)])
+                subprocess.call('explorer "{}"'.format(toopen))
             else:
                 subprocess.call('xdg-open "{}"'.format(toopen), shell=True)
      
