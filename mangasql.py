@@ -37,6 +37,7 @@ class SQLManager():
     def __init__(self, parserFetch):
         self.conn = sqlite3.connect(storage_path('manga.db'))
         self.conn.row_factory = sqlite3.Row
+        self.conn.create_function('cleanName',1,SQLManager.cleanName)
         self.parserFetch = parserFetch
         c = self.conn.cursor()
         c.execute('''CREATE TABLE IF NOT EXISTS series
@@ -150,28 +151,35 @@ class SQLManager():
         data = c.fetchone()
         c.close()
         return data
-        
-    def addSeries(self,url):
-        try:
-            series = self.parserFetch.fetch(url)
-            if not isinstance(series,parsers.SeriesParser):
-                return None
-        except:
-            return -1
-        title = series.get_title()
+
+
+    SERIES_URL_CONFLICT = 65
+    SERIES_TITLE_CONFLICT = 66
+    SERIES_NO_CONFLICT  = 64
+    
+    def addSeries(self,series,alt_title=None,read = 'N', chapters='?', unread = 0, rating = -1):
+        ' series is the result of parserFetch.fetch(url) '
+        title = alt_title or series.get_title()
+        url = series.get_url()
         c = self.conn.cursor()
-        data=(url,title,'N','?',0,series.get_shorthand(),0,time.time(),0,time.time())
         try:
-            c.execute("INSERT INTO series (url,title,last_read,latest,unread,site,complete,update_time,error,last_success) VALUES ({})".format(','.join(['?']*len(data))),data)
-        except sqlite3.IntegrityError:
+            r = c.execute('SELECT EXISTS(SELECT 1 FROM series WHERE url=?)',(url,))
+            if r.fetchone()[0]:
+                return self.SERIES_URL_CONFLICT, None
+            
+            #very inefficient.
+            r = c.execute('SELECT * FROM series WHERE cleanName(title)=? LIMIT 1',(SQLManager.cleanName(title),))
+            results=r.fetchone()
+            if results:
+                return self.SERIES_TITLE_CONFLICT, results
+            
+            data=(url,title,read,chapters,unread,series.get_shorthand(),0,time.time(),0,time.time(),rating)
+            c.execute("INSERT INTO series (url,title,last_read,latest,unread,site,complete,update_time,error,last_success,rating) VALUES ({})".format(','.join(['?']*len(data))),data)
             self.conn.commit()
+            r = c.execute("SELECT * FROM series WHERE url=?",(url,))
+            return self.SERIES_NO_CONFLICT, r.fetchone()
+        finally:
             c.close()
-            return False # returns false if the data already exists in your db.
-        self.conn.commit()
-        r=c.execute("SELECT * FROM series WHERE url=?",(url,))
-        res = r.fetchone()
-        c.close()
-        return list(res)
         
     @staticmethod
     def formatName(name):

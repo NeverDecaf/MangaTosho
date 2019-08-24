@@ -354,8 +354,6 @@ class MyWindow(HideableWindow):
                 top.setLayout(optionsLayout)
                 bottom.setLayout(confirmLayout)
 
-##                optionsLayout.addRow("<b>Add credentials to enable these sites:</b>",None)
-##                self.options = {}
                 q = QLabel()
                 q.setPixmap(ERROR_ICON)
                 for k,v in (
@@ -372,40 +370,20 @@ class MyWindow(HideableWindow):
                     optionsLayout.addRow(q,QLabel(v))
                 optionsLayout.addRow(QLabel("Hover over a series to get error details."))
 
-##                for site in initialSettings:
-##                    self.options[site] = [QLineEdit(),QLineEdit()]
-##                    optionsLayout.addRow(site + " Username",self.options[site][0])
-##                    optionsLayout.addRow(site + " Password",self.options[site][1])
-##                    self.options[site][1].setEchoMode(QLineEdit.Password)
-                    
                 self.okButton=QPushButton('Ok')
                 
                 confirmLayout.addWidget(self.okButton,0,0)
                 
                 self.okButton.released.connect(self.close)
-##                self.saveButton.released.connect(self.saveValues)
 
                 mainLayout.addWidget(top)
                 mainLayout.addWidget(bottom)
                 self.setLayout(mainLayout)
 
-##                for key in initialSettings:
-##                    try:
-##                        self.options[key][0].setText(initialSettings[key][0])
-##                        self.options[key][1].setText(initialSettings[key][1])
-##                    except:
-##                        'is blank'
         d = LegendDialog(self)
         d.exec_()
         d.deleteLater()
 
-                
-##        QMessageBox.information(self, 'Color Legend','- Green/Red - Error parsing/downloading.\
-##                        \n- Blue - Normal.\
-##                        \n- Gray - Series marked as complete.\
-##                        \n- Purple - Series is licensed and not available on this site.\
-##                        \n- Yellow - Site no longer supported.\
-##                        \nThe more saturation, the longer that state has persisted. Dark red/green series need attention; you may need to change sites or skip a chapter for these series.\nMouse over an errored series for details.')
     def tips(self):
         QMessageBox.information(self, 'Some Useful Tips','- Try to avoid MangaPark, they commonly have multiple "Versions" of a series which means 2x filesize and/or chapters out of order or missing everywhere.\
                         \n- MangaFox has removed access to all their series from the US. Most urls can be directly converted by replacing mangafox with mangahere.\
@@ -425,8 +403,6 @@ class MyWindow(HideableWindow):
                     names.append(parser.SITE_URL)
                 msg+=', '.join(names)
                 QMessageBox.information(self, 'Error adding URL',msg)
-        #now your challenge is to signal the model and then
-        # somehow add rows to the table.
 
     def openreader(self):
         if os.name=='nt':
@@ -591,12 +567,15 @@ class MyWindow(HideableWindow):
             reply = QInputDialog.getText(self, self.tr("Enter URL"), self.tr("URL"), text=url)
             if reply[1]:
                 match = self.parserFetcher.match(reply[0])
-                if match and match.ABBR==site and reply[0] != url:
-                    self.editSeriesUrl.emit(self.tv.indexAt(pos),reply[0])
-                elif reply[0] == url:
-                    QMessageBox.information(self, 'Error changing URL', 'New URL is the same as existing one.')
+                if match:
+                    if match.ABBR==site and reply[0] != url:
+                        self.editSeriesUrl.emit(self.tv.indexAt(pos),reply[0])
+                    elif reply[0] == url:
+                        QMessageBox.information(self, 'Error changing URL', 'New URL is the same as existing one.')
+                    else:
+                        self.addSeries.emit(reply[0])
                 else:
-                    QMessageBox.information(self, 'Error changing URL', 'New URL is not valid for this site (%s)'%site)
+                    QMessageBox.information(self, 'Error changing URL', 'New URL is not valid.')
         if self.explorerAction==localpos:
             self.exploreSeries.emit(self.tv.indexAt(pos))
         
@@ -850,24 +829,62 @@ class MyTableModel(QAbstractTableModel):
         return self.sql.readSettings()
 
     def addSeries(self,url):
-        data=self.sql.addSeries(str(url))
-        if data == None:
-            QMessageBox.information(self.myparent, 'Series Add Failed','The URL you provided is not valid. Make sure you are linking the series page/chapter list and not a specific chapter or page')
-            #not valid url
-        elif data == False:
-            #series already exists.
-            QMessageBox.information(self.myparent, 'Series Add Failed','You are already reading this series.')
-        elif data == -1:
-            #other error
+        display_success_message = True
+        try:
+            series = self.sql.parserFetch.fetch(url)
+            if not isinstance(series,parsers.SeriesParser):
+                QMessageBox.information(self.myparent, 'Series Add Failed','The URL you provided is not valid. Make sure you are linking the series page/chapter list and not a specific chapter or page')
+                return None
+        except:
             QMessageBox.information(self.myparent, 'Series Add Failed','Error adding this series. Check to make sure your URL is valid. (This may be a bug)')
-        else:
+            return None
+        err,data=self.sql.addSeries(series)
+        if err == self.sql.SERIES_URL_CONFLICT:
+            QMessageBox.information(self.myparent, 'Series Add Failed','You are already reading this series.')
+            return None
+        elif err == self.sql.SERIES_TITLE_CONFLICT:
+            display_success_message = False
+            #present user with merge dialog
+            d=MergeDialog(data, self.myparent)
+            d.exec_()
+            if d.result == d.MERGE_OPTION:
+                # xfer rating and read to new
+                row = [a[TABLE_COLUMNS.index('Url')] for a in self.arraydata].index(data[TABLE_COLUMNS.index('Url')])
+                idx = self.createIndex(row,0)
+                self.removeSeries(idx,QMessageBox.No)
+                err,data=self.sql.addSeries(series, read = data[self.headerdata.index('Read')],
+                                            chapters = data[self.headerdata.index('Chapters')],
+                                            unread = data[self.headerdata.index('Unread')],
+                                            rating = data[self.headerdata.index('Rating')])
+            elif d.result == d.DUPLICATE_OPTION:
+                # rename new adding (2)
+                for i in range(2,50):
+                    err,data=self.sql.addSeries(series, alt_title = "{} ({})".format(series.get_title(), i))
+                    if err == self.sql.SERIES_NO_CONFLICT:
+                        break # success
+            elif d.result == d.REPLACE_OPTION:
+                #delete old + files, xfer rating only.
+                row = [a[TABLE_COLUMNS.index('Url')] for a in self.arraydata].index(data[TABLE_COLUMNS.index('Url')])
+                idx = self.createIndex(row,0)
+                self.removeSeries(idx,QMessageBox.Yes)
+                err,data=self.sql.addSeries(series, rating = data[self.headerdata.index('Rating')])
+            d.deleteLater()
+            if d.result == d.CANCEL_OPTION:
+                return None
+        # finally add the series to table
+        if err == self.sql.SERIES_NO_CONFLICT:
+            datalist = list(data)
             old=self.rowCount(None)
             self.beginInsertRows(QModelIndex(),old,old)
-            self.arraydata.append(data)
+            self.arraydata.append(datalist)
             self.endInsertRows()
             self.resort()
-            QMessageBox.information(self.myparent, 'Series Added','New series was added successfully.')
-            self.updateSeries(self.arraydata.index(data))
+            if display_success_message:
+                QMessageBox.information(self.myparent, 'Series Added','New series was added successfully.')
+            self.updateSeries([a[TABLE_COLUMNS.index('Url')] for a in self.arraydata].index(datalist[TABLE_COLUMNS.index('Url')]))
+            return None
+        QMessageBox.information(self.myparent, 'Series Add Failed','Error adding this series. Check to make sure your URL is valid. (This may be a bug)')
+        return None
 
     def updateSeries(self,indexrow):
         self.series_locks.setdefault(self.arraydata[indexrow][self.headerdata.index('Url')],[QMutex(),0])
@@ -881,7 +898,7 @@ class MyTableModel(QAbstractTableModel):
 
     def updateRow(self,olddata,newdata,errcode):
         try:
-            row=self.arraydata.index(olddata)
+            row = [a[TABLE_COLUMNS.index('Url')] for a in self.arraydata].index(olddata[TABLE_COLUMNS.index('Url')])
         except ValueError:
             return
         if errcode==0:
@@ -917,7 +934,7 @@ class MyTableModel(QAbstractTableModel):
     def errorRow(self,data,errcode,errmsg):
         #errmsg is an array of messages (len 1 though)
         try:
-            row=self.arraydata.index(data)
+            row = [a[TABLE_COLUMNS.index('Url')] for a in self.arraydata].index(data[TABLE_COLUMNS.index('Url')])
         except ValueError:
             return
         idx = self.createIndex(row,0)
@@ -1200,7 +1217,60 @@ class MyTableModel(QAbstractTableModel):
         if self.sort_order == Qt.DescendingOrder:
             self.arraydata.reverse()
         self.layoutChanged.emit()
-         
+
+class MergeDialog(QDialog):
+    DUPLICATE_OPTION = 3
+    REPLACE_OPTION = 2
+    MERGE_OPTION = 1
+    CANCEL_OPTION = 0
+    
+    def __init__(self, existingSeries, parent=None):
+        from PyQt5.QtCore import Qt
+        super(MergeDialog, self).__init__(parent)
+        self.result=self.CANCEL_OPTION
+        self.setWindowTitle(self.tr("Merge Series"))
+        self.setWindowFlags(self.windowFlags() &~ Qt.WindowContextHelpButtonHint)
+
+        mainLayout = QVBoxLayout()
+        mainLayout.setAlignment(Qt.AlignCenter)
+
+        descLayout = QFormLayout()
+        buttonLayout = QGridLayout()
+
+        top=QWidget()
+        bottom=QWidget()
+        top.setLayout(descLayout)
+        bottom.setLayout(buttonLayout)
+        
+        hyperlink = QLabel('You are already reading a series with the same name from <a href="{}">{}</a>'.format(existingSeries[TABLE_COLUMNS.index('Url')],existingSeries[TABLE_COLUMNS.index('Site')]))
+        hyperlink.setOpenExternalLinks(True)
+        descLayout.addRow(hyperlink)
+        descLayout.addRow(QLabel("Choose how you wish to proceed:"))
+        descLayout.addRow(QLabel("<b>Merge:</b> Old follow will be updated to new url. Read progress and downloaded files will be saved"))
+        descLayout.addRow(QLabel("<b>Overwrite:</b> Old follow and all downloaded files will be deleted, read will be reset to 0"))
+        descLayout.addRow(QLabel("<b>Keep Both:</b> New follow will be renamed to \"{} (2)\"".format(existingSeries[TABLE_COLUMNS.index('Title')])))
+
+        choices = (
+            ('Merge',self.MERGE_OPTION),
+            ('Overwrite',self.REPLACE_OPTION),
+            ('Keep Both',self.DUPLICATE_OPTION),
+            ('Cancel',self.CANCEL_OPTION),
+            )
+        self.buttons = []
+        for i,(text,opt) in enumerate(choices):
+            b = QPushButton(text)
+            buttonLayout.addWidget(b,0,i)
+            self.buttons.append(b)
+            b.released.connect(partial(self.saveAndExit,opt))
+
+        mainLayout.addWidget(top)
+        mainLayout.addWidget(bottom)
+        self.setLayout(mainLayout)
+
+    def saveAndExit(self,value):
+        self.result = value
+        self.close()
+        
 class CredsDialog(QDialog):
     def __init__(self,initialSettings, parent=None):
         from PyQt5.QtCore import Qt

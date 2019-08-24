@@ -328,6 +328,8 @@ class SeriesParser(object):
             self.SESSION.init = True # only init when valid so we are sure we didn't accidentally set referer to a 404 page or something
     def _cycle_UA(self):
         self.HEADERS['User-Agent'] = random.choice((self.UA.chrome,self.UA.firefox))
+    def get_url(self):
+        return self.MAIN_URL
     def login(self):
         #log in to the site if authentication is required
         # this should check to see if you are logged in before attempting a login because session objects are shared.
