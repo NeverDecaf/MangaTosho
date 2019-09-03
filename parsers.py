@@ -152,6 +152,8 @@ class ParserFetch:
                     return -1
                 except subprocess.CalledProcessError:
                     return -3 # error thrown by cfscrape
+                except LicensedError:
+                    return -4
         return None
     def updateCreds(self,credentials):
         for parser in self.parsers_req_creds:
@@ -833,6 +835,10 @@ class MangaRock(SeriesParser):
             self.SESSION.headers.update(self.HEADERS)
 ##        self.HTML = r.text
         self.JSON = r.json()
+        if self.JSON['code'] == 104 and self.JSON['data'] == 'Manga is licensed':
+            e = LicensedError('Series is licensed.')
+            e.display = 'Series is licensed'
+            raise e
 ##        self.etree = lxmlhtml.fromstring(self.HTML)
         if self.JSON['code']:
             self.VALID=False

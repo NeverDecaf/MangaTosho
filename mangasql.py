@@ -271,7 +271,7 @@ class SQLManager():
                     #client error
                     logging.exception('Type 2 (failed accessing series page for '+logsafe_title+' due to client error 4xx)')
                     return 2,['Webpage could not be reached.']
-                if self.parserFetch.match(data[TABLE_COLUMNS.index('Url')]) is not None:#got a match, but still invalid (this means the title wasnt parsed correctly)
+                if series!=-4 and self.parserFetch.match(data[TABLE_COLUMNS.index('Url')]) is not None:#got a match, but still invalid (this means the title wasnt parsed correctly)
                     logging.exception('Type 1 (couldnt parse series title for '+logsafe_title+')')
                     return 1,['Parser needs updating.']
                 #else is None aka invalid site
