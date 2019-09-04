@@ -479,6 +479,20 @@ class SeriesParser(object):
                 chapter_path = posixpath.dirname(urllib.parse.urlsplit(url)[2])
 ##            print('next url is',url)
         return images
+    def _write_image(self, imgbytes, filename, format=None):
+        imghash = hashlib.md5(imgbytes.read()).hexdigest()
+        imgbytes.seek(0)
+        if imghash not in ADVERT_IMAGE_HASHES:
+            # dont save ads
+            img = Image.open(imgbytes)
+            img.verify()
+            img.close()
+            imgbytes.seek(0)
+            img = Image.open(imgbytes)
+            if format == None:
+                img.save(os.path.splitext(filename)[0]+r'.'+img.format)
+            else:
+                img.save(os.path.splitext(filename)[0]+r'.'+format) # force conversion to jpeg as mmce doesnt support webp
     def save_images(self,sname,chapters):
         updated_count=0
         unread_count=0
@@ -509,11 +523,7 @@ class SeriesParser(object):
                             
                             filename = os.path.join(tempdir,str(iindex)+os.path.splitext(image)[1])
                             imgbytes = BytesIO(response.content)
-                            imghash = hashlib.md5(imgbytes.read()).hexdigest()
-                            if imghash not in ADVERT_IMAGE_HASHES:
-                                # dont save ads
-                                img = Image.open(imgbytes)
-                                img.save(os.path.splitext(filename)[0]+r'.'+img.format)
+                            self._write_image(imgbytes, filename)
                             iindex+=1
                         except:
                             if img_dl_errs<ALLOWED_IMAGE_ERRORS_PER_CHAPTER:
@@ -739,11 +749,7 @@ class MangaDex(SeriesParser):
                             
                             filename = os.path.join(tempdir,str(iindex)+os.path.splitext(image)[1])
                             imgbytes = BytesIO(response.content)
-                            imghash = hashlib.md5(imgbytes.read()).hexdigest()
-                            if imghash not in ADVERT_IMAGE_HASHES:
-                                # dont save ads
-                                img = Image.open(imgbytes)
-                                img.save(os.path.splitext(filename)[0]+r'.'+img.format)
+                            self._write_image(imgbytes, filename)
                             iindex+=1
                         except:
                             if img_dl_errs<ALLOWED_IMAGE_ERRORS_PER_CHAPTER:
@@ -950,11 +956,7 @@ class MangaRock(SeriesParser):
 
                             filename = os.path.join(tempdir,str(iindex)+os.path.splitext(image)[1])
                             imgbytes = decodeMRI(response.content)
-                            imghash = hashlib.md5(imgbytes.read()).hexdigest()
-                            if imghash not in ADVERT_IMAGE_HASHES:
-                                # dont save ads
-                                img = Image.open(imgbytes)
-                                img.save(os.path.splitext(filename)[0]+r'.jpeg') # force conversion to jpeg as mmce doesnt support webp
+                            self._write_image(imgbytes, filename, format='jpeg')
                             iindex+=1
                         except:
                             if img_dl_errs<ALLOWED_IMAGE_ERRORS_PER_CHAPTER:
@@ -1136,11 +1138,7 @@ class SadPanda(SeriesParser):
 
                             filename = os.path.join(tempdir,str(iindex)+os.path.splitext(image)[1])
                             imgbytes = BytesIO(response.content)
-                            imghash = hashlib.md5(imgbytes.read()).hexdigest()
-                            if imghash not in ADVERT_IMAGE_HASHES:
-                                # dont save ads
-                                img = Image.open(imgbytes)
-                                img.save(os.path.splitext(filename)[0]+r'.'+img.format)
+                            self._write_image(imgbytes, filename)
                             iindex+=1
                         except Exception as e:
                             TRIES_PER_PAGE = self.RETRY_ATTEMPTS
