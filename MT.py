@@ -688,11 +688,7 @@ class UpdateThread(QThread):
                 if err>0:
                     self.errorRow.emit(datum, err, data)
                 elif len(data):
-                    if lockset[1]:
-                        # means a change occured mid-update, in this case we don't want to overwrite the data.
-                        lockset[1]=0
-                    else:
-                        self.updateRow.emit(datum, data, err)
+                    self.updateRow.emit(datum, data, err)                        
                 else:
                     self.errorRow.emit(datum, 0, [''])
                 time.sleep(random.uniform(*parsers.CHAPTER_DELAY)) # sleep between series (same delay as between chapters)
@@ -907,7 +903,13 @@ class MyTableModel(QAbstractTableModel):
         newdata[self.headerdata.index('Error')]=0
         newdata[self.headerdata.index('Error Message')] = None
         newdata[self.headerdata.index('LastUpdateAttempt')]=time.time()
-
+        dataChanged = 0
+        if self.arraydata[row][self.headerdata.index('Url')] in self.series_locks:
+            lockset = self.series_locks[self.arraydata[row][self.headerdata.index('Url')]]
+            dataChanged = lockset[1]
+        if dataChanged:
+            for col in self.editable_cols:
+                newdata[col] = self.arraydata[row][col]
         for i in range(len(self.arraydata[row])):
             self.arraydata[row][i] = newdata[i]
         idx = self.createIndex(row,0)
