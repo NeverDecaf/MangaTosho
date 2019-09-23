@@ -622,6 +622,10 @@ class UniqueDeque(queue.Queue):
             self._putLeft(item)
             self.unfinished_tasks += 1
             self.not_empty.notify()
+            
+    def contains(self, item):
+        return self.keyfunc(item) in self.set
+        
     # Initialize the queue representation
     def _init(self, maxsize):
         self.queue = collections.deque()
@@ -677,7 +681,7 @@ class UpdateThread(QThread):
                 time.sleep(1) # lazy solution
                 return
             sitelock_aquired = True
-            lockset = self.series_locks.setdefault(datum[self.headerdata.index('Url')],[QMutex(),0])
+            lockset = self.series_locks.setdefault(datum[self.headerdata.index('Url')],[QMutex(),0,QMutex()])
             thislock = lockset[0]
             thislock.lock()
             try:
@@ -685,17 +689,21 @@ class UpdateThread(QThread):
                 if complete:
                     return
                 err,data = self.sql.updateSeries(datum) # this method does not access the sqlite db and therefore can function in a separate thread.
-                if err>0:
-                    self.errorRow.emit(datum, err, data)
-                elif len(data):
-                    self.updateRow.emit(datum, data, err)                        
-                else:
-                    self.errorRow.emit(datum, 0, [''])
+                lockset[2].lock()
+                try:
+                    if err>0:
+                        self.errorRow.emit(datum, err, data)
+                    elif len(data):
+                        self.updateRow.emit(datum, data, err)                        
+                    else:
+                        self.errorRow.emit(datum, 0, [''])
+                finally:
+                    lockset[2].unlock()
                 time.sleep(random.uniform(*parsers.CHAPTER_DELAY)) # sleep between series (same delay as between chapters)
             finally:
                 thislock.unlock()
         except Exception as e:
-            fh=open(storage_path('CRITICAL ERROR SEARCH QTABLE FOR THIS LINE'),'w')
+            fh=open(storage_path('CRITICAL ERROR SEARCH MT.py FOR THIS LINE'),'w')
             fh.write('%r'%e)
             fh.close()
             raise
@@ -881,26 +889,29 @@ class MyTableModel(QAbstractTableModel):
             return None
         QMessageBox.information(self.myparent, 'Series Add Failed','Error adding this series. Check to make sure your URL is valid. (This may be a bug)')
         return None
+    
+    def _updateHelper(self,data):
+        self.series_locks.setdefault(data[self.headerdata.index('Url')],[QMutex(),0,QMutex()])
+        self.updateQueue.putLeft(data)
+        # acquire the lock? idk
 
     def updateSeries(self,indexrow):
-        self.series_locks.setdefault(self.arraydata[indexrow][self.headerdata.index('Url')],[QMutex(),0])
-        self.updateQueue.putLeft(self.arraydata[indexrow])
+        self._updateHelper(self.arraydata[indexrow])
 
     def updateAll(self):
         settings = self.getSettings()
         for d in self.sql.getToUpdate(60*int(settings['series_update_freq'])):
-            self.series_locks.setdefault(d[self.headerdata.index('Url')],[QMutex(),0])
-            self.updateQueue.put(d)
+            self._updateHelper(d)
 
     def updateRow(self,olddata,newdata,errcode):
         try:
             row = [a[TABLE_COLUMNS.index('Url')] for a in self.arraydata].index(olddata[TABLE_COLUMNS.index('Url')])
         except ValueError:
             return
-        if errcode==0:
-            newdata[self.headerdata.index('UpdateTime')]=time.time()
-        newdata[self.headerdata.index('SuccessTime')]=time.time()
-        newdata[self.headerdata.index('Error')]=0
+        if errcode<1:
+            newdata[self.headerdata.index('SuccessTime')]=time.time()
+        newdata[self.headerdata.index('UpdateTime')]=time.time()
+        newdata[self.headerdata.index('Error')] = errcode # always 0
         newdata[self.headerdata.index('Error Message')] = None
         newdata[self.headerdata.index('LastUpdateAttempt')]=time.time()
         dataChanged = 0
@@ -983,7 +994,7 @@ class MyTableModel(QAbstractTableModel):
      
     def removeSeries(self,index,removedata):
         self.beginRemoveRows(QModelIndex(),index.row(),index.row())
-        self.series_locks.setdefault(self.arraydata[index.row()][self.headerdata.index('Url')],[QMutex(),0])[1]=0
+        self.series_locks.setdefault(self.arraydata[index.row()][self.headerdata.index('Url')],[QMutex(),0,QMutex()])[1]=0
         title=self.arraydata[index.row()][self.headerdata.index('Title')]
         url=self.arraydata[index.row()][self.headerdata.index('Url')]
         del self.arraydata[index.row()]
@@ -1040,14 +1051,20 @@ class MyTableModel(QAbstractTableModel):
             return
 
         locked = 0
+        updatelocked = 0
         if self.arraydata[index.row()][self.headerdata.index('Url')] in self.series_locks:
             lockset = self.series_locks[self.arraydata[index.row()][self.headerdata.index('Url')]]
             lock = lockset[0]
             if lock.tryLock():
                 locked=lock
-                lockset[1] = 0
+                if self.updateQueue.contains(self.arraydata[index.row()]):
+                    lockset[1] = 1 # update is queued, notify of changed data.
+                else:
+                    lockset[1] = 0 # update not queued, proceed normally.
             else:
                 lockset[1] = 1 # data changed but lock could not be aquired, meaning update in progress
+                updatelocked = lockset[2]
+                updatelocked.lock()
         try:
             last=self.arraydata[index.row()][self.headerdata.index('Read')]#last read chapter
 
@@ -1093,6 +1110,8 @@ class MyTableModel(QAbstractTableModel):
         finally:
             if locked:
                 locked.unlock()
+            if updatelocked:
+                updatelocked.unlock()
 ##        self.resort()
 
     def readpath(self, path):
