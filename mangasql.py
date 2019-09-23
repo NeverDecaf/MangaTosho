@@ -74,6 +74,7 @@ class SQLManager():
                     'start_hidden int DEFAULT 0',
                     'start_with_windows int DEFAULT 0',
                     'series_update_freq int DEFAULT {}'.format(MIN_UPDATE_FREQ//60),
+                    'convert_webp_to_jpeg int DEFAULT 2',
                     ):
             try:
                 c.execute('''ALTER TABLE user_settings ADD COLUMN {}'''.format(col))
@@ -244,7 +245,7 @@ class SQLManager():
 
     # this method is extremely outdated and terribly coded BUT it still works somehow so we just leave it alone. Everything around it has changed drastically so it could probably be cut down
     # to much, much fewer lines of code. (And more readable)
-    def updateSeries(self,data):
+    def updateSeries(self, data, convert_webp = False):
         working_chapter = None
         working_page = None
         errtype = 1
@@ -277,6 +278,8 @@ class SQLManager():
                 #else is None aka invalid site
                 logging.exception('Type 4 (series not supported: '+logsafe_title+')')
                 return 4,['Parser Error: Site/series no longer supported.']
+            if convert_webp:
+                series.set_webp_conversion()
             nums,chapters = series.get_chapters()
             if not len(chapters):
                 logging.exception('Type 1 (Parser Error: No chapters found: '+logsafe_title+')')
@@ -297,7 +300,7 @@ class SQLManager():
                 errors=0
                 print(time.strftime('%m/%d %H:%M'),'updating',len(toupdate),'chapters from',logsafe_title)
                 try:
-                    unread_count,updated_count = series.save_images(validname,toupdate)
+                    unread_count,updated_count = series.save_images(validname, toupdate)
                 except parsers.DelayedError as e:
                     # this a very special error used only by mangadex (for now).
                     # this indicates the chapter is on hold by scanlators, meaning no programmming/parser error

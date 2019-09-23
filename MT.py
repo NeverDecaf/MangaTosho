@@ -667,6 +667,7 @@ class UpdateThread(QThread):
         self.site_locks=site_locks
         self.series_locks=series_locks
         self.queue = update_queue
+        self.covert_webp = self.sql.readSettings()['convert_webp_to_jpeg']
 
     def updateSeries(self,datum):
         sitelock_aquired = False
@@ -688,7 +689,7 @@ class UpdateThread(QThread):
                 complete = datum[self.headerdata.index('Complete')]
                 if complete:
                     return
-                err,data = self.sql.updateSeries(datum) # this method does not access the sqlite db and therefore can function in a separate thread.
+                err,data = self.sql.updateSeries(datum, convert_webp = self.covert_webp) # this method does not access the sqlite db and therefore can function in a separate thread.
                 lockset[2].lock()
                 try:
                     if err>0:
@@ -1397,7 +1398,10 @@ class OptionsDialog(QDialog):
         self.options['start_hidden'] = QCheckBox("Start minimized to tray")
         self.options['start_hidden'].setCheckState(int(initialSettings['start_hidden']))
         optionsLayout.addRow(self.options['start_hidden'])
-
+        self.options['convert_webp_to_jpeg'] = QCheckBox("Convert WebP Images to JPEG (Requires Restart)")
+        self.options['convert_webp_to_jpeg'].setCheckState(int(initialSettings['convert_webp_to_jpeg']))
+        optionsLayout.addRow(self.options['convert_webp_to_jpeg']) 
+        
         if os.name!='nt':
             self.options['start_with_windows'].setDisabled(True)
 

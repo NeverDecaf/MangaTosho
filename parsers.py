@@ -261,6 +261,8 @@ class SeriesParser(object):
     IMAGE_DOWNLOAD_DELAY = (0,0) # delay to use when downloading images, for sites with a rate limit
     AUTO_COMPLETE_TIME = 2592000 * 3 # 3 months before a series claimed to be complete by the site is marked as completed (in the db).
     LICENSED_AS_403 = False # some sites use error 403 to indicate a licensed series.
+    
+    CONVERT_WEBP = None
 
     def __init__(self,url,sessionobj=None):
         #loads the html from the series page, also checks to ensure the site is valid
@@ -479,6 +481,8 @@ class SeriesParser(object):
                 chapter_path = posixpath.dirname(urllib.parse.urlsplit(url)[2])
 ##            print('next url is',url)
         return images
+    def set_webp_conversion(self, to_format = 'jpeg'):
+        self.CONVERT_WEBP = to_format
     def _write_image(self, imgbytes, filename, format=None):
         imghash = hashlib.md5(imgbytes.read()).hexdigest()
         imgbytes.seek(0)
@@ -490,7 +494,10 @@ class SeriesParser(object):
             imgbytes.seek(0)
             img = Image.open(imgbytes)
             if format == None:
-                img.save(os.path.splitext(filename)[0]+r'.'+img.format)
+                if img.format == 'WEBP' and self.CONVERT_WEBP:
+                    img.save(os.path.splitext(filename)[0]+r'.'+self.CONVERT_WEBP)
+                else:
+                    img.save(os.path.splitext(filename)[0]+r'.'+img.format)
             else:
                 img.save(os.path.splitext(filename)[0]+r'.'+format) # force conversion to jpeg as mmce doesnt support webp
     def save_images(self,sname,chapters):
@@ -956,7 +963,7 @@ class MangaRock(SeriesParser):
 
                             filename = os.path.join(tempdir,str(iindex)+os.path.splitext(image)[1])
                             imgbytes = decodeMRI(response.content)
-                            self._write_image(imgbytes, filename, format='jpeg')
+                            self._write_image(imgbytes, filename)
                             iindex+=1
                         except:
                             if img_dl_errs<ALLOWED_IMAGE_ERRORS_PER_CHAPTER:
