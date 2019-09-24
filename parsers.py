@@ -488,9 +488,8 @@ class SeriesParser(object):
         imgbytes.seek(0)
         if imghash not in ADVERT_IMAGE_HASHES:
             # dont save ads
-            img = Image.open(imgbytes)
-            img.verify()
-            img.close()
+            imgv = Image.open(imgbytes)
+            imgv.verify()
             imgbytes.seek(0)
             img = Image.open(imgbytes)
             if format == None:
@@ -500,6 +499,9 @@ class SeriesParser(object):
                     img.save(os.path.splitext(filename)[0]+r'.'+img.format)
             else:
                 img.save(os.path.splitext(filename)[0]+r'.'+format) # force conversion to jpeg as mmce doesnt support webp
+            imgv.close()
+            img.close()
+            imgbytes.close()
     def save_images(self,sname,chapters):
         updated_count=0
         unread_count=0

@@ -682,7 +682,7 @@ class UpdateThread(QThread):
                 time.sleep(1) # lazy solution
                 return
             sitelock_aquired = True
-            lockset = self.series_locks.setdefault(datum[self.headerdata.index('Url')],[QMutex(),0,QMutex()])
+            lockset = self.series_locks.setdefault(datum[self.headerdata.index('Url')],[QMutex(),None,QMutex()])
             thislock = lockset[0]
             thislock.lock()
             try:
@@ -892,7 +892,7 @@ class MyTableModel(QAbstractTableModel):
         return None
     
     def _updateHelper(self,data):
-        self.series_locks.setdefault(data[self.headerdata.index('Url')],[QMutex(),0,QMutex()])
+        self.series_locks.setdefault(data[self.headerdata.index('Url')],[QMutex(),None,QMutex()])
         self.updateQueue.putLeft(data)
         # acquire the lock? idk
 
@@ -919,9 +919,12 @@ class MyTableModel(QAbstractTableModel):
         if self.arraydata[row][self.headerdata.index('Url')] in self.series_locks:
             lockset = self.series_locks[self.arraydata[row][self.headerdata.index('Url')]]
             dataChanged = lockset[1]
-        if dataChanged:
+        if dataChanged is not None:
             for col in self.editable_cols:
                 newdata[col] = self.arraydata[row][col]
+            if dataChanged > 0:
+                newdata[self.headerdata.index('Unread')] = int(newdata[self.headerdata.index('Unread')]) - dataChanged
+        # need to also update: unread
         for i in range(len(self.arraydata[row])):
             self.arraydata[row][i] = newdata[i]
         idx = self.createIndex(row,0)
@@ -960,28 +963,6 @@ class MyTableModel(QAbstractTableModel):
         self.arraydata[row][self.headerdata.index('LastUpdateAttempt')]=time.time()
         self.dataChanged.emit(idx, idx2)
         self.sql.changeSeries(self.arraydata[row])
-
-    def setData(self, index, value, role=Qt.EditRole, user=False):
-        if index.column() == TABLE_COLUMNS.index('Read') and not user and not value.replace('.','',1).isdigit(): # enforces float values for chapter num
-            return False
-        locked = 0
-        if self.arraydata[index.row()][self.headerdata.index('Url')] in self.series_locks:
-            lockset = self.series_locks[self.arraydata[index.row()][self.headerdata.index('Url')]]
-            lock = lockset[0]
-            if lock.tryLock():
-                locked=lock
-                lockset[1] = 0
-            else:
-                lockset[1] = 1 # data changed but lock could not be aquired, meaning update in progress
-        try:
-            self.arraydata[index.row()][index.column()] = str(value)
-            self.dataChanged.emit(index, index)
-            self.sql.changeSeries(self.arraydata[index.row()])
-            self.resort()
-        finally:
-            if locked:
-                lock.unlock()
-        return True
     
     def openInFileExplorer(self,index):
         toopen=storage_path(SQLManager.cleanName(self.arraydata[index.row()][self.headerdata.index('Title')]))
@@ -995,7 +976,7 @@ class MyTableModel(QAbstractTableModel):
      
     def removeSeries(self,index,removedata):
         self.beginRemoveRows(QModelIndex(),index.row(),index.row())
-        self.series_locks.setdefault(self.arraydata[index.row()][self.headerdata.index('Url')],[QMutex(),0,QMutex()])[1]=0
+        self.series_locks.setdefault(self.arraydata[index.row()][self.headerdata.index('Url')],[QMutex(),None,QMutex()])[1]=None
         title=self.arraydata[index.row()][self.headerdata.index('Title')]
         url=self.arraydata[index.row()][self.headerdata.index('Url')]
         del self.arraydata[index.row()]
@@ -1046,27 +1027,49 @@ class MyTableModel(QAbstractTableModel):
         
     def rowCount(self, parent):
         return len(self.arraydata)
+        
+    class DataLocker(object):
+        def __init__(self, parent, row):
+            self.row = row
+            self.parent = parent
+            self.locked = False
+            
+        def setUnread(self, value):
+            self.lockset[1] = self.lockset[1] and value
 
+        def __enter__(self):
+            self.lockset = self.parent.series_locks.setdefault(self.parent.arraydata[self.row][self.parent.headerdata.index('Url')],[QMutex(),None,QMutex()])
+            if self.lockset[0].tryLock():
+                self.locked = self.lockset[0]
+                if self.parent.updateQueue.contains(self.parent.arraydata[self.row]):
+                    self.lockset[1] = -1 # update is queued, notify of changed data.
+                else:
+                    self.lockset[1] = None # update not queued, proceed normally.
+            else:
+                self.lockset[1] = -1 # data changed but lock could not be acquired, meaning update in progress
+            self.lockset[2].lock()
+            return self
+
+        def __exit__(self, exc_type, exc_value, exc_traceback):
+            if self.locked:
+                self.locked.unlock()
+            self.lockset[2].unlock()
+            return False
+        
+    def setData(self, index, value, role=Qt.EditRole, user=False):
+        if index.column() == TABLE_COLUMNS.index('Read') and not user and not value.replace('.','',1).isdigit(): # enforces float values for chapter num
+            return False
+        with self.DataLocker(self, index.row()):
+            self.arraydata[index.row()][index.column()] = str(value)
+            self.dataChanged.emit(index, index)
+            self.sql.changeSeries(self.arraydata[index.row()])
+            self.resort()
+        return True
+        
     def readSeries(self, index):
         if index.column() in self.editable_cols:
             return
-
-        locked = 0
-        updatelocked = 0
-        if self.arraydata[index.row()][self.headerdata.index('Url')] in self.series_locks:
-            lockset = self.series_locks[self.arraydata[index.row()][self.headerdata.index('Url')]]
-            lock = lockset[0]
-            if lock.tryLock():
-                locked=lock
-                if self.updateQueue.contains(self.arraydata[index.row()]):
-                    lockset[1] = 1 # update is queued, notify of changed data.
-                else:
-                    lockset[1] = 0 # update not queued, proceed normally.
-            else:
-                lockset[1] = 1 # data changed but lock could not be aquired, meaning update in progress
-            updatelocked = lockset[2]
-            updatelocked.lock()
-        try:
+        with self.DataLocker(self, index.row()) as dl:
             last=self.arraydata[index.row()][self.headerdata.index('Read')]#last read chapter
 
             sdir=storage_path(SQLManager.cleanName(self.arraydata[index.row()][self.headerdata.index('Title')]))#name of series
@@ -1096,7 +1099,7 @@ class MyTableModel(QAbstractTableModel):
                     toopen = os.path.join(sdir,chapters[-1])
             if os.path.exists(os.path.realpath(toopen)):
                 self.readpath(toopen)
-                
+                dl.setUnread(self.arraydata[index.row()][self.headerdata.index('Unread')]) # store old unread value
                 self.arraydata[index.row()][self.headerdata.index('Unread')]=0
                 self.arraydata[index.row()][self.current_col] = self.arraydata[index.row()][self.total_col]
                 idx = self.createIndex(index.row(),0)
@@ -1107,13 +1110,6 @@ class MyTableModel(QAbstractTableModel):
                 self.sql.addHistory(self.arraydata[index.row()], history_last_read, toopen)
                 self.resort()
                 self.myparent.setHistory(self.sql.getHistory())
-##                self.myparent.addHistory("{0} {1:g}".format(self.arraydata[index.row()][self.headerdata.index('Title')],float(history_last_read)),toopen)
-        finally:
-            if locked:
-                locked.unlock()
-            if updatelocked:
-                updatelocked.unlock()
-##        self.resort()
 
     def readpath(self, path):
         if os.name=='nt':
