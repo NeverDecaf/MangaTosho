@@ -1064,8 +1064,8 @@ class MyTableModel(QAbstractTableModel):
                     lockset[1] = 0 # update not queued, proceed normally.
             else:
                 lockset[1] = 1 # data changed but lock could not be aquired, meaning update in progress
-                updatelocked = lockset[2]
-                updatelocked.lock()
+            updatelocked = lockset[2]
+            updatelocked.lock()
         try:
             last=self.arraydata[index.row()][self.headerdata.index('Read')]#last read chapter
 
