@@ -652,7 +652,7 @@ class MangaDex(SeriesParser):
                 try:
                     thisvol = int(v['volume'])
                 except:
-                    thisvol = 0
+                    thisvol = 99999
                 try:
                     thisch = float(v['chapter'])
                 except:
@@ -663,7 +663,7 @@ class MangaDex(SeriesParser):
         urls = []
         vol_base = 0
         cvol = None
-        for vol in sorted(volumes.keys(), key=lambda x:x or 99999): # sorts with 0 last
+        for vol in sorted(volumes.keys()):#, key=lambda x:x or 99999): # sorts with 0 last
             for ch in sorted(volumes[vol].keys()):
                 if cvol==None:
                     cvol = vol
