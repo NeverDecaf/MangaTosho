@@ -20,7 +20,6 @@ Closing the main window will simply minimize it to tray. Double-click the icon t
 
 #### Supported sites:
 - MangaDex
-- MangaRock
 - MangaSee
 - MangaHere
 - DynastyScans

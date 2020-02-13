@@ -10,15 +10,6 @@
 		<site_parser_re>https?://(?:www\.)?mangadex.(org|cc)/(title|manga)/\d*</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
 		<image_download_delay>1,2</image_download_delay> <!-- Same as image_delay but used when downloading the images themselves, used mainly for sites where all image urls can be fetched at once. -->
 	</site>
-	<site name="MangaRock">
-		<!-- essential args. must supply all of these -->
-		<site_url>https://mangarock.com/</site_url> <!-- url of the main website -->
-		<abbr>RO</abbr> <!-- 2 letter abbreviation of the site's name. -->
-		<site_parser_re>https?://(?:www\.)?mangarock.com/manga/.*</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
-		<mangarock_query_version>401</mangarock_query_version> <!-- used for json query uri -->
-		<mangarock_api_domain>https://api.mangarockhd.com</mangarock_api_domain> <!-- in case mr changes domains -->
-		<skip_mature>country=Free</skip_mature> <!-- fragment added to the url to skip mature warnings (example: skip=1) -->
-	</site>
 	<site name="MangaSee">
 		<!-- essential args. must supply all of these -->
 		<site_url>http://mangaseeonline.us</site_url> <!-- url of the main website -->
