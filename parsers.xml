@@ -101,15 +101,14 @@
 	</site>
 	<site name="MangaStream">
 		<!-- essential args. you will need most of these. -->
-		<site_url>https://www.readms.net/</site_url> <!-- url of the main website -->
+		<site_url>https://www.mangastream.cc/</site_url> <!-- url of the main website -->
 		<abbr>MS</abbr> <!-- 2 letter abbreviation of the site's name. -->
-		<site_parser_re>https?://(?:www\.)?readms.net/manga/.*</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
+		<site_parser_re>https?://(?:www\.)?mangastream.cc/manga/.*</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
 		<title_xpath>substring(//div[contains(@class, 'content')]//h1/text(),1)</title_xpath> <!-- xpath that matches the series' title -->
-		<chapter_nums_xpath>//td/a/text()</chapter_nums_xpath> <!-- xpath that matches all chapter numbers on the main series page -->
-		<chapter_urls_xpath>//td/a/@href</chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
-		<image_url_xpath>substring(concat('http:',//a/img/@src), 1 div boolean(//a/img/@src))</image_url_xpath> <!-- xpath that matches the image url on a given page of the series -->
-		<next_url_xpath>substring(//li[@class='next']/a/@href,1)</next_url_xpath> <!-- xpath that matches the url of the next page on a given page of the series -->
+		<chapter_nums_xpath>//ul[contains(@class, 'version-chap')]/li/a/text()</chapter_nums_xpath> <!-- xpath that matches all chapter numbers on the main series page -->
+		<chapter_urls_xpath>//ul[contains(@class, 'version-chap')]/li/a/@href</chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
 		<!-- optional args, delete these if not applicable. -->
+		<aio_images_re><![CDATA[<img id="image-\d+" src="\s*([^"]*)]]></aio_images_re> <!-- regex to match all image urls if the site includes them all on one page. -->
 		<chapter_nums_re>^(\d+\.?\d*)(?:v\d+)?</chapter_nums_re> <!-- regex used to further refine the results of chapter_nums_xpath, default is typically fine. -->
 	</site>
 	<site name="MangaKakalot">
@@ -131,8 +130,8 @@
 		<abbr>MN</abbr> <!-- 2 letter abbreviation of the site's name. -->
 		<site_parser_re>https?://(?:www\.)?manganelo.com/manga/.+</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
 		<title_xpath>substring(//h1/text(),1)</title_xpath> <!-- xpath that matches the series' title -->
-		<chapter_nums_xpath>//div[@class='row']/span/a/@title</chapter_nums_xpath> <!-- xpath that matches all chapter numbers on the main series page -->
-		<chapter_urls_xpath>//div[@class='row']/span/a[@title]/@href</chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
+		<chapter_nums_xpath>//ul[@class='row-content-chapter']/li/a/@title</chapter_nums_xpath> <!-- xpath that matches all chapter numbers on the main series page -->
+		<chapter_urls_xpath>//ul[@class='row-content-chapter']/li/a/@href</chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
 		<is_complete_xpath>//li[text()="Status : Completed"]</is_complete_xpath> <!-- xpath that matches if the series has been marked "Complete" -->
 		<!-- optional args, delete these if not applicable. -->
 		<chapter_nums_re><![CDATA[chapter (\d+\.?\d*)(?:v\d+)?]]></chapter_nums_re> <!-- regex used to further refine the results of chapter_nums_xpath, default is typically fine. -->
@@ -237,7 +236,8 @@
 	<conversion>DX,mangadex.org/manga/,mangadex.org/title/,%mangadex.org/manga/%</conversion>
 	<conversion>PA,mangapark.me,mangapark.net,%mangapark.me%</conversion>
 	<conversion>MH,mangahere.co,mangahere.cc,%mangahere.co%</conversion>
-	<conversion>MS,mangastream.com,readms.net,%mangastream.com%</conversion>
+	<conversion>MS,mangastream.com,mangastream.cc,%mangastream.com%</conversion>
+	<conversion>MS,readms.net,mangastream.cc,%readms.net%</conversion>
 	<conversion>MS,http://,https://,http://%</conversion>
 	<conversion>DX,mangadex.org/title/,mangadex.cc/title/,%mangadex.org/title/%</conversion>
 	<!-- This is a csv with 4 values:
