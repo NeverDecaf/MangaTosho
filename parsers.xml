@@ -115,7 +115,7 @@
 		<!-- essential args. you will need most of these. -->
 		<site_url>http://mangakakalot.com/</site_url> <!-- url of the main website -->
 		<abbr>MK</abbr> <!-- 2 letter abbreviation of the site's name. -->
-		<site_parser_re>https?://(?:www\.)?mangakakalot.com/manga/.+</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
+		<site_parser_re>https?://(?:www\.)?mangakakalot.com/read-.+</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
 		<title_xpath>substring(//h1/text(),1)</title_xpath> <!-- xpath that matches the series' title -->
 		<chapter_nums_xpath>//div[@class='row']/span/a/@title</chapter_nums_xpath> <!-- xpath that matches all chapter numbers on the main series page -->
 		<chapter_urls_xpath>//div[@class='row']/span/a[@title]/@href</chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
