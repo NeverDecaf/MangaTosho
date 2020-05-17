@@ -35,7 +35,7 @@ try:
     os.environ['REQUESTS_CA_BUNDLE'] = resource_path(os.path.join('certifi', 'cacert.pem'))
 except:
     pass
-import cfscrape
+from cloudscraper import create_scraper
 from PIL import ImageFile
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 ##
@@ -106,7 +106,7 @@ class ParserFetch:
         self.parsers = set(self.WORKING_SITES)#[globals()[cname] for cname in self.WORKING_SITES]
         for parser in self.parsers:
             if parser.USE_CFSCRAPE:
-                self.matchers.append((parser.SITE_PARSER_RE,parser,cfscrape.create_scraper()))
+                self.matchers.append((parser.SITE_PARSER_RE,parser,create_scraper()))
             else:
                 self.matchers.append((parser.SITE_PARSER_RE,parser,requests.session()))
             if parser.REQUIRES_CREDENTIALS:
@@ -284,7 +284,7 @@ class SeriesParser(object):
         # create a random user agent
         if not sessionobj:
             if self.USE_CFSCRAPE:
-                self.SESSION = cfscrape.create_scraper()
+                self.SESSION = create_scraper()
             else:
                 self.SESSION = requests.session()
         else:
@@ -417,7 +417,12 @@ class SeriesParser(object):
         if self.AIO_IMAGES_RE:
             html = self.SESSION.get(url, timeout = REQUEST_TIMEOUT).text
             all_images=re.compile(self.AIO_IMAGES_RE)
-            return [c if (c.startswith('http://') or not fix_urls) else urllib.parse.urljoin(self.SITE_URL,c) for c in [c.replace('\\','') for c in all_images.findall(html)]]
+            images = [c if (c.startswith('http://') or not fix_urls) else urllib.parse.urljoin(self.SITE_URL,c) for c in [c.replace('\\','') for c in all_images.findall(html)]]
+            if not len(images):
+                e = ParserError('No Images found for chapter %s'%number)
+                e.display = 'No Images found for chapter %s'%number
+                raise e
+            return images
         ##
         images=[]
         first_chapter = True # first chapter sometimes has a slightly different url so we will refresh it after the first page.
@@ -576,7 +581,7 @@ class MangaDex(SeriesParser):
         # create a random user agent
         if not sessionobj:
             if self.USE_CFSCRAPE:
-                self.SESSION = cfscrape.create_scraper()
+                self.SESSION = create_scraper()
             else:
                 self.SESSION = requests.session()
         else:
@@ -800,7 +805,7 @@ class MangaRock(SeriesParser):
         # create a random user agent
         if not sessionobj:
             if self.USE_CFSCRAPE:
-                self.SESSION = cfscrape.create_scraper()
+                self.SESSION = create_scraper()
             else:
                 self.SESSION = requests.session()
         else:
