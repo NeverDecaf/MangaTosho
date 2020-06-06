@@ -436,7 +436,7 @@ class SeriesParser(object):
         chapter_path = posixpath.dirname(pieces[2])
 
         while self.IGNORE_BASE_PATH or posixpath.dirname(urllib.parse.urlsplit(url)[2]) == chapter_path:
-##            print('reading',url)
+            # print('reading',url)
             r= self.SESSION.get(url, timeout = REQUEST_TIMEOUT)
             r.raise_for_status()
             html = r.text
@@ -451,7 +451,7 @@ class SeriesParser(object):
 
             pictureurl = self._get_pictureurl(self.IMAGE_URL_RE,html,self.IMAGE_URL_XPATH,etree,url)
             
-##            print('pix is',pictureurl)
+            # print('pix is',pictureurl)
             if not len(pictureurl):
                 # this means the image wasnt found. (parser is outdated)
                 e = ParserError('Image Parsing failed on %s, chapter:%s'%(self.get_title(),number))
@@ -484,7 +484,7 @@ class SeriesParser(object):
             if first_chapter:
                 first_chapter = False
                 chapter_path = posixpath.dirname(urllib.parse.urlsplit(url)[2])
-##            print('next url is',url)
+            # print('next url is',url)
         return images
     def set_webp_conversion(self, to_format = 'jpeg'):
         self.CONVERT_WEBP = to_format
@@ -1029,22 +1029,92 @@ class KissManga(SeriesParser):
         return None
 ################################################################################
 class MangaHere(SeriesParser):
-    def _get_pictureurl(self, img_url_re, html, img_url_xpath, etree,url):
-        cid = re.findall('(?<=var chapterid) ?= ?(\d*)',html)[0]
-        imagepage = re.findall('(?<=var imagepage) ?= ?(\d*)',html)[0]
+    def get_images(self,chapter,delay=(0,0),fix_urls = True):
+        #returns links to every image in the chapter where chapter is the url to the first page
+        #uses a new approach where we follow links until the end of the chapter
+        self.login()
+        try:
+            if delay==(0,0):
+                delay = self.IMAGE_DELAY
+        except AttributeError:
+            pass
+        number,url = chapter
 
-        unpack = jsbeautifier.beautify(re.findall('(eval\(function.*)',html)[0])
-        unpack=unpack.replace('\\','')
-        b = unpack.split("'+'")
-        key = ''.join(b[1:-1])+b[-1][0]
-
-        jsurl= urllib.parse.urljoin(posixpath.dirname(url),'chapterfun.ashx?cid={}&page={}&key={}'.format(cid,imagepage,key))
-        r= self.SESSION.get(jsurl, timeout = REQUEST_TIMEOUT)
+        images=[]
+        pieces = urllib.parse.urlsplit(url)
+        querydict = urllib.parse.parse_qs(pieces.query)
+        if self.SKIP_MATURE:
+            k,v = self.SKIP_MATURE.split('=')
+            querydict[k]=v
+        querystr = urllib.parse.urlencode(querydict,True)
+        url = urllib.parse.urlunsplit(pieces[:3]+(querystr,)+pieces[4:])
+        chapter_path = posixpath.dirname(pieces[2])
         
-        unpack = jsbeautifier.beautify(r.text)
-        a=re.findall('var pix ?= ?"([^"]*)',unpack)[0]
-        b=re.findall('var pvalue ?= ?\["([^"]*)',unpack)[0]
-        return a+b
+        # all above code basically copied from base Series class.
+
+        # while self.IGNORE_BASE_PATH or posixpath.dirname(urllib.parse.urlsplit(url)[2]) == chapter_path:
+        r= self.SESSION.get(url, timeout = REQUEST_TIMEOUT)
+        r.raise_for_status()
+        html = r.text
+        etree = lxmlhtml.fromstring(html)
+        
+        if self.LICENSED_CHECK_RE!=None and self.LICENSED_CHECK_RE.search(html)!=None:
+            e = LicensedError('Series '+self.get_title()+' is licensed.')
+            e.display = 'Series is licensed'
+            raise e
+
+        pictureurl = self._get_pictureurl(self.IMAGE_URL_RE,html,self.IMAGE_URL_XPATH,etree,url)
+        def all_chapterfun_urls(html,url):
+            cid = re.findall('(?<=var chapterid) ?= ?(\d*)',html)[0]
+            imagepage = re.findall('(?<=var imagepage) ?= ?(\d*)',html)[0]
+            imagecount = re.findall('(?<=var imagecount) ?= ?(\d*)',html)[0]
+
+            unpack = jsbeautifier.beautify(re.findall('(eval\(function.*)',html)[0])
+            unpack=unpack.replace('\\','')
+            b = unpack.split("'+'")
+            key = ''.join(b[1:-1])+b[-1][0]
+            for page in range(int(imagepage), int(imagecount)+int(imagepage)):
+                jsurl= urllib.parse.urljoin(posixpath.dirname(url),'chapterfun.ashx?cid={}&page={}&key={}'.format(cid,page,key))
+                yield jsurl
+                
+        for jsurl in all_chapterfun_urls(html,url):
+            r= self.SESSION.get(jsurl, timeout = REQUEST_TIMEOUT)
+            time.sleep(random.uniform(*delay))
+            unpack = jsbeautifier.beautify(r.text)
+            a=re.findall('var pix ?= ?"([^"]*)',unpack)[0]
+            b=re.findall('var pvalue ?= ?\["([^"]*)',unpack)[0]
+            pictureurl = a+b
+            if not len(pictureurl):
+                # this means the image wasnt found. (parser is outdated)
+                e = ParserError('Image Parsing failed on %s, chapter:%s'%(self.get_title(),number))
+                e.display="Failed parsing images for Ch.%s"%number
+                raise e
+            # do some small url repairs
+            if fix_urls:
+                repair = urllib.parse.urlsplit(self.SITE_URL)
+                img_url = urllib.parse.urlsplit(pictureurl)
+                pictureurl = urllib.parse.urlunsplit([repair[i] if i<2 and not img_url[i] else img_url[i] for i in range(len(img_url))])
+            if pictureurl in images: #prevents loops
+                break
+            images.append(pictureurl)
+        return images
+        
+    # def _get_pictureurl(self, img_url_re, html, img_url_xpath, etree,url):
+        # cid = re.findall('(?<=var chapterid) ?= ?(\d*)',html)[0]
+        # imagepage = re.findall('(?<=var imagepage) ?= ?(\d*)',html)[0]
+
+        # unpack = jsbeautifier.beautify(re.findall('(eval\(function.*)',html)[0])
+        # unpack=unpack.replace('\\','')
+        # b = unpack.split("'+'")
+        # key = ''.join(b[1:-1])+b[-1][0]
+
+        # jsurl= urllib.parse.urljoin(posixpath.dirname(url),'chapterfun.ashx?cid={}&page={}&key={}'.format(cid,imagepage,key))
+        # r= self.SESSION.get(jsurl, timeout = REQUEST_TIMEOUT)
+        
+        # unpack = jsbeautifier.beautify(r.text)
+        # a=re.findall('var pix ?= ?"([^"]*)',unpack)[0]
+        # b=re.findall('var pvalue ?= ?\["([^"]*)',unpack)[0]
+        # return a+b
 ################################################################################
 class SadPanda(SeriesParser):
     EX_DELAY = (2,3)
