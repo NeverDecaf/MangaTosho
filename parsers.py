@@ -189,7 +189,7 @@ class ParserFetch:
             classname = site.attrib['name']
             # remove None values and convert string booleans to booleans.
             # also create regex object for any key ending with _re
-            data={k.upper(): {'True':True,'False':False,'None':None}.get(v,re.compile(v,re.IGNORECASE) if k=='site_parser_re' else re.compile(v,re.IGNORECASE) if k.endswith('_re') else tuple(map(float,v.split(','))) if k.endswith('_delay') else v) for k, v in list(self.__children_as_dict(site).items()) if v!=None}
+            data={k.upper(): {'True':True,'False':False,'None':None}.get(v,re.compile(v,re.IGNORECASE) if k=='site_parser_re' else re.compile(v,re.IGNORECASE) if k.endswith('_re') else tuple(map(float,v.split(','))) if k.endswith('_delay') or k.endswith('_codes') else v) for k, v in list(self.__children_as_dict(site).items()) if v!=None}
             if classname!='TemplateSite':
                 if classname in clsmembers:
                     self.WORKING_SITES.append(type(classname,(clsmembers[classname],),data))
@@ -245,6 +245,8 @@ class SeriesParser(object):
     AUTHOR_RE = re.compile(r' \(.*?\)\Z') # matches the author if included in the title, this regex is used to remove the author for cleaner series names
     # note that adding 2 series with the same name but different authors WILL cause a problem. there may or may not be a fix in place but i have yet to encounter this
     AIO_IMAGES_RE = None # some sites include all the image urls in one page, if so this RE matches all the image urls
+    AIO_IMAGES_XPATH = None # xpath alternative to AIO_IMAGES_RE, same functionality.
+    AIO_REFINEMENT_RE = re.compile(r'(.*)') # refine the results from AIO_IMAGES_XPATH (or _RE)
     IGNORE_BASE_PATH = False # VERY dangerous, if set true you could download an entire series instead of just 1 chapter.
     # these 2 are used for sites with iterative page numbers, we can get a list of all pages of a chapter without jumping from one to the next.
     # this is currently only used for animeA so look there for more details.
@@ -258,9 +260,11 @@ class SeriesParser(object):
     USERNAME = None 
     PASSWORD = None
 
-    IMAGE_DOWNLOAD_DELAY = (0,0) # delay to use when downloading images, for sites with a rate limit
+    IMAGE_DELAY = (0,0) # delay between fetching image PAGES, not the images themselves.
+    IMAGE_DOWNLOAD_DELAY = (0,0) # delay between downloading images themselves.
     AUTO_COMPLETE_TIME = 2592000 * 3 # 3 months before a series claimed to be complete by the site is marked as completed (in the db).
     LICENSED_AS_403 = False # some sites use error 403 to indicate a licensed series.
+    LICENSED_ERROR_CODES = () # error codes that you may receive if the series is licensed.
     
     CONVERT_WEBP = None
 
@@ -423,7 +427,18 @@ class SeriesParser(object):
                 e.display = 'No Images found for chapter %s'%number
                 raise e
             return images
-        ##
+        elif self.AIO_IMAGES_XPATH:
+            html = self.SESSION.get(url, timeout = REQUEST_TIMEOUT).text
+            etree = lxmlhtml.fromstring(html)
+            images = etree.xpath(self.AIO_IMAGES_XPATH)
+            # refine results if needed
+            images = [self.AIO_REFINEMENT_RE.search(img).groups()[-1] for img in images]
+            if not len(images):
+                e = ParserError('No Images found for chapter %s'%number)
+                e.display = 'No Images found for chapter %s'%number
+                raise e
+            return images
+            
         images=[]
         first_chapter = True # first chapter sometimes has a slightly different url so we will refresh it after the first page.
         pieces = urllib.parse.urlsplit(url)

@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <sites>
 	<info>
-		<version>2.09</version>
+		<version>2.10</version>
 	</info>
 	<site name="MangaDex">
 		<!-- essential args. you will need most of these. -->
@@ -68,7 +68,7 @@
 		<!-- optional args, delete these if not applicable. -->
 		<is_complete_xpath>//tr[td[text()='Status:']]/td[text()='Completed']</is_complete_xpath> <!-- xpath that matches if the series has been marked "Complete" -->
 		<reverse>False</reverse> <!-- True if chapters are listed in reverse numerical order (latest chapter first) -->
-		<licensed_as_403>True</licensed_as_403>
+		<licensed_error_codes>403</licensed_error_codes> <!-- some sites use error 403 to indicate a licensed series, this will also accept CSV -->
 	</site>
 	<!-- this is an exact copy of MangaReader, update as you update mangareader -->
 	<site name="MangaPanda">
@@ -84,7 +84,7 @@
 		<!-- optional args, delete these if not applicable. -->
 		<is_complete_xpath>//tr[td[text()='Status:']]/td[text()='Completed']</is_complete_xpath> <!-- xpath that matches if the series has been marked "Complete" -->
 		<reverse>False</reverse> <!-- True if chapters are listed in reverse numerical order (latest chapter first) -->
-		<licensed_as_403>True</licensed_as_403>
+		<licensed_error_codes>403</licensed_error_codes> <!-- some sites use error 403 to indicate a licensed series, this will also accept CSV -->
 	</site>
 	<site name="MangaPark">
 		<!-- essential args. must supply all of these -->
@@ -108,7 +108,7 @@
 		<chapter_nums_xpath>//ul[contains(@class, 'version-chap')]/li/a/text()</chapter_nums_xpath> <!-- xpath that matches all chapter numbers on the main series page -->
 		<chapter_urls_xpath>//ul[contains(@class, 'version-chap')]/li/a/@href</chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
 		<!-- optional args, delete these if not applicable. -->
-		<aio_images_re><![CDATA[<img id="image-\d+" src="\s*([^"]*)]]></aio_images_re> <!-- regex to match all image urls if the site includes them all on one page. -->
+		<aio_images_xpath>//div[@class='reading-content']//img/@src</aio_images_xpath> <!-- xpath to match all image urls if the site includes them all on one page. -->
 		<chapter_nums_re>Chapter (\d+\.?\d*)(?:v\d+)?</chapter_nums_re> <!-- regex used to further refine the results of chapter_nums_xpath, default is typically fine. -->
 	</site>
 	<site name="MangaKakalot">
@@ -122,7 +122,7 @@
 		<is_complete_xpath>//li[text()="Status : Completed"]</is_complete_xpath> <!-- xpath that matches if the series has been marked "Complete" -->
 		<!-- optional args, delete these if not applicable. -->
 		<chapter_nums_re><![CDATA[chapter (\d+\.?\d*)(?:v\d+)?]]></chapter_nums_re> <!-- regex used to further refine the results of chapter_nums_xpath, default is typically fine. -->
-		<aio_images_re><![CDATA[(?<=<img src=")([^"]*)(?=" alt="(?:[^>]*?)" title="(?:[^>]*?)" \/>)]]></aio_images_re> <!-- regex to match all image urls if the site includes them all on one page. -->
+		<aio_images_xpath>//div[@id='vungdoc']/img/@src</aio_images_xpath> <!-- xpath to match all image urls if the site includes them all on one page. -->
 	</site>
 	<site name="MangaNelo">
 		<!-- This is a copy of MangaKakalot, not sure if they are moving to a new site or not. -->
@@ -135,7 +135,7 @@
 		<is_complete_xpath>//li[text()="Status : Completed"]</is_complete_xpath> <!-- xpath that matches if the series has been marked "Complete" -->
 		<!-- optional args, delete these if not applicable. -->
 		<chapter_nums_re><![CDATA[chapter (\d+\.?\d*)(?:v\d+)?]]></chapter_nums_re> <!-- regex used to further refine the results of chapter_nums_xpath, default is typically fine. -->
-		<aio_images_re><![CDATA[(?<=<img src=")([^"]*)(?=" alt="[^"]*chapter \d[^"]*page \d[^"]*")]]></aio_images_re> <!-- regex to match all image urls if the site includes them all on one page. -->
+		<aio_images_xpath>//div[@class='container-chapter-reader']/img/@src</aio_images_xpath> <!-- xpath to match all image urls if the site includes them all on one page. -->
 	</site>
 	<site name="MangaWindow">
 		<!-- essential args. you will need most of these. -->
@@ -160,7 +160,7 @@
 		<is_complete_xpath>//p[span[@class='info' and contains(text(), 'Status')] and text()[contains(.,'Completed')]]</is_complete_xpath> <!-- xpath that matches if the series has been marked "Complete" -->
 		<!-- optional args, delete these if not applicable. -->
 		<chapter_nums_re>(?:^.*Ch\.|^.*)(\d\d\d+\.?\d*)</chapter_nums_re> <!-- regex used to further refine the results of chapter_nums_xpath, default is typically fine. -->
-		<aio_images_re>push\(wrapKA\("([^"]*)</aio_images_re> <!-- regex to match all image urls if the site includes them all on one page. -->
+		<aio_images_re><![CDATA[push\(wrapKA\("([^"]*)]]></aio_images_re> <!-- regex to match all image urls if the site includes them all on one page. -->
 		<kissmanga_padding_re>(\x00|\x01|\x02|\x03|\x04|\x05|\x06|\x07|\x08|\x09|\x0a|\x0b|\x0c|\x0d|\x0e|\x0f|\x10|\x11|\x12|\x13|\x14|\x15|\x16|\x17|\x18|\x19|\x1a|\x1b|\x1c|\x1d|\x1e|\x1f)*$</kissmanga_padding_re> <!-- regex to remove padding from kissmanga encrypted urls. -->
 		<image_referer>None</image_referer> <!-- If images are hosted on an external site you may need to override the referer header. -->
 		<image_delay>2,4</image_delay> <!-- Time (in seconds) between image fetches, may be needed to prevent rate limit. Give lower then upper bounds (comma separated). -->
@@ -185,12 +185,22 @@
 		<image_delay>0,1</image_delay> <!-- Time (in seconds) between image fetches, may be needed to prevent rate limit. Give lower then upper bounds (comma separated). -->
 		<image_download_delay>0,1</image_download_delay> <!-- Same as image_delay but used when downloading the images themselves, used mainly for sites where all image urls can be fetched at once. -->
 	</site>
+	<site name="HeavenToon">
+		<!-- essential args. you will need most of these. -->
+		<site_url>http://ww2.heaventoon.com/</site_url> <!-- url of the main website -->
+		<abbr>HT</abbr> <!-- 2 letter abbreviation of the site's name. -->
+		<site_parser_re>https?://(?:ww\d\.)?heaventoon.com/.*</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
+		<title_xpath>substring(//h1[contains(@class,'bigger')]/text(),1)</title_xpath> <!-- xpath that matches the series' title -->
+		<chapter_nums_xpath>//h2[@class='chap']//a/text()</chapter_nums_xpath> <!-- xpath that matches all chapter numbers on the main series page -->
+		<chapter_urls_xpath>//h2[@class='chap']//a/@href</chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
+		<is_complete_xpath>//div[@class='update']/span[text()='Completed']</is_complete_xpath> <!-- xpath that matches if the series has been marked "Complete" -->
+		<aio_images_xpath>//div[@class='chapter-content']//center//img/@src</aio_images_xpath> <!-- xpath to match all image urls if the site includes them all on one page. -->
+		<aio_refinement_re><![CDATA[.*(http.*)]]></aio_refinement_re> <!-- regex to refine results of aio_images_xpath (or re) -->
+	</site>
 	<!-- Copy this template and use it to add a new site.
-	Fields left blank will fall back to their default values, which are fine for most sites. 
-	After updating this file you must convert it with dos2unix to ensure the md5 will match.
-	You can do this in notepad++ Edit>EOL Conversion>UNIX/OSX Format	
+	Fields left blank will fall back to their default values, which are fine for most sites.
 	Make sure your title, next_url, and image_url xpaths return a string. (use substring(xpath,1))
-	see MangaStream for an example of concatenating with the match.-->
+	-->
 	<site name="TemplateSite">
 		<!-- essential args. you will need most of these. -->
 		<site_url></site_url> <!-- url of the main website -->
@@ -212,7 +222,9 @@
 		<reverse></reverse> <!-- True if chapters are listed in reverse numerical order (latest chapter first) this is True by default. -->
 		<author_re></author_re> <!-- regex to remove author name from a series title for more uniform and clean series names. -->
 		<aio_images_re></aio_images_re> <!-- regex to match all image urls if the site includes them all on one page. -->
-		<licensed_as_403></licensed_as_403> <!-- some sites use error 403 to indicate a licensed series. -->
+		<aio_images_xpath></aio_images_xpath> <!-- xpath to match all image urls if the site includes them all on one page. -->
+		<aio_refinement_re></aio_refinement_re> <!-- regex to refine results of aio_images_xpath (or re) -->
+		<licensed_error_codes></licensed_error_codes> <!-- some sites use error 403 to indicate a licensed series, this will also accept CSV -->
 		<!-- rarely used and site specific settings below here -->
 		<batoto_pages_xpath></batoto_pages_xpath> <!-- regex to match all page numbers for batoto. will be further processed (split). -->
 		<kissmanga_padding_re></kissmanga_padding_re> <!-- regex to remove padding from kissmanga encrypted urls. -->

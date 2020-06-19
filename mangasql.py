@@ -319,10 +319,10 @@ class SQLManager():
                     logging.exception('Type 3-M (Licensed) ('+logsafe_title+' c.'+e.chapter+' p.'+e.imagenum+'): '+str(e))
                 except exceptions.HTTPError as e:
                     errors+=1
-                    if series.LICENSED_AS_403 and e.response.status_code==403: # mangareader and their tricks
+                    if e.response_status_code in series.LICENSED_ERROR_CODES:
                         errtype=3
-                        errmsg='Error 403, likely licensed'
-                        logging.exception('Type 3 (Licensed) ('+logsafe_title+' c.'+e.chapter+' p.'+e.imagenum+'): '+str(e))
+                        errmsg='HTTP error {}, likely licensed'.format(e.response_status_code)
+                        logging.exception('Type 3 (http Licensed) ('+logsafe_title+' c.'+e.chapter+' p.'+e.imagenum+'): '+str(e))
                     elif hasattr(e, 'display'):
                         errmsg=e.display
                         logging.exception('Type 1 ('+logsafe_title+' c.'+e.chapter+' p.'+e.imagenum+'): '+str(e))
