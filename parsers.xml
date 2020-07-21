@@ -9,6 +9,7 @@
 		<abbr>DX</abbr> <!-- 2 letter abbreviation of the site's name. -->
 		<site_parser_re>https?://(?:www\.)?mangadex.(org|cc)/(title|manga)/\d*</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
 		<image_download_delay>1,2</image_download_delay> <!-- Same as image_delay but used when downloading the images themselves, used mainly for sites where all image urls can be fetched at once. -->
+		<image_referer>https://mangadex.org</image_referer> <!-- If images are hosted on an external site you may need to override the referer header. -->
 	</site>
 	<site name="MangaSee">
 		<!-- essential args. must supply all of these -->

@@ -319,9 +319,9 @@ class SQLManager():
                     logging.exception('Type 3-M (Licensed) ('+logsafe_title+' c.'+e.chapter+' p.'+e.imagenum+'): '+str(e))
                 except exceptions.HTTPError as e:
                     errors+=1
-                    if e.response_status_code in series.LICENSED_ERROR_CODES:
+                    if e.response.status_code in series.LICENSED_ERROR_CODES:
                         errtype=3
-                        errmsg='HTTP error {}, likely licensed'.format(e.response_status_code)
+                        errmsg='HTTP error {}, likely licensed'.format(e.response.status_code)
                         logging.exception('Type 3 (http Licensed) ('+logsafe_title+' c.'+e.chapter+' p.'+e.imagenum+'): '+str(e))
                     elif hasattr(e, 'display'):
                         errmsg=e.display
