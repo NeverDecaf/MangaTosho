@@ -693,7 +693,8 @@ class MangaDex(SeriesParser):
                     if ch == 0:
                         vol_base=int(vol_base+1)
                     cvol = vol
-                nums.append(str(ch + vol_base))
+                # nums.append(str(ch + vol_base))
+                nums.append(str(ch))
                 urls.append(volumes[vol][ch])
         nums = self.extrapolate_nums(nums)
         if len(nums)!=len(urls):
