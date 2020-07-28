@@ -18,7 +18,6 @@ import hashlib
 import mangasql
 from PIL import Image
 from io import BytesIO
-from fake_useragent import UserAgent
 import urllib.request, urllib.parse, urllib.error
 ##import lxml.etree.XPathEvalError as XPathError
 from lxml.etree import XPathEvalError as XPathError
@@ -179,7 +178,8 @@ class ParserFetch:
                     return update_parsers(PARSER_VERSION,targethash)
                     
     def _generate_parsers(self):
-        global ADVERT_IMAGE_HASHES
+        global ADVERT_IMAGE_HASHES, FAKE_USER_AGENTS
+        FAKE_USER_AGENTS = set()
         ADVERT_IMAGE_HASHES = set()
         tree = ET.parse(storage_path('parsers.xml'))
         root = tree.getroot()
@@ -197,7 +197,8 @@ class ParserFetch:
                     self.WORKING_SITES.append(type(classname,(SeriesParser,),data))
         for md5hash in root.find('advert_hashes').iter():
             ADVERT_IMAGE_HASHES.add(md5hash.text)
-            
+        for UA in root.find('user_agent_strings').iter():
+            FAKE_USER_AGENTS.add(UA.text)
             
     @staticmethod
     def _get_conversions():
@@ -272,7 +273,6 @@ class SeriesParser(object):
         #loads the html from the series page, also checks to ensure the site is valid
         #note if this returns False you cannot use this object.
         self.VALID=True # is set to false if the given url doesnt match the sites url
-        self.UA = None
         self.TITLE = None
         pieces = urllib.parse.urlsplit(url)
         querydict = urllib.parse.parse_qs(pieces.query)
@@ -298,8 +298,6 @@ class SeriesParser(object):
         else:
             if not hasattr(self,'HEADERS'):
                 self.HEADERS = {}
-            if not self.UA:
-                self.UA = UserAgent(use_cache_server=False, fallback='Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/37.0.2062.124 Safari/537.36')
             self._cycle_UA()
             adapter = requests.adapters.HTTPAdapter(max_retries=1)
             self.SESSION.mount('https://', adapter)
@@ -335,7 +333,7 @@ class SeriesParser(object):
         if self.VALID:
             self.SESSION.init = True # only init when valid so we are sure we didn't accidentally set referer to a 404 page or something
     def _cycle_UA(self):
-        self.HEADERS['User-Agent'] = random.choice((self.UA.chrome,self.UA.firefox))
+        self.HEADERS['User-Agent'] = random.choice(tuple(FAKE_USER_AGENTS))
     def get_url(self):
         return self.MAIN_URL
     def login(self):
@@ -580,7 +578,6 @@ class MangaDex(SeriesParser):
         #loads the html from the series page, also checks to ensure the site is valid
         #note if this returns False you cannot use this object.
         self.VALID=True # is set to false if the given url doesnt match the sites url
-        self.UA = None
         self.TITLE = None
         pieces = urllib.parse.urlsplit(url)
         querydict = urllib.parse.parse_qs(pieces.query)
@@ -606,8 +603,6 @@ class MangaDex(SeriesParser):
         else:
             if not hasattr(self,'HEADERS'):
                 self.HEADERS = {}
-            if not self.UA:
-                self.UA = UserAgent(use_cache_server=False, fallback='Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/37.0.2062.124 Safari/537.36')
             self._cycle_UA()
             adapter = requests.adapters.HTTPAdapter(max_retries=1)
             self.SESSION.mount('https://', adapter)
@@ -805,7 +800,6 @@ class MangaRock(SeriesParser):
         #loads the html from the series page, also checks to ensure the site is valid
         #note if this returns False you cannot use this object.
         self.VALID=True # is set to false if the given url doesnt match the sites url
-        self.UA = None
         self.TITLE = None
         pieces = urllib.parse.urlsplit(url)
         querydict = urllib.parse.parse_qs(pieces.query)
@@ -831,8 +825,6 @@ class MangaRock(SeriesParser):
         else:
             if not hasattr(self,'HEADERS'):
                 self.HEADERS = {}
-            if not self.UA:
-                self.UA = UserAgent(use_cache_server=False, fallback='Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/37.0.2062.124 Safari/537.36')
             self._cycle_UA()
             adapter = requests.adapters.HTTPAdapter(max_retries=1)
             self.SESSION.mount('https://', adapter)
