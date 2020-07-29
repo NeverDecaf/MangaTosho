@@ -281,6 +281,9 @@ class SQLManager():
             if convert_webp:
                 series.set_webp_conversion()
             nums,chapters = series.get_chapters()
+            sorted_chapters = sorted(zip(nums,chapters), key=lambda pair: float(pair[0]))
+            nums,chapters = [[i for i,_ in sorted_chapters],
+                             [i for _,i in sorted_chapters]]
             if not len(chapters):
                 logging.exception('Type 1 (Parser Error: No chapters found: '+logsafe_title+')')
                 return errtype,['Parser Error: No chapters found.'] # type 1 is a generic parser error

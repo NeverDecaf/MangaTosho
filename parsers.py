@@ -195,9 +195,9 @@ class ParserFetch:
                     self.WORKING_SITES.append(type(classname,(clsmembers[classname],),data))
                 else:
                     self.WORKING_SITES.append(type(classname,(SeriesParser,),data))
-        for md5hash in root.find('advert_hashes').iter():
+        for md5hash in list(root.find('advert_hashes')):
             ADVERT_IMAGE_HASHES.add(md5hash.text)
-        for UA in root.find('user_agent_strings').iter():
+        for UA in list(root.find('user_agent_strings')):
             FAKE_USER_AGENTS.add(UA.text)
             
     @staticmethod
@@ -657,9 +657,6 @@ class MangaDex(SeriesParser):
         return self.JSON['manga']['status']==2
     def get_chapters(self):
         #returns a list of all chapters, where each entry is a tuple (number,url)
-        # for mangarock this is (order,oid)
-        # this is a bit complex, we have volume and chapter. need to extrapolate a bit, but how to do it cleanly?
-        # just build our own dict from scratch, too confusing otherwise.
         volumes = {}
         for k,v in self.JSON['chapter'].items():
             if v['lang_code'] in ['en','gb']:
