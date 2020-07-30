@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <sites>
 	<info>
-		<version>2.10</version>
+		<version>2.11</version>
 	</info>
 	<site name="MangaDex">
 		<!-- essential args. you will need most of these. -->
@@ -163,7 +163,6 @@
 		<chapter_nums_re>(?:^.*Ch\.|^.*)(\d\d\d+\.?\d*)</chapter_nums_re> <!-- regex used to further refine the results of chapter_nums_xpath, default is typically fine. -->
 		<aio_images_re><![CDATA[push\(wrapKA\("([^"]*)]]></aio_images_re> <!-- regex to match all image urls if the site includes them all on one page. -->
 		<kissmanga_padding_re>(\x00|\x01|\x02|\x03|\x04|\x05|\x06|\x07|\x08|\x09|\x0a|\x0b|\x0c|\x0d|\x0e|\x0f|\x10|\x11|\x12|\x13|\x14|\x15|\x16|\x17|\x18|\x19|\x1a|\x1b|\x1c|\x1d|\x1e|\x1f)*$</kissmanga_padding_re> <!-- regex to remove padding from kissmanga encrypted urls. -->
-		<image_referer>None</image_referer> <!-- If images are hosted on an external site you may need to override the referer header. -->
 		<image_delay>2,4</image_delay> <!-- Time (in seconds) between image fetches, may be needed to prevent rate limit. Give lower then upper bounds (comma separated). -->
 	</site>
 	<site name="SadPanda">
@@ -197,6 +196,19 @@
 		<is_complete_xpath>//div[@class='update']/span[text()='Completed']</is_complete_xpath> <!-- xpath that matches if the series has been marked "Complete" -->
 		<aio_images_xpath>//div[@class='chapter-content']//center//img/@src</aio_images_xpath> <!-- xpath to match all image urls if the site includes them all on one page. -->
 		<aio_refinement_re><![CDATA[.*(http.*)]]></aio_refinement_re> <!-- regex to refine results of aio_images_xpath (or re) -->
+	</site>
+	<site name="MangaSushi">
+		<!-- essential args. you will need most of these. -->
+		<site_url>https://mangasushi.net/</site_url> <!-- url of the main website -->
+		<abbr>SU</abbr> <!-- 2 letter abbreviation of the site's name. -->
+		<site_parser_re>https?://(?:www\.)?mangasushi.net/manga/.+</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
+		<title_xpath>substring(//meta[@property='og:title']/@content,1)</title_xpath> <!-- xpath that matches the series' title -->
+		<chapter_nums_xpath>//li[contains(@class,'wp-manga-chapter')]/a/text()</chapter_nums_xpath> <!-- xpath that matches all chapter numbers on the main series page -->
+		<chapter_urls_xpath>//li[contains(@class,'wp-manga-chapter')]/a/@href</chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
+		<is_complete_xpath>//div[@class='summary-content' and contains(text(),'Completed')]</is_complete_xpath> <!-- xpath that matches if the series has been marked "Complete" -->
+		<!-- optional args, delete these if not applicable. -->
+		<aio_images_xpath>//img[contains(@id,'image-')]/@data-src</aio_images_xpath> <!-- xpath to match all image urls if the site includes them all on one page. -->
+		<aio_refinement_re><![CDATA[\s*(.*)]]></aio_refinement_re> <!-- regex to refine results of aio_images_xpath (or re) -->
 	</site>
 	<!-- Copy this template and use it to add a new site.
 	Fields left blank will fall back to their default values, which are fine for most sites.

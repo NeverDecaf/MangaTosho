@@ -543,7 +543,8 @@ class SeriesParser(object):
                             try:
                                 response = self.SESSION.get(image, timeout = REQUEST_TIMEOUT, headers={'referer': self.IMAGE_REFERER})
                             except AttributeError:
-                                response = self.SESSION.get(image, timeout = REQUEST_TIMEOUT)
+                                pieces = urllib.parse.urlsplit(image)
+                                response = self.SESSION.get(image, timeout = REQUEST_TIMEOUT, headers={'referer': urllib.parse.urlunsplit(pieces[:2]+('',)*3)})
 
                             response.raise_for_status()#raise error code if occured
                             time.sleep(random.uniform(*self.IMAGE_DOWNLOAD_DELAY))
@@ -764,7 +765,8 @@ class MangaDex(SeriesParser):
                             try:
                                 response = self.SESSION.get(image, timeout = REQUEST_TIMEOUT, headers={'referer': self.IMAGE_REFERER})
                             except AttributeError:
-                                response = self.SESSION.get(image, timeout = REQUEST_TIMEOUT)
+                                pieces = urllib.parse.urlsplit(image)
+                                response = self.SESSION.get(image, timeout = REQUEST_TIMEOUT, headers={'referer': urllib.parse.urlunsplit(pieces[:2]+('',)*3)})
 
                             response.raise_for_status()#raise error code if occured
                             time.sleep(random.uniform(*self.IMAGE_DOWNLOAD_DELAY))
@@ -968,7 +970,8 @@ class MangaRock(SeriesParser):
                             try:
                                 response = self.SESSION.get(image, timeout = REQUEST_TIMEOUT, headers={'referer': self.IMAGE_REFERER})
                             except AttributeError:
-                                response = self.SESSION.get(image, timeout = REQUEST_TIMEOUT)
+                                pieces = urllib.parse.urlsplit(image)
+                                response = self.SESSION.get(image, timeout = REQUEST_TIMEOUT, headers={'referer': urllib.parse.urlunsplit(pieces[:2]+('',)*3)})
 
                             response.raise_for_status()#raise error code if occured
                             time.sleep(random.uniform(*self.IMAGE_DOWNLOAD_DELAY))
@@ -1213,7 +1216,8 @@ class SadPanda(SeriesParser):
                                 try:
                                     response = self.SESSION.get(image, timeout = 2, headers={'referer': self.IMAGE_REFERER})
                                 except AttributeError:
-                                    response = self.SESSION.get(image, timeout = 2)
+                                    pieces = urllib.parse.urlsplit(image)
+                                    response = self.SESSION.get(image, timeout = 2, headers={'referer': urllib.parse.urlunsplit(pieces[:2]+('',)*3)})
                             except:
 ##                            except requests.exceptions.Timeout:
                                 TRIES_PER_PAGE-=1

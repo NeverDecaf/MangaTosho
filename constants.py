@@ -51,4 +51,4 @@ if os.path.exists(storage_path('DEBUG_TEST')):
 REQUEST_TIMEOUT = 60
 ALLOWED_IMAGE_ERRORS_PER_CHAPTER = 0 # Image errors means missing images, probably will always keep this at 0.
 CHAPTER_DELAY=(3,5) # seconds between chapters, to keep from getting banned.
-PARSER_VERSION = 2.10 # update if parsers.py changes in a way that is incompatible with older parsers.xml
+PARSER_VERSION = 2.11 # update if parsers.py changes in a way that is incompatible with older parsers.xml
