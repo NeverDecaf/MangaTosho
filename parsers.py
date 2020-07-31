@@ -34,7 +34,7 @@ try:
     os.environ['REQUESTS_CA_BUNDLE'] = resource_path(os.path.join('certifi', 'cacert.pem'))
 except:
     pass
-from cloudscraper import create_scraper
+from selenium_cf_bypass import CloudflareBypass
 from PIL import ImageFile
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 ##
@@ -105,7 +105,7 @@ class ParserFetch:
         self.parsers = set(self.WORKING_SITES)#[globals()[cname] for cname in self.WORKING_SITES]
         for parser in self.parsers:
             if parser.USE_CFSCRAPE:
-                self.matchers.append((parser.SITE_PARSER_RE,parser,create_scraper()))
+                self.matchers.append((parser.SITE_PARSER_RE,parser,CloudflareBypass()))
             else:
                 self.matchers.append((parser.SITE_PARSER_RE,parser,requests.session()))
             if parser.REQUIRES_CREDENTIALS:
@@ -288,7 +288,7 @@ class SeriesParser(object):
         # create a random user agent
         if not sessionobj:
             if self.USE_CFSCRAPE:
-                self.SESSION = create_scraper()
+                self.SESSION = CloudflareBypass()
             else:
                 self.SESSION = requests.session()
         else:
@@ -594,7 +594,7 @@ class MangaDex(SeriesParser):
         # create a random user agent
         if not sessionobj:
             if self.USE_CFSCRAPE:
-                self.SESSION = create_scraper()
+                self.SESSION = CloudflareBypass()
             else:
                 self.SESSION = requests.session()
         else:
@@ -814,7 +814,7 @@ class MangaRock(SeriesParser):
         # create a random user agent
         if not sessionobj:
             if self.USE_CFSCRAPE:
-                self.SESSION = create_scraper()
+                self.SESSION = CloudflareBypass()
             else:
                 self.SESSION = requests.session()
         else:
