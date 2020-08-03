@@ -531,45 +531,62 @@ class SeriesParser(object):
             imgv.close()
             img.close()
             imgbytes.close()
+    def _create_BytesIO(self,bytearray):
+        return BytesIO(bytearray)
+    def _save_images_internals(self,images,tempdir,dl_state,ch):
+        img_dl_errs = 0
+        for image in images:
+            try: # give the site another chance (maybe)
+                start = time.time()
+                try:
+                    response = self.SESSION.get(image, timeout = REQUEST_TIMEOUT, headers={'referer': self.IMAGE_REFERER})
+                except AttributeError:
+                    pieces = urllib.parse.urlsplit(image)
+                    response = self.SESSION.get(image, timeout = REQUEST_TIMEOUT, headers={'referer': urllib.parse.urlunsplit(pieces[:2]+('',)*3)})
+
+                response.raise_for_status()#raise error code if occured
+                time.sleep(max(0,random.uniform(*self.IMAGE_DOWNLOAD_DELAY)-(time.time()-start)))
+                
+                filename = os.path.join(tempdir,str(dl_state['iindex'])+os.path.splitext(image)[1])
+                imgbytes = self._create_BytesIO(response.content)
+                self._write_image(imgbytes, filename)
+                dl_state['iindex']+=1
+            except:
+                if img_dl_errs<ALLOWED_IMAGE_ERRORS_PER_CHAPTER:
+                    img_dl_errs+=1
+                    pass
+                else:
+                    raise
     def save_images(self,sname,chapters):
         updated_count=0
         unread_count=0
         sname = storage_path(sname)
-        for ch in chapters:
+        dl_state = {}
+        for ch_index,ch in enumerate(chapters):
             try:
             # this is our num,url tuple
-                img_dl_errs = 0
                 ch=list(ch)
                 ch[0]=mangasql.SQLManager.formatName(ch[0])
+                dl_state['chapter'] = ch[0]
                 if not os.path.exists(os.path.join(sname,ch[0])):
-                    iindex=0
+                    dl_state['iindex'] = 0
                     tempdir= os.path.join(sname,'#temp')
                     if os.path.exists(tempdir):
                         shutil.rmtree(tempdir, onerror=mangasql.takeown)
-                    images = self.get_images(ch) # throws licensedError and maybe ?parsererror?
+                    try:
+                        images = self.get_images(ch) # throws licensedError and maybe ?parsererror?
+                    except DelayedError as e: # only currently used in mangadex
+                        # set some vars and return
+                        delayed_err = e
+                        if ch_index:
+                            e.last_updated = chapters[ch_index-1][0]
+                        else:
+                            e.last_updated = None
+                        e.updated_count = updated_count
+                        e.unread_count = unread_count
+                        raise e  
                     os.makedirs(tempdir)
-                    for image in images:
-        ##                                print('attempting to fetch image from',image)
-                        try: # give the site another chance (maybe)
-                            try:
-                                response = self.SESSION.get(image, timeout = REQUEST_TIMEOUT, headers={'referer': self.IMAGE_REFERER})
-                            except AttributeError:
-                                pieces = urllib.parse.urlsplit(image)
-                                response = self.SESSION.get(image, timeout = REQUEST_TIMEOUT, headers={'referer': urllib.parse.urlunsplit(pieces[:2]+('',)*3)})
-
-                            response.raise_for_status()#raise error code if occured
-                            time.sleep(random.uniform(*self.IMAGE_DOWNLOAD_DELAY))
-                            
-                            filename = os.path.join(tempdir,str(iindex)+os.path.splitext(image)[1])
-                            imgbytes = BytesIO(response.content)
-                            self._write_image(imgbytes, filename)
-                            iindex+=1
-                        except:
-                            if img_dl_errs<ALLOWED_IMAGE_ERRORS_PER_CHAPTER:
-                                img_dl_errs+=1
-                                pass
-                            else:
-                                raise
+                    self._save_images_internals(images,tempdir,dl_state,ch)
                     shutil.move(tempdir,os.path.join(sname,ch[0]))
                     if os.path.exists(tempdir):
                         shutil.rmtree(tempdir, onerror=mangasql.takeown)
@@ -578,8 +595,8 @@ class SeriesParser(object):
                     time.sleep(random.uniform(*CHAPTER_DELAY))
                 unread_count+=1
             except Exception as e:
-                e.chapter =str(ch[0])
-                e.imagenum =str(iindex)
+                e.chapter =str(dl_state['chapter'])
+                e.imagenum =str(dl_state['iindex'])
                 raise e
         return unread_count,updated_count
     
@@ -685,70 +702,6 @@ class MangaDex(SeriesParser):
             e = ParserError('Json query failed on %s, chapter:%s'%(self.get_title(),number))
             e.display="Failed querying images for Ch.%s"%number
             raise e
-    def save_images(self,sname,chapters):
-        updated_count=0
-        unread_count=0
-        delayed_err = None
-        sname = storage_path(sname)
-        for ch_index,ch in enumerate(chapters):
-            try:
-            # this is our num,url tuple
-                img_dl_errs = 0
-                ch=list(ch)
-                ch[0]=mangasql.SQLManager.formatName(ch[0])
-                if not os.path.exists(os.path.join(sname,ch[0])):
-                    iindex=0
-                    tempdir= os.path.join(sname,'#temp')
-                    if os.path.exists(tempdir):
-                        shutil.rmtree(tempdir, onerror=mangasql.takeown)
-                        
-                    try:
-                        images = self.get_images(ch) # throws licensedError and maybe ?parsererror?
-                    except DelayedError as e:
-                        # set some vars and return
-                        delayed_err = e
-                        if ch_index:
-                            e.last_updated = chapters[ch_index-1][0]
-                        else:
-                            e.last_updated = None
-                        e.updated_count = updated_count
-                        e.unread_count = unread_count
-                        raise e  
-
-                    os.makedirs(tempdir)
-                    for image in images:
-                        try: # give the site another chance (maybe)
-                            try:
-                                response = self.SESSION.get(image, timeout = REQUEST_TIMEOUT, headers={'referer': self.IMAGE_REFERER})
-                            except AttributeError:
-                                pieces = urllib.parse.urlsplit(image)
-                                response = self.SESSION.get(image, timeout = REQUEST_TIMEOUT, headers={'referer': urllib.parse.urlunsplit(pieces[:2]+('',)*3)})
-
-                            response.raise_for_status()#raise error code if occured
-                            time.sleep(random.uniform(*self.IMAGE_DOWNLOAD_DELAY))
-                            
-                            filename = os.path.join(tempdir,str(iindex)+os.path.splitext(image)[1])
-                            imgbytes = BytesIO(response.content)
-                            self._write_image(imgbytes, filename)
-                            iindex+=1
-                        except:
-                            if img_dl_errs<ALLOWED_IMAGE_ERRORS_PER_CHAPTER:
-                                img_dl_errs+=1
-                                pass
-                            else:
-                                raise
-                    shutil.move(tempdir,os.path.join(sname,ch[0]))
-                    if os.path.exists(tempdir):
-                        shutil.rmtree(tempdir, onerror=mangasql.takeown)
-                    updated_count+=1
-                    #sleep should be OK in this inner loop, otherwise nothing is downloaded.
-                    time.sleep(random.uniform(*CHAPTER_DELAY))
-                unread_count+=1
-            except Exception as e:
-                e.chapter =str(ch[0])
-                e.imagenum =str(iindex)
-                raise e
-        return unread_count,updated_count
 ################################################################################
 class MangaRock(SeriesParser):
     def _verify(self,url):
@@ -819,86 +772,35 @@ class MangaRock(SeriesParser):
             e = ParserError('Json query failed on %s, chapter:%s'%(self.get_title(),number))
             e.display="Failed querying images for Ch.%s"%number
             raise e
+    def _create_BytesIO(self,bytearray):    
+        #content is response.content from requests.get
+        #decode logic from: https://github.com/MinusGix/MangarockDownloader
+        buflen= len(content)
+        n = buflen +7
         
-    def save_images(self,sname,chapters):
-        def decodeMRI(content):
-            #content is response.content from requests.get
-            #decode logic from: https://github.com/MinusGix/MangarockDownloader
-            buflen= len(content)
-            n = buflen +7
-            
-            data = [0]*15
-            data[0] = 82# // R
-            data[1] = 73# // I
-            data[2] = 70# // F
-            data[3] = 70# // F
-            data[7] = n >> 24 & 255
-            data[6] = n >> 16 & 255
-            data[5] = n >> 8 & 255
-            data[4] = 255 & n
-            data[8] = 87# // W
-            data[9] = 69# // E
-            data[10] = 66# // B
-            data[11] = 80# // P
-            data[12] = 86# // V
-            data[13] = 80# // P
-            data[14] = 56# // 8
+        data = [0]*15
+        data[0] = 82# // R
+        data[1] = 73# // I
+        data[2] = 70# // F
+        data[3] = 70# // F
+        data[7] = n >> 24 & 255
+        data[6] = n >> 16 & 255
+        data[5] = n >> 8 & 255
+        data[4] = 255 & n
+        data[8] = 87# // W
+        data[9] = 69# // E
+        data[10] = 66# // B
+        data[11] = 80# // P
+        data[12] = 86# // V
+        data[13] = 80# // P
+        data[14] = 56# // 8
 
-            decoded = BytesIO()
-            decoded.seek(0)
-            decoded.write(bytes(data))
-            decoded.write(bytes([101 ^ b for b in content]))
+        decoded = BytesIO()
+        decoded.seek(0)
+        decoded.write(bytes(data))
+        decoded.write(bytes([101 ^ b for b in content]))
 
-            return decoded
-        updated_count=0
-        unread_count=0
-        sname = storage_path(sname)
-        for ch in chapters:
-            try:
-            # this is our num,url tuple
-                img_dl_errs = 0
-                ch=list(ch)
-                ch[0]=mangasql.SQLManager.formatName(ch[0])
-                if not os.path.exists(os.path.join(sname,ch[0])):
-                    tempdir= os.path.join(sname,'#temp')
-                    if os.path.exists(tempdir):
-                        shutil.rmtree(tempdir, onerror=mangasql.takeown)
-                    images = self.get_images(ch) # throws licensedError and maybe ?parsererror?
-                    iindex=0
-                    os.makedirs(tempdir)
-                    for image in images:
-                        try: # give the site another chance (maybe)
-                            try:
-                                response = self.SESSION.get(image, timeout = REQUEST_TIMEOUT, headers={'referer': self.IMAGE_REFERER})
-                            except AttributeError:
-                                pieces = urllib.parse.urlsplit(image)
-                                response = self.SESSION.get(image, timeout = REQUEST_TIMEOUT, headers={'referer': urllib.parse.urlunsplit(pieces[:2]+('',)*3)})
-
-                            response.raise_for_status()#raise error code if occured
-                            time.sleep(random.uniform(*self.IMAGE_DOWNLOAD_DELAY))
-
-                            filename = os.path.join(tempdir,str(iindex)+os.path.splitext(image)[1])
-                            imgbytes = decodeMRI(response.content)
-                            self._write_image(imgbytes, filename)
-                            iindex+=1
-                        except:
-                            if img_dl_errs<ALLOWED_IMAGE_ERRORS_PER_CHAPTER:
-                                img_dl_errs+=1
-                                pass
-                            else:
-                                raise
-                    shutil.move(tempdir,os.path.join(sname,ch[0]))
-                    if os.path.exists(tempdir):
-                        shutil.rmtree(tempdir, onerror=mangasql.takeown)
-                    updated_count+=1
-                    #sleep should be OK in this inner loop, otherwise nothing is downloaded.
-                    time.sleep(random.uniform(*CHAPTER_DELAY))
-                unread_count+=1
-            except Exception as e:
-                e.chapter =str(ch[0])
-                e.imagenum =str(iindex)
-                raise e
-        return unread_count,updated_count
+        return decoded
 ################################################################################
 class KissManga(SeriesParser):
     
@@ -1246,54 +1148,28 @@ class MangaPlus(SeriesParser):
         ]
         nums = self.extrapolate_nums(nums)
         return nums,list(zip(nums,urls))
-    def save_images(self,sname,chapters):
-        updated_count=0
-        unread_count=0
-        delayed_err = None
-        sname = storage_path(sname)
-        for ch_index,ch in enumerate(chapters):
+    def _save_images_internals(self,images,tempdir,dl_state,ch):
+        img_dl_errs = 0
+        viewer = self.LOADER._load_pages(ch[1])
+        pages = [
+                    p.manga_page for p in viewer.pages if p.manga_page.image_url
+                ]
+        for page in pages:
             try:
-            # this is our num,url tuple
-                img_dl_errs = 0
-                ch=list(ch)
-                ch[0]=mangasql.SQLManager.formatName(ch[0])
-                if not os.path.exists(os.path.join(sname,ch[0])):
-                    iindex=0
-                    tempdir= os.path.join(sname,'#temp')
-                    if os.path.exists(tempdir):
-                        shutil.rmtree(tempdir, onerror=mangasql.takeown)
-                    os.makedirs(tempdir)
-                    viewer = self.LOADER._load_pages(ch[1])
-                    pages = [
-                                p.manga_page for p in viewer.pages if p.manga_page.image_url
-                            ]
-                    for page in pages:
-                        try:
-                            image_blob = self.LOADER._decrypt_image(
-                                page.image_url, page.encryption_key
-                            )
-                            time.sleep(random.uniform(*self.IMAGE_DOWNLOAD_DELAY))
-                            filename = os.path.join(tempdir,str(iindex)+os.path.splitext(page.image_url.split('?')[0])[1])
-                            self._write_image(BytesIO(image_blob), filename)
-                            iindex+=1
-                        except:
-                            if img_dl_errs<ALLOWED_IMAGE_ERRORS_PER_CHAPTER:
-                                img_dl_errs+=1
-                                pass
-                            else:
-                                raise
-                    shutil.move(tempdir,os.path.join(sname,ch[0]))
-                    if os.path.exists(tempdir):
-                        shutil.rmtree(tempdir, onerror=mangasql.takeown)
-                    updated_count+=1
-                    #sleep should be OK in this inner loop, otherwise nothing is downloaded.
-                    time.sleep(random.uniform(*CHAPTER_DELAY))
-                unread_count+=1
-            except Exception as e:
-                e.chapter =str(ch[0])
-                e.imagenum =str(iindex)
-                raise e
-        return unread_count,updated_count
+                start = time.time()
+                image_blob = self.LOADER._decrypt_image(
+                    page.image_url, page.encryption_key
+                )
+                time.sleep(max(0,random.uniform(*self.IMAGE_DOWNLOAD_DELAY)-(time.time()-start)))
+                filename = os.path.join(tempdir,str(iindex)+os.path.splitext(page.image_url.split('?')[0])[1])
+                self._write_image(BytesIO(image_blob), filename)
+                iindex+=1
+            except:
+                if img_dl_errs<ALLOWED_IMAGE_ERRORS_PER_CHAPTER:
+                    img_dl_errs+=1
+                    pass
+                else:
+                    raise
 ################################################################################
 def update_parsers(currentversion,targethash):
     currentversion=float(currentversion)
