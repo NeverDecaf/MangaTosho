@@ -6,3 +6,4 @@ pyaes==1.6.1
 PyInstaller==3.6
 PyQt5==5.15.0
 selenium==3.141.0
+mloader==1.1.4

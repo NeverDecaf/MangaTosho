@@ -212,6 +212,12 @@
 		<aio_images_xpath>//img[contains(@id,'image-')]/@data-src</aio_images_xpath> <!-- xpath to match all image urls if the site includes them all on one page. -->
 		<aio_refinement_re><![CDATA[\s*(.*)]]></aio_refinement_re> <!-- regex to refine results of aio_images_xpath (or re) -->
 	</site>
+	<site name="MangaPlus">
+		<!-- essential args. you will need most of these. -->
+		<site_url>https://mangaplus.shueisha.co.jp/</site_url> <!-- url of the main website -->
+		<abbr>PL</abbr> <!-- 2 letter abbreviation of the site's name. -->
+		<site_parser_re><![CDATA[https?://(?:www\.)?mangaplus.shueisha.co.jp/titles/[^/\&\?]+]]></site_parser_re> <!-- regex that matches if the given url is a series on this site -->
+	</site>
 	<!-- Copy this template and use it to add a new site.
 	Fields left blank will fall back to their default values, which are fine for most sites.
 	Make sure your title, next_url, and image_url xpaths return a string. (use substring(xpath,1))

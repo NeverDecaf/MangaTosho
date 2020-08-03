@@ -26,7 +26,8 @@ import random
 import jsbeautifier
 from constants import *
 import subprocess
-
+from mloader import loader
+from itertools import chain
 # add the cacert.pem file to the path correctly even if compiled with pyinstaller:
 # we should only do this if this is running as an executable.
 try:
@@ -262,7 +263,7 @@ class SeriesParser(object):
     PASSWORD = None
 
     IMAGE_DELAY = (0,0) # delay between fetching image PAGES, not the images themselves.
-    IMAGE_DOWNLOAD_DELAY = (0,0) # delay between downloading images themselves.
+    IMAGE_DOWNLOAD_DELAY = (1,2) # delay between downloading images themselves.
     AUTO_COMPLETE_TIME = 2592000 * 3 # 3 months before a series claimed to be complete by the site is marked as completed (in the db).
     LICENSED_AS_403 = False # some sites use error 403 to indicate a licensed series.
     LICENSED_ERROR_CODES = () # error codes that you may receive if the series is licensed.
@@ -325,7 +326,7 @@ class SeriesParser(object):
         # r=self.SESSION.get(url, timeout = REQUEST_TIMEOUT)
         # r.raise_for_status()
         # use this very first request to set the referer header (in case of redirect)
-        if not hasattr(self.SESSION,'init'):
+        if not hasattr(self.SESSION,'init') and resp:
             try:
                 ref = urllib.parse.urlunsplit(urllib.parse.urlsplit(resp.history[-1].url)[:2]+('',)*3)
             except IndexError:
@@ -1200,6 +1201,100 @@ class SadPanda(SeriesParser):
         time.sleep(random.uniform(*self.EX_DELAY))
         return True
 ################################################################################
+class MangaPlus(SeriesParser):
+    # copied from mangadex
+    def _verify(self,url):
+        self.LOADER = loader.MangaLoader()
+
+        pieces = urllib.parse.urlsplit(url)
+        series_id = pieces[2].split('/')[2]
+        self.DETAILS = self.LOADER._get_title_details(series_id)
+
+        if not self.get_title():
+	        self.VALID=False
+
+        return None
+    def get_title(self):
+        #returns the title of the series
+        if self.TITLE:
+            return self.TITLE
+        title = self.DETAILS.title.name
+        split = title.split()
+        for i in range(len(split)):
+            if split[i].isupper() or i==0:
+                split[i]=split[i].capitalize()
+        ret = r' '.join(split)
+        self.TITLE = self.AUTHOR_RE.sub(r'',ret)
+        return self.TITLE
+    def is_complete(self):
+        return False
+    def get_chapters(self):
+        #returns a list of all chapters, where each entry is a tuple (number,url)
+        nums = [
+            x.name
+            for x in chain(
+                self.DETAILS.first_chapter_list,
+                self.DETAILS.last_chapter_list,
+            )
+        ]
+        urls = [
+            x.chapter_id
+            for x in chain(
+                self.DETAILS.first_chapter_list,
+                self.DETAILS.last_chapter_list,
+            )
+        ]
+        nums = self.extrapolate_nums(nums)
+        return nums,list(zip(nums,urls))
+    def save_images(self,sname,chapters):
+        updated_count=0
+        unread_count=0
+        delayed_err = None
+        sname = storage_path(sname)
+        for ch_index,ch in enumerate(chapters):
+            try:
+            # this is our num,url tuple
+                img_dl_errs = 0
+                ch=list(ch)
+                ch[0]=mangasql.SQLManager.formatName(ch[0])
+                if not os.path.exists(os.path.join(sname,ch[0])):
+                    iindex=0
+                    tempdir= os.path.join(sname,'#temp')
+                    if os.path.exists(tempdir):
+                        shutil.rmtree(tempdir, onerror=mangasql.takeown)
+                    os.makedirs(tempdir)
+                    viewer = self.LOADER._load_pages(ch[1])
+                    pages = [
+                                p.manga_page for p in viewer.pages if p.manga_page.image_url
+                            ]
+                    for page in pages:
+                        try:
+                            image_blob = self.LOADER._decrypt_image(
+                                page.image_url, page.encryption_key
+                            )
+                            time.sleep(random.uniform(*self.IMAGE_DOWNLOAD_DELAY))
+                            filename = os.path.join(tempdir,str(iindex)+os.path.splitext(page.image_url.split('?')[0])[1])
+                            self._write_image(BytesIO(image_blob), filename)
+                            iindex+=1
+                        except:
+                            if img_dl_errs<ALLOWED_IMAGE_ERRORS_PER_CHAPTER:
+                                img_dl_errs+=1
+                                pass
+                            else:
+                                raise
+                    shutil.move(tempdir,os.path.join(sname,ch[0]))
+                    if os.path.exists(tempdir):
+                        shutil.rmtree(tempdir, onerror=mangasql.takeown)
+                    updated_count+=1
+                    #sleep should be OK in this inner loop, otherwise nothing is downloaded.
+                    time.sleep(random.uniform(*CHAPTER_DELAY))
+                unread_count+=1
+            except Exception as e:
+                e.chapter =str(ch[0])
+                e.imagenum =str(iindex)
+                raise e
+        return unread_count,updated_count
+################################################################################
 def update_parsers(currentversion,targethash):
     currentversion=float(currentversion)
     r=requests.get('https://raw.githubusercontent.com/NeverDecaf/MangaTosho/master/parsers.xml', timeout = REQUEST_TIMEOUT)
@@ -1210,7 +1305,7 @@ def update_parsers(currentversion,targethash):
         content=f.read()
         temphash = hashlib.sha1(b"blob %i\0"%len(content) + content).hexdigest()
     if temphash==targethash:
-        #compare version numbers with simultaneously will test for valid xml
+        #compare version numbers which simultaneously will test for valid xml
         root = ET.fromstring(content)#.getroot()
         newversion = float(root.find('info').find('version').text)
         if currentversion==newversion:
