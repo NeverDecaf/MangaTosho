@@ -1148,6 +1148,8 @@ class MangaPlus(SeriesParser):
         ]
         nums = self.extrapolate_nums(nums)
         return nums,list(zip(nums,urls))
+    def get_images(self,chapter,delay=(0,0),fix_urls = True):
+        return None
     def _save_images_internals(self,images,tempdir,dl_state,ch):
         img_dl_errs = 0
         viewer = self.LOADER._load_pages(ch[1])
@@ -1161,9 +1163,9 @@ class MangaPlus(SeriesParser):
                     page.image_url, page.encryption_key
                 )
                 time.sleep(max(0,random.uniform(*self.IMAGE_DOWNLOAD_DELAY)-(time.time()-start)))
-                filename = os.path.join(tempdir,str(iindex)+os.path.splitext(page.image_url.split('?')[0])[1])
+                filename = os.path.join(tempdir,str(dl_state['iindex'])+os.path.splitext(page.image_url.split('?')[0])[1])
                 self._write_image(BytesIO(image_blob), filename)
-                iindex+=1
+                dl_state['iindex']+=1
             except:
                 if img_dl_errs<ALLOWED_IMAGE_ERRORS_PER_CHAPTER:
                     img_dl_errs+=1
