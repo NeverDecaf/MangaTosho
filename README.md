@@ -34,6 +34,7 @@ Closing the main window will simply minimize it to tray. Double-click the icon t
 - SadPanda
 - HeavenToon
 - MangaSushi
+- MangaPlus
 
 ###### Known Bugs
 * Dynasty series with no chapter numbers will fail.

@@ -268,7 +268,16 @@ class SeriesParser(object):
     LICENSED_ERROR_CODES = () # error codes that you may receive if the series is licensed.
     
     CONVERT_WEBP = None
-
+    
+    def _verify(self,url):
+        # fetch initial series page and set validity of parser
+        r=self.SESSION.get(url, timeout = REQUEST_TIMEOUT)
+        r.raise_for_status()
+        self.HTML = r.text
+        self.etree = lxmlhtml.fromstring(self.HTML)
+        if not self.get_title():
+            self.VALID=False
+        return r
     def __init__(self,url,sessionobj=None):
         #loads the html from the series page, also checks to ensure the site is valid
         #note if this returns False you cannot use this object.
@@ -312,24 +321,25 @@ class SeriesParser(object):
                     sessionobj.cookies.set(data[0], data[1], domain=data[2], path=data[3])
             
         self.login()
-        r=self.SESSION.get(url, timeout = REQUEST_TIMEOUT)
-        r.raise_for_status()
+        resp = self._verify(url)
+        # r=self.SESSION.get(url, timeout = REQUEST_TIMEOUT)
+        # r.raise_for_status()
         # use this very first request to set the referer header (in case of redirect)
         if not hasattr(self.SESSION,'init'):
             try:
-                ref = urllib.parse.urlunsplit(urllib.parse.urlsplit(r.history[-1].url)[:2]+('',)*3)
+                ref = urllib.parse.urlunsplit(urllib.parse.urlsplit(resp.history[-1].url)[:2]+('',)*3)
             except IndexError:
-                ref = urllib.parse.urlunsplit(urllib.parse.urlsplit(r.url)[:2]+('',)*3)
+                ref = urllib.parse.urlunsplit(urllib.parse.urlsplit(resp.url)[:2]+('',)*3)
             try:
                 if not 'Referer' in self.HEADERS:
                     self.HEADERS['Referer'] = ref
             except AttributeError:
                 self.HEADERS = {'Referer':ref}
             self.SESSION.headers.update(self.HEADERS)
-        self.HTML = r.text
-        self.etree = lxmlhtml.fromstring(self.HTML)
-        if not self.get_title():
-            self.VALID=False
+        # self.HTML = r.text
+        # self.etree = lxmlhtml.fromstring(self.HTML)
+        # if not self.get_title():
+            # self.VALID=False
         if self.VALID:
             self.SESSION.init = True # only init when valid so we are sure we didn't accidentally set referer to a 404 page or something
     def _cycle_UA(self):
@@ -575,73 +585,18 @@ class SeriesParser(object):
 ################################################################################
 class MangaDex(SeriesParser):
     # copied from mangarock, similar in that both have json api.
-    def __init__(self,url,sessionobj=None):
-        #loads the html from the series page, also checks to ensure the site is valid
-        #note if this returns False you cannot use this object.
-        self.VALID=True # is set to false if the given url doesnt match the sites url
-        self.TITLE = None
+    def _verify(self,url):
         pieces = urllib.parse.urlsplit(url)
-        querydict = urllib.parse.parse_qs(pieces.query)
-        if self.SKIP_MATURE:
-            k,v = self.SKIP_MATURE.split('=')
-            querydict[k]=v
-        querystr = urllib.parse.urlencode(querydict,True)
-        url = urllib.parse.urlunsplit(pieces[:3]+(querystr,)+pieces[4:])
-        self.MAIN_URL = url
-        if self.SITE_PARSER_RE.match(url)==None:
-            self.VALID=False
-            return
-        # create a random user agent
-        if not sessionobj:
-            if self.USE_CFSCRAPE:
-                self.SESSION = CloudflareBypass()
-            else:
-                self.SESSION = requests.session()
-        else:
-            self.SESSION = sessionobj
-        if sessionobj and hasattr(sessionobj,'init'):
-            'session already exists and has been set up'
-        else:
-            if not hasattr(self,'HEADERS'):
-                self.HEADERS = {}
-            self._cycle_UA()
-            adapter = requests.adapters.HTTPAdapter(max_retries=1)
-            self.SESSION.mount('https://', adapter)
-            self.SESSION.mount('http://', adapter)
-            
-            self.SESSION.keep_alive = False
-            # add custom cookies
-            for var in dir(self):
-                if var.startswith('CUSTOM_COOKIE_'):
-                    data = getattr(self,var).split(',')
-                    sessionobj.cookies.set(data[0], data[1], domain=data[2], path=data[3])
-                    
-        self.login()
         series_id = pieces[2].split('/')[2]
         query = self.SITE_URL.strip('/')+'/api/manga/{}'.format(series_id)
         r=self.SESSION.get(query, timeout = REQUEST_TIMEOUT)
         r.raise_for_status()
-        # use this very first request to set the referer header (in case of redirect)
-        if not hasattr(self.SESSION,'init'):
-            try:
-                ref = urllib.parse.urlunsplit(urllib.parse.urlsplit(r.history[-1].url)[:2]+('',)*3)
-            except IndexError:
-                ref = urllib.parse.urlunsplit(urllib.parse.urlsplit(r.url)[:2]+('',)*3)
-            try:
-                if not 'Referer' in self.HEADERS:
-                    self.HEADERS['Referer'] = ref
-            except AttributeError:
-                self.HEADERS = {'Referer':ref}
-            self.SESSION.headers.update(self.HEADERS)
-##        self.HTML = r.text
         self.JSON = r.json()
-##        self.etree = lxmlhtml.fromstring(self.HTML)
         if self.JSON['status']!='OK':
             self.VALID=False
         elif not self.get_title():
-            self.VALID=False
-        if self.VALID:
-            self.SESSION.init = True # only init when valid so we are sure we didn't accidentally set referer to a 404 page or something
+	        self.VALID=False
+        return r
     def get_title(self):
         #returns the title of the series
         if self.TITLE:
@@ -795,48 +750,9 @@ class MangaDex(SeriesParser):
         return unread_count,updated_count
 ################################################################################
 class MangaRock(SeriesParser):
-    def __init__(self,url,sessionobj=None):
-        #loads the html from the series page, also checks to ensure the site is valid
-        #note if this returns False you cannot use this object.
-        self.VALID=True # is set to false if the given url doesnt match the sites url
-        self.TITLE = None
+    def _verify(self,url):
+        # fetch initial series page and set validity of parser
         pieces = urllib.parse.urlsplit(url)
-        querydict = urllib.parse.parse_qs(pieces.query)
-        if self.SKIP_MATURE:
-            k,v = self.SKIP_MATURE.split('=')
-            querydict[k]=v
-        querystr = urllib.parse.urlencode(querydict,True)
-        url = urllib.parse.urlunsplit(pieces[:3]+(querystr,)+pieces[4:])
-        self.MAIN_URL = url
-        if self.SITE_PARSER_RE.match(url)==None:
-            self.VALID=False
-            return
-        # create a random user agent
-        if not sessionobj:
-            if self.USE_CFSCRAPE:
-                self.SESSION = CloudflareBypass()
-            else:
-                self.SESSION = requests.session()
-        else:
-            self.SESSION = sessionobj
-        if sessionobj and hasattr(sessionobj,'init'):
-            'session already exists and has been set up'
-        else:
-            if not hasattr(self,'HEADERS'):
-                self.HEADERS = {}
-            self._cycle_UA()
-            adapter = requests.adapters.HTTPAdapter(max_retries=1)
-            self.SESSION.mount('https://', adapter)
-            self.SESSION.mount('http://', adapter)
-            
-            self.SESSION.keep_alive = False
-            # add custom cookies
-            for var in dir(self):
-                if var.startswith('CUSTOM_COOKIE_'):
-                    data = getattr(self,var).split(',')
-                    sessionobj.cookies.set(data[0], data[1], domain=data[2], path=data[3])
-            
-        self.login()
         series_url = pieces[2].split('/')[2]
         API_DOMAIN = urllib.parse.urlsplit(self.MANGAROCK_API_DOMAIN)
         API_QUERY_ARGS = {'last':'0'}
@@ -844,35 +760,19 @@ class MangaRock(SeriesParser):
             k,v = self.SKIP_MATURE.split('=')
             API_QUERY_ARGS[k]=v
         API_QUERY_ARGS['oid']=series_url
-        
         query = urllib.parse.urlunsplit((API_DOMAIN.scheme,API_DOMAIN.netloc,'/query/web{}/info'.format(self.MANGAROCK_QUERY_VERSION),urllib.parse.urlencode(API_QUERY_ARGS,True),API_DOMAIN.fragment))
         r=self.SESSION.get(query, timeout = REQUEST_TIMEOUT)
         r.raise_for_status()
-        # use this very first request to set the referer header (in case of redirect)
-        if not hasattr(self.SESSION,'init'):
-            try:
-                ref = urllib.parse.urlunsplit(urllib.parse.urlsplit(r.history[-1].url)[:2]+('',)*3)
-            except IndexError:
-                ref = urllib.parse.urlunsplit(urllib.parse.urlsplit(r.url)[:2]+('',)*3)
-            try:
-                if not 'Referer' in self.HEADERS:
-                    self.HEADERS['Referer'] = ref
-            except AttributeError:
-                self.HEADERS = {'Referer':ref}
-            self.SESSION.headers.update(self.HEADERS)
-##        self.HTML = r.text
         self.JSON = r.json()
         if self.JSON['code'] == 104 and self.JSON['data'] == 'Manga is licensed':
             e = LicensedError('Series is licensed.')
             e.display = 'Series is licensed'
             raise e
-##        self.etree = lxmlhtml.fromstring(self.HTML)
         if self.JSON['code']:
             self.VALID=False
         elif not self.get_title():
             self.VALID=False
-        if self.VALID:
-            self.SESSION.init = True # only init when valid so we are sure we didn't accidentally set referer to a 404 page or something
+        return r
     def get_title(self):
         #returns the title of the series
         if self.TITLE:
