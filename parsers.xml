@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <sites>
 	<info>
-		<version>2.12</version>
+		<version>2.13</version>
 	</info>
 	<site name="MangaDex">
 		<!-- essential args. you will need most of these. -->
@@ -54,23 +54,22 @@
 		<reverse>False</reverse> <!-- True if chapters are listed in reverse numerical order (latest chapter first) -->
 		<aio_images_re><![CDATA[(?<="image":")[^"]*]]></aio_images_re> <!-- regex to match all image urls if the site includes them all on one page. -->
 	</site>
-	<!-- this is an exact copy of MangaPanda, update as you update mangapanda -->
+	<!-- NO LONGER TRUE, MANGAREADER SEEMS TO HAVE DIVERGED this is an exact copy of MangaPanda, update as you update mangapanda -->
 	<site name="MangaReader">
 		<!-- essential args. must supply all of these -->
 		<site_url>http://www.mangareader.net/</site_url> <!-- url of the main website -->
 		<abbr>MR</abbr> <!-- 2 letter abbreviation of the site's name. -->
 		<site_parser_re>https?://(?:www\.)?mangareader.net/.*</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
-		<title_xpath>substring(//h2[@class='aname']/text(),1)</title_xpath> <!-- xpath that matches the series' title -->
-		<chapter_nums_xpath>//td[div[@class='chico_manga']]/a/text()</chapter_nums_xpath> <!-- xpath that matches all chapter numbers on the main series page -->
-		<chapter_urls_xpath>//td[div[@class='chico_manga']]/a/@href</chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
-		<image_url_xpath>substring(//img[@id='img']/@src,1)</image_url_xpath> <!-- xpath that matches the image url on a given page of the series -->
-		<next_url_xpath>substring(//span[@class='next']/a/@href,1)</next_url_xpath> <!-- xpath that matches the url of the next page on a given page of the series -->
+		<title_xpath>substring(//span[@class='name']/text(),1)</title_xpath> <!-- xpath that matches the series' title -->
+		<chapter_nums_xpath>//table[@class='d48']//a/text()</chapter_nums_xpath> <!-- xpath that matches all chapter numbers on the main series page -->
+		<chapter_urls_xpath>//table[@class='d48']//a/@href</chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
+		<aio_images_re><![CDATA[,"u":"([^"]*)]]></aio_images_re> <!-- regex to match all image urls if the site includes them all on one page. -->
 		<!-- optional args, delete these if not applicable. -->
-		<is_complete_xpath>//tr[td[text()='Status:']]/td[text()='Completed']</is_complete_xpath> <!-- xpath that matches if the series has been marked "Complete" -->
+		<is_complete_xpath>//tr[td[text()='Status :']]/td[text()='Completed']</is_complete_xpath> <!-- xpath that matches if the series has been marked "Complete" -->
 		<reverse>False</reverse> <!-- True if chapters are listed in reverse numerical order (latest chapter first) -->
 		<licensed_error_codes>403</licensed_error_codes> <!-- some sites use error 403 to indicate a licensed series, this will also accept CSV -->
 	</site>
-	<!-- this is an exact copy of MangaReader, update as you update mangareader -->
+	<!-- NO LONGER TRUE, MANGAREADER SEEMS TO HAVE DIVERGED this is an exact copy of MangaReader, update as you update mangareader -->
 	<site name="MangaPanda">
 		<!-- essential args. must supply all of these -->
 		<site_url>http://www.mangapanda.com/</site_url> <!-- url of the main website -->
@@ -219,11 +218,13 @@
 	<!-- Copy this template and use it to add a new site.
 	Fields left blank will fall back to their default values, which are fine for most sites.
 	Make sure your title, next_url, and image_url xpaths return a string. (use substring(xpath,1))
+	ABBR must be unique even among deprecated sites, here is a list of all that are in use:
+	AA BT DS DX HT KM KS MH MK MN MP MR MS MW PA PL RO SE SU SP
 	-->
 	<site name="TemplateSite">
 		<!-- essential args. you will need most of these. -->
 		<site_url></site_url> <!-- url of the main website -->
-		<abbr></abbr> <!-- 2 letter abbreviation of the site's name. -->
+		<abbr>MUST be unique, see list above and update it when adding new parsers</abbr> <!-- 2 letter abbreviation of the site's name. -->
 		<site_parser_re></site_parser_re> <!-- regex that matches if the given url is a series on this site -->
 		<title_xpath>substring(,1)</title_xpath> <!-- xpath that matches the series' title -->
 		<chapter_nums_xpath></chapter_nums_xpath> <!-- xpath that matches all chapter numbers on the main series page -->
@@ -263,23 +264,27 @@
 		<custom_cookie_1></custom_cookie_1><!-- Add any number of custom cookies, must start with prefix custom_cookie_ check session.cookies.set for syntax (csv) -->
 	</site>
 	<domain_changes>
-	<conversion>MW,mangawindow.com,mangawindow.net,%mangawindow.com%</conversion>
-	<conversion>DX,mangadex.org/manga/,mangadex.org/title/,%mangadex.org/manga/%</conversion>
-	<conversion>PA,mangapark.me,mangapark.net,%mangapark.me%</conversion>
-	<conversion>MH,mangahere.co,mangahere.cc,%mangahere.co%</conversion>
-	<conversion>MS,mangastream.com,mangastream.cc,%mangastream.com%</conversion>
-	<conversion>MS,readms.net,mangastream.cc,%readms.net%</conversion>
-	<conversion>MS,mangastream.cc,mangastream.today,%mangastream.cc%</conversion>
-	<conversion>MS,http://,https://,http://%</conversion>
-	<conversion>DX,mangadex.org/title/,mangadex.cc/title/,%mangadex.org/title/%</conversion>
 	<!-- This is a csv with 4 values:
 	1. site ABBR (this is unique)
 	2. old substring to be replaced
 	3. new substring to replace with
 	4. sql matcher for old substrings (to prevent recursive replacement spam)
-	example: MW,mangawindow.com,mangawindow.net,%mangawindow.com%
+	example: <conversion>MW,mangawindow.com,mangawindow.net,%mangawindow.com%</conversion>
 	-->
 	</domain_changes>
+	<url_regex_replace>
+	<!-- Similar to domain_changes but uses regex: re.sub()	-->
+	<conversion>
+		<siteabbr>MR</siteabbr>
+		<pattern><![CDATA[.html$]]></pattern>
+		<replace></replace>
+	</conversion>
+	<conversion>
+		<siteabbr>MR</siteabbr>
+		<pattern><![CDATA[\d+\/(?=[^\/]*$)]]></pattern>
+		<replace></replace>
+	</conversion>
+	</url_regex_replace>
 	<advert_hashes>
 	<mangazoneapp_ad>920d54b4c6afc696cae7dcd07f549d49</mangazoneapp_ad> <!-- found on mangatown (and sites that rip from it, e.g. mangahere -->
 	<mangazoneapp_ad_2>a15f2b2e0ebd6bdda7c338135caa8398</mangazoneapp_ad_2> <!-- found on mangatown (and sites that rip from it, e.g. mangahere -->

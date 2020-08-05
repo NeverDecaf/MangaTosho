@@ -209,7 +209,16 @@ class ParserFetch:
         for conv in root.find('domain_changes').iter('conversion'):
             conversions.append(conv.text.split(','))
         return conversions
-                    
+        
+    @staticmethod
+    def _get_regex_conversions():
+        conversions = []
+        tree = ET.parse(storage_path('parsers.xml'))
+        root = tree.getroot()
+        for conv in root.find('url_regex_replace').iter('conversion'):
+            conversions.append((conv.find('pattern').text,conv.find('replace').text or '',conv.find('siteabbr').text))
+        return conversions
+        
     def __children_as_dict(self,t):
         d={}
         for v in list(t):

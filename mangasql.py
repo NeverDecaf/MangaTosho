@@ -13,6 +13,7 @@ from requests.packages.urllib3.exceptions import NewConnectionError
 from urllib.parse import urlsplit,urlunsplit
 import stat
 from constants import *
+import re
 
 #######################################################
 ######takeown + zip, utlility functions################
@@ -38,6 +39,7 @@ class SQLManager():
         self.conn = sqlite3.connect(storage_path('manga.db'))
         self.conn.row_factory = sqlite3.Row
         self.conn.create_function('cleanName',1,SQLManager.cleanName)
+        self.conn.create_function('regexsub',3,re.sub)
         self.parserFetch = parserFetch
         c = self.conn.cursor()
         c.execute('''CREATE TABLE IF NOT EXISTS series
@@ -86,6 +88,7 @@ class SQLManager():
 
         self.getCredentials() # to update the parserfetch correctly.
         self.legacyConversions()
+        self.regexLegacyConversions()
         if LOGGING:
             logging.basicConfig(level=logging.ERROR, filename=storage_path('Series_Errors.log'))
         else:
@@ -102,7 +105,15 @@ class SQLManager():
             c.execute('''UPDATE series SET url=replace(url,?,?) WHERE site=? AND url LIKE ?''',(conv[1],conv[2],conv[0],conv[3]))
         self.conn.commit()
         c.close()
-
+        
+    def regexLegacyConversions(self):
+        c = self.conn.cursor()
+        # change old site urls to new ones.
+        for conv in parsers.ParserFetch._get_regex_conversions():
+            c.execute('''UPDATE series SET url=regexsub(?,?,url) WHERE site=?''',conv)
+        self.conn.commit()
+        c.close()
+        
     def updateParserCredentials(self,creds):
         self.parserFetch.updateCreds(creds)
 
