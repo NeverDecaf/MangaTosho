@@ -13,6 +13,12 @@ import copy
 from cloudscraper import CloudScraper
 from requests.adapters import HTTPAdapter
 from urllib3.util.ssl_ import create_urllib3_context, DEFAULT_CIPHERS
+class SeleniumBypassFailed(Exception):
+    pass
+class SeleniumDriverMissing(Exception):
+    pass
+class CloudflareCaptchaFound(Exception):
+    pass
 # from cloudscraper.exceptions import CloudflareChallengeError
 def set_cookies(cookies, s):
     for cookie in cookies:
@@ -96,7 +102,7 @@ class CloudflareBypass(CloudScraper):
         
         # Check if Cloudflare captcha challenge is presented
         if self.is_cloudflare_captcha_challenge(resp):
-            raise Exception('Cloudflare Captcha Detected')
+            raise CloudflareCaptchaFound('Cloudflare Captcha Detected')
 
         # Check if Cloudflare anti-bot "I'm Under Attack Mode" is enabled
         if self.is_cloudflare_iuam_challenge(resp):
@@ -115,7 +121,7 @@ class CloudflareBypass(CloudScraper):
             except WebDriverException:
                 pass
         if not browser:
-            raise Exception('Selenium Driver Missing')
+            raise SeleniumDriverMissing('Selenium Driver Missing')
         browser.get(resp.url)
         for i in range(10):
             sleep(1)
@@ -142,7 +148,7 @@ class CloudflareBypass(CloudScraper):
         self.challenge_solved = True
         resp = super(CloudflareBypass, self).request(self.org_method, submit_url, **cloudflare_kwargs)
         if self.is_cloudflare_captcha_challenge(resp):
-            raise Exception('Failed to solve Cloudflare Challenge')
+            raise SeleniumBypassFailed('Failed to solve Cloudflare Challenge')
         return resp
 # url = 'https://kissmanga.com/Message/PrivacyPolicy'
 # s = CloudflareBypass()
