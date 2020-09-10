@@ -22,6 +22,7 @@ Closing the main window will simply minimize it to tray. Double-click the icon t
 - MangaDex
 - MangaSee
 - MangaHere
+- MangaHere
 - DynastyScans
 - MangaReader
 - MangaPanda
@@ -30,7 +31,6 @@ Closing the main window will simply minimize it to tray. Double-click the icon t
 - MangaKakalot
 - MangaNelo
 - MangaWindow
-- KissManga
 - SadPanda
 - HeavenToon
 - MangaSushi
