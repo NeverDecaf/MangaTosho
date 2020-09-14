@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <sites>
 	<info>
-		<version>2.13</version>
+		<version>2.14</version>
 	</info>
 	<site name="MangaDex">
 		<!-- essential args. you will need most of these. -->
@@ -218,6 +218,17 @@
 		<site_url>https://mangaplus.shueisha.co.jp/</site_url> <!-- url of the main website -->
 		<abbr>PL</abbr> <!-- 2 letter abbreviation of the site's name. -->
 		<site_parser_re><![CDATA[https?://(?:www\.)?mangaplus.shueisha.co.jp/titles/[^/\&\?]+]]></site_parser_re> <!-- regex that matches if the given url is a series on this site -->
+	</site>
+	<site name="VizWSJ">
+		<!-- essential args. you will need most of these. -->
+		<site_url>https://www.viz.com/</site_url> <!-- url of the main website -->
+		<abbr>SJ</abbr> <!-- 2 letter abbreviation of the site's name. -->
+		<site_parser_re>https?://(?:www\.)?viz.com/shonenjump/chapters/.+</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
+		<title_xpath>substring(//h2[contains(@class,'type-xxl--lg')],1)</title_xpath> <!-- xpath that matches the series' title -->
+		<chapter_nums_xpath>//div[contains(@class,'o_sortable')]/a[not(@onclick)]/@name</chapter_nums_xpath> <!-- xpath that matches all chapter numbers on the main series page -->
+		<chapter_urls_xpath>//div[contains(@class,'o_sortable')]/a[not(@onclick)]/@href</chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
+		<viz_pages_re>pages[ ]*=[ ]*(\d+);</viz_pages_re><!-- used exclusively for viz.com -->
+		<viz_cookie_url>https://www.viz.com/account/refresh_login_links</viz_cookie_url><!-- used exclusively for viz.com -->
 	</site>
 	<!-- Copy this template and use it to add a new site.
 	Fields left blank will fall back to their default values, which are fine for most sites.

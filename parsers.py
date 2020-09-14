@@ -1182,6 +1182,81 @@ class MangaPlus(SeriesParser):
                 else:
                     raise
 ################################################################################
+class VizWSJ(SeriesParser):
+    def _descramble(self,img):
+        # this method is called handlePageData() and is located in https://assets.viz.com/assets/manifest-viz-reader-fcf31f6106dd741d679ce298d8b1481d7687ce26f7e1909e67284002ef7f670b.js
+        def _cropWH(img,bbox):
+            return img.crop((bbox[0], bbox[1], bbox[0]+bbox[2], bbox[1]+bbox[3]))
+        exif = img.getexif()
+        COLOR = (255,)*len(img.getbands()) # fill result image with white
+        res = Image.new(img.mode,(exif[256],exif[257]),COLOR)
+        f = exif[42016] # ImageUniqueID
+        y = f.split(':')
+        _ = exif[256] # ImageWidth
+        v = exif[257] # ImageLength
+        b = _//10
+        w = v//15
+        # draw borders
+        res.paste(_cropWH(img,(0,0,_,w)),(0,0))#,_,w))
+        res.paste(_cropWH(img,(0,w+10,b,v-2*w)),(0,w))#,b,v-2*w))
+        res.paste(_cropWH(img,(0,14 * (w+10),_,img.height-14*(w+10))),(0,14*w))
+        res.paste(_cropWH(img,(9 * (b + 10), w + 10, b + (_ - 10 * b), v - 2 * w)),(9*b,w))
+        # draw squares
+        for m in range(len(y)):
+            y[m] = int(y[m],16)
+            res.paste(_cropWH(img,((m%8+1)*(b+10), (m//8+1) * (w+10), b//1, w//1)),((y[m]%8+1)*b//1,(y[m]//8+1)*w//1))
+        return res
+    def get_images(self,chapter,delay=(0,0),fix_urls = True):
+        return None
+    def _save_images_internals(self,images,tempdir,dl_state,ch):
+    
+        # create a new session obj so we don't pollute the main session cookies
+        if self.USE_CFSCRAPE:
+            session = CloudflareBypass()
+        else:
+            session = requests.session()
+        img_dl_errs = 0
+
+        url = ch[1]
+        manga_id = re.findall('/chapter/(\d+)',url)[0]
+
+        # load _session_id cookie:
+        session.get(self.VIZ_COOKIE_URL)
+        # get page count
+        with session.get(url) as r:
+            p = re.findall(self.VIZ_PAGES_RE,r.text)
+            pagecount = int(p[0])
+        # page 0 seems to always be blank, we download it anyway so splits line up when reading
+        for pnum in range(0,pagecount+1):
+            try:
+                start = time.time()
+                headers = session.headers
+                headers['referer'] = url
+                headers['Host'] = None
+                with session.get(urllib.parse.urljoin(self.SITE_URL,'manga/get_manga_url?device_id=3&manga_id={}&page={}'.format(manga_id,pnum)),headers = headers) as r:
+                    img = r.text
+                ref = urllib.parse.urlunsplit(urllib.parse.urlsplit(img)[0:2]+('',)*3)
+                headers = session.headers
+                headers['referer'] = ref
+                headers['Host'] = urllib.parse.urlsplit(img)[1]
+                with session.get(img, headers = headers) as r:
+                    imgdata = Image.open(BytesIO(r.content))
+                    res = self._descramble(imgdata)
+                time.sleep(max(0,random.uniform(*self.IMAGE_DOWNLOAD_DELAY)-(time.time()-start)))
+                ext = imgdata.format
+                filename = os.path.join(tempdir,str(dl_state['iindex']))
+                with BytesIO() as imgbytes:
+                    res.save(imgbytes, format = ext)
+                    self._write_image(imgbytes, filename)
+                dl_state['iindex']+=1
+                
+            except:
+                if img_dl_errs<ALLOWED_IMAGE_ERRORS_PER_CHAPTER:
+                    img_dl_errs+=1
+                    pass
+                else:
+                    raise
+################################################################################
 def update_parsers(currentversion,targethash):
     currentversion=float(currentversion)
     r=requests.get('https://raw.githubusercontent.com/NeverDecaf/MangaTosho/master/parsers.xml', timeout = REQUEST_TIMEOUT)

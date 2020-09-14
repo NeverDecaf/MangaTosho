@@ -35,6 +35,7 @@ Closing the main window will simply minimize it to tray. Double-click the icon t
 - HeavenToon
 - MangaSushi
 - MangaPlus
+- VizWSJ
 
 ###### Known Bugs
 * Dynasty series with no chapter numbers will fail.
