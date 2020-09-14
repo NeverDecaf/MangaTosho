@@ -1188,8 +1188,8 @@ class VizWSJ(SeriesParser):
         def _cropWH(img,bbox):
             return img.crop((bbox[0], bbox[1], bbox[0]+bbox[2], bbox[1]+bbox[3]))
         exif = img.getexif()
-        COLOR = (255,)*len(img.getbands()) # fill result image with white
-        res = Image.new(img.mode,(exif[256],exif[257]),COLOR)
+        WHITE = (255,)*len(img.getbands()) # fill result image with white
+        res = Image.new(img.mode,(exif[256],exif[257]),WHITE)
         f = exif[42016] # ImageUniqueID
         y = f.split(':')
         _ = exif[256] # ImageWidth
@@ -1219,14 +1219,24 @@ class VizWSJ(SeriesParser):
 
         url = ch[1]
         manga_id = re.findall('/chapter/(\d+)',url)[0]
-
+        def _image_is_blank(img):
+            return img.convert("L").getextrema() == (255,255)
+        def _fuse_images(left,right):
+            WHITE = (255,)*len(left.getbands()) # fill result image with white
+            res = Image.new(left.mode,(left.width+right.width, max(left.height,right.height)),WHITE)
+            res.paste(left,(0,0))
+            res.paste(right,(left.width,0))
+            return res
         # load _session_id cookie:
         session.get(self.VIZ_COOKIE_URL)
         # get page count
         with session.get(url) as r:
             p = re.findall(self.VIZ_PAGES_RE,r.text)
             pagecount = int(p[0])
-        # page 0 seems to always be blank, we download it anyway so splits line up when reading
+        page0half = None
+        # page 0 will be blank unless the first 2 pages form a spread,
+        # for better compatibility with MMCE and other site formats, we will drop the blank page 0
+        # and combine the spread into a single page.
         for pnum in range(0,pagecount+1):
             try:
                 start = time.time()
@@ -1242,7 +1252,16 @@ class VizWSJ(SeriesParser):
                 with session.get(img, headers = headers) as r:
                     imgdata = Image.open(BytesIO(r.content))
                     res = self._descramble(imgdata)
+                    
                 time.sleep(max(0,random.uniform(*self.IMAGE_DOWNLOAD_DELAY)-(time.time()-start)))
+                if pnum == 0:
+                    if not _image_is_blank(res):
+                        page0half = res
+                    # if image is blank don't save it
+                    continue
+                elif pnum == 1 and page0half:
+                    # make 2-page spread into single image
+                    res = _fuse_images(res, page0half)
                 ext = imgdata.format
                 filename = os.path.join(tempdir,str(dl_state['iindex']))
                 with BytesIO() as imgbytes:
