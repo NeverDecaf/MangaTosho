@@ -1,6 +1,6 @@
 cloudscraper==1.2.46
 jsbeautifier==1.11.0
-lxml==4.5.2
+lxml==4.6.2
 Pillow==7.2.0
 pyaes==1.6.1
 PyInstaller==3.6
