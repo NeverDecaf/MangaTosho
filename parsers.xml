@@ -141,6 +141,7 @@
 		<!-- optional args, delete these if not applicable. -->
 		<chapter_nums_re><![CDATA[chapter (\d+\.?\d*)(?:v\d+)?]]></chapter_nums_re> <!-- regex used to further refine the results of chapter_nums_xpath, default is typically fine. -->
 		<aio_images_xpath>//div[@id='vungdoc']/img/@src</aio_images_xpath> <!-- xpath to match all image urls if the site includes them all on one page. -->
+		<image_referer>https://mangakakalot.com/</image_referer> <!-- If images are hosted on an external site you may need to override the referer header. -->
 	</site>
 	<site name="MangaNelo">
 		<!-- This is a copy of MangaKakalot, not sure if they are moving to a new site or not. -->
