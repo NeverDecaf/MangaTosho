@@ -15,6 +15,7 @@ from functools import partial
 import collections,queue
 from constants import *
 import math
+import shutil
 
 def isfloat(string):
     try:
@@ -22,6 +23,14 @@ def isfloat(string):
         return True
     except:
         return False
+def clean_tmp_files():
+    try:
+        tmpfolder = os.path.dirname(sys._MEIPASS)
+        for dir in os.listdir(tmpfolder):
+            if dir.startswith('_MEI') and dir != os.path.basename(sys._MEIPASS):
+                shutil.rmtree(os.path.join(tmpfolder,dir))
+    except AttributeError:
+        'not a pyinstaller executable'
 def set_registry(windows_startup, minimized):
     if os.name=='nt':
         settings = QSettings(r"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run", QSettings.NativeFormat)
@@ -1430,6 +1439,7 @@ class OptionsDialog(QDialog):
         self.close()
         
 if __name__ == "__main__":
+    clean_tmp_files()
     main_app = QApplication(sys.argv)
     SEVERE_ERROR_ICON = QPixmap(SEVERE_ERROR_ICON_PATH)
     COMPLETE_ICON = QPixmap(COMPLETE_ICON_PATH)
