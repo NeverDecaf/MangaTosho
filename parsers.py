@@ -258,6 +258,7 @@ class SeriesParser(object):
     AIO_IMAGES_RE = None # some sites include all the image urls in one page, if so this RE matches all the image urls
     AIO_IMAGES_XPATH = None # xpath alternative to AIO_IMAGES_RE, same functionality.
     AIO_REFINEMENT_RE = re.compile(r'(.*)') # refine the results from AIO_IMAGES_XPATH (or _RE)
+    AIO_SPLIT_RE = None # re to split the results from AIO_IMAGES_XPATH (or _RE), (using .findall(), if needed)
     IGNORE_BASE_PATH = False # VERY dangerous, if set true you could download an entire series instead of just 1 chapter.
     # these 2 are used for sites with iterative page numbers, we can get a list of all pages of a chapter without jumping from one to the next.
     # this is currently only used for animeA so look there for more details.
@@ -266,6 +267,7 @@ class SeriesParser(object):
     IMAGE_URL_RE = None # Fallback for IMAGE_URL_XPATH if hidden in js
     NEXT_URL_RE = None # Fallback for NEXT_URL_XPATH if hidden in js
     USE_CFSCRAPE = True # Will use the cfscrape session instead of requests.session
+    IMAGE_BASE_URL = SITE_URL # Used when images are relative URLs, will be set to SITE_URL by default.
 
     # will be used if site REQUIRES_CREDENTIALS, use class vars so we can set before creating an instance.
     USERNAME = None 
@@ -293,6 +295,8 @@ class SeriesParser(object):
         #note if this returns False you cannot use this object.
         self.VALID=True # is set to false if the given url doesnt match the sites url
         self.TITLE = None
+        if not self.IMAGE_BASE_URL:
+            self.IMAGE_BASE_URL = self.SITE_URL
         pieces = urllib.parse.urlsplit(url)
         querydict = urllib.parse.parse_qs(pieces.query)
         if self.SKIP_MATURE:
@@ -439,7 +443,12 @@ class SeriesParser(object):
         if self.AIO_IMAGES_RE:
             html = self.SESSION.get(url, timeout = REQUEST_TIMEOUT).text
             all_images=re.compile(self.AIO_IMAGES_RE)
-            images = [c if (c.startswith('http://') or not fix_urls) else urllib.parse.urljoin(self.SITE_URL,c) for c in [c.replace('\\','') for c in all_images.findall(html)]]
+            images = [c.replace('\\','') for c in all_images.findall(html)]
+            # split & refine results if needed
+            if self.AIO_SPLIT_RE:
+                images = self.AIO_SPLIT_RE.findall(images[-1])
+            images = [self.AIO_REFINEMENT_RE.search(img).groups()[-1] for img in images]
+            images = [c if (c.startswith('http://') or not fix_urls) else urllib.parse.urljoin(self.IMAGE_BASE_URL,c) for c in images]
             if not len(images):
                 e = ParserError('No Images found for chapter %s'%number)
                 e.display = 'No Images found for chapter %s'%number
@@ -449,8 +458,11 @@ class SeriesParser(object):
             html = self.SESSION.get(url, timeout = REQUEST_TIMEOUT).text
             etree = lxmlhtml.fromstring(html)
             images = etree.xpath(self.AIO_IMAGES_XPATH)
-            # refine results if needed
+            # split & refine results if needed
+            if self.AIO_SPLIT_RE:
+                images = self.AIO_SPLIT_RE.findall(images[-1])
             images = [self.AIO_REFINEMENT_RE.search(img).groups()[-1] for img in images]
+            images = [c if (c.startswith('http://') or not fix_urls) else urllib.parse.urljoin(self.IMAGE_BASE_URL,c) for c in images]
             if not len(images):
                 e = ParserError('No Images found for chapter %s'%number)
                 e.display = 'No Images found for chapter %s'%number
@@ -492,7 +504,7 @@ class SeriesParser(object):
                 raise e
             # do some small url repairs
             if fix_urls:
-                repair = urllib.parse.urlsplit(self.SITE_URL)
+                repair = urllib.parse.urlsplit(self.IMAGE_BASE_URL)
                 img_url = urllib.parse.urlsplit(pictureurl)
                 pictureurl = urllib.parse.urlunsplit([repair[i] if i<2 and not img_url[i] else img_url[i] for i in range(len(img_url))])
             if pictureurl in images: #prevents loops
@@ -614,8 +626,8 @@ class MangaDex(SeriesParser):
     # copied from mangarock, similar in that both have json api.
     def _verify(self,url):
         pieces = urllib.parse.urlsplit(url)
-        series_id = pieces[2].split('/')[2]
-        query = self.SITE_URL.strip('/')+'/api/manga/{}'.format(series_id)
+        self.md_series_id = pieces[2].split('/')[2]
+        query = self.API_URL.strip('/')+'/manga/{}'.format(self.md_series_id)
         r=self.SESSION.get(query, timeout = REQUEST_TIMEOUT)
         r.raise_for_status()
         self.JSON = r.json()
@@ -628,7 +640,7 @@ class MangaDex(SeriesParser):
         #returns the title of the series
         if self.TITLE:
             return self.TITLE
-        title = unescape(self.JSON['manga']['title'])
+        title = unescape(self.JSON['data']['title'])
         split = title.split()
         for i in range(len(split)):
             if split[i].isupper() or i==0:
@@ -637,12 +649,16 @@ class MangaDex(SeriesParser):
         self.TITLE = self.AUTHOR_RE.sub(r'',ret)
         return self.TITLE
     def is_complete(self):
-        return self.JSON['manga']['status']==2
+        return self.JSON['data']['publication']['status']==2
     def get_chapters(self):
         #returns a list of all chapters, where each entry is a tuple (number,url)
         volumes = {}
-        for k,v in self.JSON['chapter'].items():
-            if v['lang_code'] in ['en','gb']:
+        query = self.API_URL.strip('/')+'/manga/{}/chapters'.format(self.md_series_id)
+        r=self.SESSION.get(query, timeout = REQUEST_TIMEOUT)
+        r.raise_for_status()
+        self.CHAPTERS_JSON = r.json()
+        for v in self.CHAPTERS_JSON['data']['chapters']:
+            if v['language'] in ['en','gb']:
                 # eng chapter, add it.
                 try:
                     thisvol = int(v['volume'])
@@ -652,7 +668,7 @@ class MangaDex(SeriesParser):
                     thisch = float(v['chapter'])
                 except:
                     thisch = 0.0
-                volumes.setdefault(thisvol,{})[thisch]=k
+                volumes.setdefault(thisvol,{})[thisch]=v['id']
 
         nums = []
         urls = []
@@ -687,7 +703,7 @@ class MangaDex(SeriesParser):
         except AttributeError:
             pass
         number,cid = chapter
-        query = self.SITE_URL.strip('/')+'/api/chapter/{}'.format(cid)
+        query = self.API_URL.strip('/')+'/chapter/{}'.format(cid)
         r= self.SESSION.get(query, timeout = REQUEST_TIMEOUT)
         delayed = 0
         try:
@@ -702,11 +718,11 @@ class MangaDex(SeriesParser):
         chjs = r.json()
         
         if chjs['status']=='OK':
-            chash = chjs['hash']
-            cserver = chjs['server']
+            chash = chjs['data']['hash']
+            cserver = chjs['data']['server']
             if cserver.strip('/')=='data':
-                return [self.SITE_URL.strip('/')+'/data/{}/{}'.format(chash,img) for img in chjs['page_array']]
-            return ['/'.join([s.strip('/') for s in (cserver,chash,img)]) for img in chjs['page_array']]
+                return [self.SITE_URL.strip('/')+'/data/{}/{}'.format(chash,img) for img in chjs['data']['pages']]
+            return ['/'.join([s.strip('/') for s in (cserver,chash,img)]) for img in chjs['data']['pages']]
         else:
             e = ParserError('Json query failed on %s, chapter:%s'%(self.get_title(),number))
             e.display="Failed querying images for Ch.%s"%number
@@ -1275,6 +1291,23 @@ class VizWSJ(SeriesParser):
                     pass
                 else:
                     raise
+################################################################################
+class Batoto(SeriesParser):
+    def get_images(self,chapter,delay=(0,0),fix_urls = True):
+        self.IMAGE_BASE_URL = '' # use JS here to get base url
+        number,url = chapter
+        html = self.SESSION.get(url, timeout = REQUEST_TIMEOUT).text
+        time.sleep(random.uniform(*self.IMAGE_DELAY))
+        key = self.BATO_KEY_RE.search(html).group(1)
+        server = self.BATO_SERVER_RE.search(html).group(1)
+        sinfo = subprocess.STARTUPINFO()
+        sinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        bytes = subprocess.check_output([resource_path('node.exe'),resource_path('crypt\\aes.js'),server,key], stdin=subprocess.PIPE, stderr=subprocess.PIPE, startupinfo=sinfo)
+        self.IMAGE_BASE_URL = bytes.decode('utf8').strip().strip('"')
+        return super().get_images(chapter,delay=(0,0),fix_urls = True)
+################################################################################
+class MangaWindow(Batoto):
+    pass
 ################################################################################
 def update_parsers(currentversion,targethash):
     currentversion=float(currentversion)

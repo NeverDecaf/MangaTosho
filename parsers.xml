@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <sites>
 	<info>
-		<version>2.14</version>
+		<version>2.15</version>
 	</info>
 	<site name="MangaDex">
 		<!-- essential args. you will need most of these. -->
@@ -9,6 +9,7 @@
 		<abbr>DX</abbr> <!-- 2 letter abbreviation of the site's name. -->
 		<site_parser_re>https?://(?:www\.)?mangadex.(org|cc)/(title|manga)/\d*</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
 		<image_referer>https://mangadex.org</image_referer> <!-- If images are hosted on an external site you may need to override the referer header. -->
+		<api_url>https://api.mangadex.org/v2/</api_url> <!-- for sites that have a public api -->
 	</site>
 	<site name="MangaSee">
 		<!-- essential args. must supply all of these -->
@@ -157,17 +158,34 @@
 		<aio_images_xpath>//div[@class='container-chapter-reader']/img/@src</aio_images_xpath> <!-- xpath to match all image urls if the site includes them all on one page. -->
 		<image_referer>https://manganelo.com/</image_referer> <!-- If images are hosted on an external site you may need to override the referer header. -->
 	</site>
-	<site name="MangaWindow">
+	<site name="Batoto">
 		<!-- essential args. you will need most of these. -->
+		<site_url>https://bato.to/</site_url> <!-- url of the main website -->
+		<abbr>BT</abbr> <!-- 2 letter abbreviation of the site's name. -->
+		<site_parser_re>https?://(?:www\.)?bato\.to/series/\d+#?</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
+		<title_xpath>substring(//h3[@class='item-title']/a/text(),1)</title_xpath> <!-- xpath that matches the series' title -->
+		<chapter_nums_xpath>//div[@class='main']//a/b/text()</chapter_nums_xpath> <!-- xpath that matches all chapter numbers on the main series page -->
+		<chapter_urls_xpath>//div[@class='main']//a[contains(@class,'chapt')]/@href</chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
+		<is_complete_xpath>//div[@class='attr-item']/span[text()='Completed']</is_complete_xpath> <!-- xpath that matches if the series has been marked "Complete" -->
+		<!-- optional args, delete these if not applicable. -->
+		<aio_images_re><![CDATA[\simages\s*=\s*(\[.+\]);]]></aio_images_re> <!-- regex to match all image urls if the site includes them all on one page. -->
+		<bato_key_re>\w batojs\s*=\s*(.+);</bato_key_re>
+		<bato_server_re>\w server\s*=\s*"(.+)";</bato_server_re>
+		<aio_split_re>"([^"]+)"</aio_split_re>
+	</site>
+	<site name="MangaWindow">
+		<!-- Exact copy of batoto, as it just redirects there. -->
 		<site_url>https://mangawindow.net/</site_url> <!-- url of the main website -->
 		<abbr>MW</abbr> <!-- 2 letter abbreviation of the site's name. -->
 		<site_parser_re>https?://(?:www\.)?mangawindow.(net|com)/series/\d+#?</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
 		<title_xpath>substring(//h3[@class='item-title']/a/text(),1)</title_xpath> <!-- xpath that matches the series' title -->
 		<chapter_nums_xpath>//div[@class='main']//a/b/text()</chapter_nums_xpath> <!-- xpath that matches all chapter numbers on the main series page -->
-		<chapter_urls_xpath>//div[@class='main']//a[@class='chapt']/@href</chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
+		<chapter_urls_xpath>//div[@class='main']//a[contains(@class,'chapt')]/@href</chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
 		<is_complete_xpath>//div[@class='attr-item']/span[text()='Completed']</is_complete_xpath> <!-- xpath that matches if the series has been marked "Complete" -->
 		<!-- optional args, delete these if not applicable. -->
-		<aio_images_re><![CDATA["\d*":"(http[^"]*)]]></aio_images_re> <!-- regex to match all image urls if the site includes them all on one page. -->
+		<aio_images_re><![CDATA["(\/\d*\/images\/[^"]+)"]]></aio_images_re> <!-- regex to match all image urls if the site includes them all on one page. -->
+		<bato_key_re>\w batojs\s*=\s*(.+);</bato_key_re>
+		<bato_server_re>\w server\s*=\s*"(.+)";</bato_server_re>
 	</site>
 	<site name="SadPanda">
 		<!-- essential args. you will need most of these. -->
@@ -259,6 +277,7 @@
 		<author_re></author_re> <!-- regex to remove author name from a series title for more uniform and clean series names. -->
 		<aio_images_re></aio_images_re> <!-- regex to match all image urls if the site includes them all on one page. -->
 		<aio_images_xpath></aio_images_xpath> <!-- xpath to match all image urls if the site includes them all on one page. -->
+		<aio_split_re></aio_split_re> <!-- split the results of aio_images, this is done before the refinement_re is applied -->
 		<aio_refinement_re></aio_refinement_re> <!-- regex to refine results of aio_images_xpath (or re) -->
 		<licensed_error_codes></licensed_error_codes> <!-- some sites use error 403 to indicate a licensed series, this will also accept CSV -->
 		<!-- rarely used and site specific settings below here -->
@@ -268,7 +287,7 @@
 		<mangadex_dataurl_re></mangadex_dataurl_re>
 		<mangadex_page_array_re></mangadex_page_array_re>
 		<mangarock_query_version></mangarock_query_version> <!-- used for json query uri -->
-		<mangarock_api_domain></mangarock_api_domain> <!-- in case mr changes domains -->
+		<api_url></api_url> <!-- for sites that have a public api -->
 		<ignore_base_path>False</ignore_base_path> <!-- VERY DANGEROUS. Only use if pages of a series don't share the same base url, wrongly setting this to True can cause you to dl and entire series (or multiple) instead of 1 chapter so be careful -->
 		<image_referer></image_referer> <!-- If images are hosted on an external site you may need to override the referer header. -->
 		<image_delay></image_delay> <!-- Time (in seconds) between image fetches, may be needed to prevent rate limit. This is a range separated by ",", for example: 2,5. -->
@@ -278,6 +297,8 @@
 		<page_template_re></page_template_re>
 		<all_pages_re></all_pages_re>
 		<custom_cookie_1></custom_cookie_1><!-- Add any number of custom cookies, must start with prefix custom_cookie_ check session.cookies.set for syntax (csv) -->
+		<bato_key_re>\w batojs\s*=\s*(.+);</bato_key_re>
+		<bato_server_re>\w server\s*=\s*"(.+)";</bato_server_re>
 	</site>
 	<domain_changes>
 	<conversion>MS,mangastream.cc,mangastream.today,%mangastream.cc%</conversion>

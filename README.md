@@ -30,6 +30,7 @@ Closing the main window will simply minimize it to tray. Double-click the icon t
 - MangaStream
 - MangaKakalot
 - MangaNelo
+- Batoto
 - MangaWindow
 - SadPanda
 - HeavenToon
