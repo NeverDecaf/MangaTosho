@@ -71,6 +71,10 @@ class SQLManager():
             c.execute('''ALTER TABLE series ADD COLUMN last_update_attempt number DEFAULT 0''')
         except sqlite3.OperationalError:
             pass # col exists
+        try:
+            c.execute('''ALTER TABLE series ADD COLUMN data1 text DEFAULT NULL''')
+        except sqlite3.OperationalError:
+            pass # col exists
         for col in ('global_threadsmax int DEFAULT {}'.format(MAX_UPDATE_THREADS),
                     'site_threadsmax int DEFAULT {}'.format(MAX_SIMULTANEOUS_UPDATES_PER_SITE),
                     'start_hidden int DEFAULT 0',

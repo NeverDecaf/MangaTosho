@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <sites>
 	<info>
-		<version>2.15</version>
+		<version>2.16</version>
 	</info>
 	<site name="MangaDex">
 		<!-- essential args. you will need most of these. -->
@@ -9,7 +9,7 @@
 		<abbr>DX</abbr> <!-- 2 letter abbreviation of the site's name. -->
 		<site_parser_re>https?://(?:www\.)?mangadex.(org|cc)/(title|manga)/\d*</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
 		<image_referer>https://mangadex.org</image_referer> <!-- If images are hosted on an external site you may need to override the referer header. -->
-		<api_url>https://api.mangadex.org/v2/</api_url> <!-- for sites that have a public api -->
+		<api_url>https://api.mangadex.org/</api_url> <!-- for sites that have a public api -->
 	</site>
 	<site name="MangaSee">
 		<!-- essential args. must supply all of these -->

@@ -40,7 +40,7 @@ RIP_ICON_PATH = resource_path('rip.png')
 
 # from mangasql
 TABLE_COLUMNS = ['Url', 'Title', 'Read', 'Chapters', 'Unread', 'Site', 'Complete', 'UpdateTime',
-                 'Error', 'SuccessTime', 'Error Message', 'Rating', 'LastUpdateAttempt']
+                 'Error', 'SuccessTime', 'Error Message', 'Rating', 'LastUpdateAttempt', 'data1']
 LOGGING=False # If true, will log individual series errors to Series_Errors.log
 MIN_UPDATE_FREQ = 60*60*4 #4 hrs, this is per series.
 MAX_UPDATE_FREQ = 60*60*24 #24 hrs, this is per series.
@@ -51,4 +51,4 @@ if os.path.exists(storage_path('DEBUG_TEST')):
 REQUEST_TIMEOUT = 60
 ALLOWED_IMAGE_ERRORS_PER_CHAPTER = 0 # Image errors means missing images, probably will always keep this at 0.
 CHAPTER_DELAY=(3,5) # seconds between chapters, to keep from getting banned.
-PARSER_VERSION = 2.15 # update if parsers.py changes in a way that is incompatible with older parsers.xml
+PARSER_VERSION = 2.16 # update if parsers.py changes in a way that is incompatible with older parsers.xml

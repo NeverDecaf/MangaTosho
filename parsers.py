@@ -627,11 +627,27 @@ class MangaDex(SeriesParser):
     def _verify(self,url):
         pieces = urllib.parse.urlsplit(url)
         self.md_series_id = pieces[2].split('/')[2]
+        try:
+            int(self.md_series_id)
+            #legacy id, fetch uuid with post
+            query = self.API_URL.strip('/')+'/legacy/mapping'
+            data = {'type':'manga', 'ids':[int(self.md_series_id)]}
+            r=self.SESSION.post(query, timeout = REQUEST_TIMEOUT, json = data)
+            r.raise_for_status()
+            jsresp = r.json()
+            if jsresp[0]['result'] == 'ok':
+                self.md_series_id = jsresp[0]['data']['attributes']['newId']
+            else:
+                self.VALID = False
+                return r
+        except ValueError:
+            pass
+            
         query = self.API_URL.strip('/')+'/manga/{}'.format(self.md_series_id)
         r=self.SESSION.get(query, timeout = REQUEST_TIMEOUT)
         r.raise_for_status()
         self.JSON = r.json()
-        if self.JSON['status']!='OK':
+        if self.JSON['result'].lower()!='ok':
             self.VALID=False
         elif not self.get_title():
 	        self.VALID=False
@@ -640,7 +656,7 @@ class MangaDex(SeriesParser):
         #returns the title of the series
         if self.TITLE:
             return self.TITLE
-        title = unescape(self.JSON['data']['title'])
+        title = unescape(self.JSON['data']['attributes']['title']['en'])
         split = title.split()
         for i in range(len(split)):
             if split[i].isupper() or i==0:
@@ -649,27 +665,39 @@ class MangaDex(SeriesParser):
         self.TITLE = self.AUTHOR_RE.sub(r'',ret)
         return self.TITLE
     def is_complete(self):
-        return self.JSON['data']['publication']['status']==2
+        return self.JSON['data']['attributes']['status'].lower()=='completed'
     def get_chapters(self):
         #returns a list of all chapters, where each entry is a tuple (number,url)
         volumes = {}
-        query = self.API_URL.strip('/')+'/manga/{}/chapters'.format(self.md_series_id)
-        r=self.SESSION.get(query, timeout = REQUEST_TIMEOUT)
-        r.raise_for_status()
-        self.CHAPTERS_JSON = r.json()
-        for v in self.CHAPTERS_JSON['data']['chapters']:
-            if v['language'] in ['en','gb']:
-                # eng chapter, add it.
-                try:
-                    thisvol = int(v['volume'])
-                except:
-                    thisvol = 99999
-                try:
-                    thisch = float(v['chapter'])
-                except:
-                    thisch = 0.0
-                volumes.setdefault(thisvol,{})[thisch]=v['id']
-
+        query = self.API_URL.strip('/')+'/manga/{}/feed'.format(self.md_series_id)
+        data = {'locales[]':['gb','en'], 'limit':500}
+        self.CHAPTER_DATA = {}
+        while 1:
+            r=self.SESSION.get(query, timeout = REQUEST_TIMEOUT, params=data)
+            r.raise_for_status()
+            res = r.json()
+            
+            for v in res['results']:
+                if v['result'].lower() == 'ok':
+                    try:
+                        thisvol = int(v['data']['attributes']['volume'])
+                    except:
+                        thisvol = 99999
+                    try:
+                        thisch = float(v['data']['attributes']['chapter'])
+                    except:
+                        thisch = 0.0
+                    volumes.setdefault(thisvol,{})[thisch]=v['data']['id']
+                    self.CHAPTER_DATA[v['data']['id']] = {
+                        'hash': v['data']['attributes']['hash'],
+                        'data': v['data']['attributes']['data']
+                    }
+            if res['offset'] + res['limit'] < res['total']:
+                # still more results.
+                data['offset'] = res['limit'] + res['offset']
+                time.sleep(1)
+            else:
+                break
         nums = []
         urls = []
         vol_base = 0
@@ -703,30 +731,18 @@ class MangaDex(SeriesParser):
         except AttributeError:
             pass
         number,cid = chapter
-        query = self.API_URL.strip('/')+'/chapter/{}'.format(cid)
-        r= self.SESSION.get(query, timeout = REQUEST_TIMEOUT)
-        delayed = 0
-        try:
-            r.raise_for_status()
-        except requests.exceptions.HTTPError as e:
-            if e.response.status_code==409:
-                ex = DelayedError()
-                ex.display='Chapter {} delayed.'.format(number)
-                raise ex
-            raise e
-            
-        chjs = r.json()
         
-        if chjs['status']=='OK':
-            chash = chjs['data']['hash']
-            cserver = chjs['data']['server']
-            if cserver.strip('/')=='data':
-                return [self.SITE_URL.strip('/')+'/data/{}/{}'.format(chash,img) for img in chjs['data']['pages']]
-            return ['/'.join([s.strip('/') for s in (cserver,chash,img)]) for img in chjs['data']['pages']]
-        else:
-            e = ParserError('Json query failed on %s, chapter:%s'%(self.get_title(),number))
-            e.display="Failed querying images for Ch.%s"%number
-            raise e
+        # used cached data in self.CHAPTER_DATA
+        # https://api.mangadex.org/docs.html#section/Chapter-pages-processing/Pages-processing 
+        r = self.SESSION.get(self.API_URL.strip('/')+'/at-home/server/{}'.format(cid))
+        r.raise_for_status()
+        server_node = r.json()['baseUrl']
+        hash = self.CHAPTER_DATA[cid]['hash']
+        urls = []
+        for chdata in self.CHAPTER_DATA[cid]['data']:
+            urls.append(f"{server_node}/data/{hash}/{chdata}")
+        return urls
+
 ################################################################################
 class MangaRock(SeriesParser):
     def _verify(self,url):
