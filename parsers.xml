@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <sites>
 	<info>
-		<version>2.16</version>
+		<version>2.17</version>
 	</info>
 	<site name="MangaDex">
 		<!-- essential args. you will need most of these. -->
@@ -73,21 +73,6 @@
 		<chapter_nums_re>Chapter (\d+\.?\d*)(?:v\d+)?</chapter_nums_re> <!-- regex used to further refine the results of chapter_nums_xpath, default is typically fine. -->
 		<reverse>False</reverse> <!-- True if chapters are listed in reverse numerical order (latest chapter first) -->
 		<aio_images_re><![CDATA[(?<="image":")[^"]*]]></aio_images_re> <!-- regex to match all image urls if the site includes them all on one page. -->
-	</site>
-	<!-- NO LONGER TRUE, MANGAREADER SEEMS TO HAVE DIVERGED this is an exact copy of MangaPanda, update as you update mangapanda -->
-	<site name="MangaReader">
-		<!-- essential args. must supply all of these -->
-		<site_url>http://www.mangareader.net/</site_url> <!-- url of the main website -->
-		<abbr>MR</abbr> <!-- 2 letter abbreviation of the site's name. -->
-		<site_parser_re>https?://(?:www\.)?mangareader.net/.*</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
-		<title_xpath>substring(//span[@class='name']/text(),1)</title_xpath> <!-- xpath that matches the series' title -->
-		<chapter_nums_xpath>//table[@class='d48']//a/text()</chapter_nums_xpath> <!-- xpath that matches all chapter numbers on the main series page -->
-		<chapter_urls_xpath>//table[@class='d48']//a/@href</chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
-		<aio_images_re><![CDATA[,"u":"([^"]*)]]></aio_images_re> <!-- regex to match all image urls if the site includes them all on one page. -->
-		<!-- optional args, delete these if not applicable. -->
-		<is_complete_xpath>//tr[td[text()='Status :']]/td[text()='Completed']</is_complete_xpath> <!-- xpath that matches if the series has been marked "Complete" -->
-		<reverse>False</reverse> <!-- True if chapters are listed in reverse numerical order (latest chapter first) -->
-		<licensed_error_codes>403</licensed_error_codes> <!-- some sites use error 403 to indicate a licensed series, this will also accept CSV -->
 	</site>
 	<!-- NO LONGER TRUE, MANGAREADER SEEMS TO HAVE DIVERGED this is an exact copy of MangaReader, update as you update mangareader -->
 	<site name="MangaPanda">

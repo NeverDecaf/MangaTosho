@@ -1219,7 +1219,7 @@ class VizWSJ(SeriesParser):
         # this method is called handlePageData() and is located in https://assets.viz.com/assets/manifest-viz-reader-fcf31f6106dd741d679ce298d8b1481d7687ce26f7e1909e67284002ef7f670b.js
         def _cropWH(img,bbox):
             return img.crop((bbox[0], bbox[1], bbox[0]+bbox[2], bbox[1]+bbox[3]))
-        exif = img.getexif()
+        exif = img._getexif()
         WHITE = (255,)*len(img.getbands()) # fill result image with white
         res = Image.new(img.mode,(exif[256],exif[257]),WHITE)
         f = exif[42016] # ImageUniqueID
