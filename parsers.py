@@ -670,7 +670,7 @@ class MangaDex(SeriesParser):
         #returns a list of all chapters, where each entry is a tuple (number,url)
         volumes = {}
         query = self.API_URL.strip('/')+'/manga/{}/feed'.format(self.md_series_id)
-        data = {'locales[]':['gb','en'], 'limit':500}
+        data = {'translatedLanguage[]':['gb','en'], 'limit':500}
         self.CHAPTER_DATA = {}
         while 1:
             r=self.SESSION.get(query, timeout = REQUEST_TIMEOUT, params=data)
