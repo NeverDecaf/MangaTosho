@@ -637,6 +637,7 @@ class MangaDex(SeriesParser):
             jsresp = r.json()
             if jsresp[0]['result'] == 'ok':
                 self.md_series_id = jsresp[0]['data']['attributes']['newId']
+                time.sleep(1)
             else:
                 self.VALID = False
                 return r
@@ -651,6 +652,8 @@ class MangaDex(SeriesParser):
             self.VALID=False
         elif not self.get_title():
 	        self.VALID=False
+        if self.VALID:
+            time.sleep(1)
         return r
     def get_title(self):
         #returns the title of the series
@@ -692,10 +695,10 @@ class MangaDex(SeriesParser):
                         'hash': v['data']['attributes']['hash'],
                         'data': v['data']['attributes']['data']
                     }
+            time.sleep(1)
             if res['offset'] + res['limit'] < res['total']:
                 # still more results.
                 data['offset'] = res['limit'] + res['offset']
-                time.sleep(1)
             else:
                 break
         nums = []
