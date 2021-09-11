@@ -13,9 +13,9 @@
 	</site>
 	<site name="MangaSee">
 		<!-- essential args. must supply all of these -->
-		<site_url>http://mangaseeonline.us</site_url> <!-- url of the main website -->
+		<site_url>http://mangasee123.com</site_url> <!-- url of the main website -->
 		<abbr>SE</abbr> <!-- 2 letter abbreviation of the site's name. -->
-		<site_parser_re>https?://(?:www\.)?mangaseeonline.us/manga/.*</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
+		<site_parser_re>https?://(?:www\.)?mangasee123.com/manga/.*</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
 		<title_xpath>substring(//h1[@class='SeriesName']/text(),1)</title_xpath> <!-- xpath that matches the series' title -->
 		<chapter_nums_xpath>//a/@chapter</chapter_nums_xpath> <!-- xpath that matches all chapter numbers on the main series page -->
 		<chapter_urls_xpath>//a[@chapter]/@href</chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
@@ -131,9 +131,9 @@
 	</site>
 	<site name="MangaNelo">
 		<!-- This is a copy of MangaKakalot, not sure if they are moving to a new site or not. -->
-		<site_url>https://manganelo.com/</site_url> <!-- url of the main website -->
+		<site_url>https://manganelo.tv/</site_url> <!-- url of the main website -->
 		<abbr>MN</abbr> <!-- 2 letter abbreviation of the site's name. -->
-		<site_parser_re>https?://(?:www\.)?manganelo.com/manga/.+</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
+		<site_parser_re>https?://(?:ww3\.)?manganelo.tv/manga/.+</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
 		<title_xpath>substring(//h1/text(),1)</title_xpath> <!-- xpath that matches the series' title -->
 		<chapter_nums_xpath>//ul[@class='row-content-chapter']/li/a/@title</chapter_nums_xpath> <!-- xpath that matches all chapter numbers on the main series page -->
 		<chapter_urls_xpath>//ul[@class='row-content-chapter']/li/a/@href</chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
@@ -141,7 +141,7 @@
 		<!-- optional args, delete these if not applicable. -->
 		<chapter_nums_re><![CDATA[chapter (\d+\.?\d*)(?:v\d+)?]]></chapter_nums_re> <!-- regex used to further refine the results of chapter_nums_xpath, default is typically fine. -->
 		<aio_images_xpath>//div[@class='container-chapter-reader']/img/@src</aio_images_xpath> <!-- xpath to match all image urls if the site includes them all on one page. -->
-		<image_referer>https://manganelo.com/</image_referer> <!-- If images are hosted on an external site you may need to override the referer header. -->
+		<image_referer>https://manganelo.tv/</image_referer> <!-- If images are hosted on an external site you may need to override the referer header. -->
 	</site>
 	<site name="Batoto">
 		<!-- essential args. you will need most of these. -->
@@ -302,6 +302,8 @@
 	<domain_changes>
 	<conversion>MS,mangastream.cc,mangastream.today,%mangastream.cc%</conversion>
 	<conversion>DX,mangadex.cc,mangadex.org,%mangadex.cc%</conversion>
+	<conversion>MN,manganelo.com,manganelo.tv,%manganelo.com%</conversion>
+	<conversion>SE,mangaseeonline.us,mangasee123.com,%mangaseeonline.us%</conversion>
 	<!-- This is a csv with 4 values:
 	1. site ABBR (this is unique)
 	2. old substring to be replaced
