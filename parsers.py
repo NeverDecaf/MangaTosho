@@ -28,6 +28,7 @@ from constants import *
 import subprocess
 from mloader import loader
 from itertools import chain
+from ast import literal_eval
 # add the cacert.pem file to the path correctly even if compiled with pyinstaller:
 # we should only do this if this is running as an executable.
 try:
@@ -443,12 +444,15 @@ class SeriesParser(object):
         if self.AIO_IMAGES_RE:
             html = self.SESSION.get(url, timeout = REQUEST_TIMEOUT).text
             all_images=re.compile(self.AIO_IMAGES_RE)
-            images = [c.replace('\\','') for c in all_images.findall(html)]
+            # https://stackoverflow.com/questions/50200370/fix-a-unicode-string-broken-by-some-escaped-backslashes
+            # fix escaped characters:
+            # images = [repr(c).replace('\\\\','\\').strip("'").encode().decode('unicode-escape') for c in all_images.findall(html)]
+            images = [literal_eval(repr(c).replace('\\\\','\\')) for c in all_images.findall(html)]
             # split & refine results if needed
             if self.AIO_SPLIT_RE:
                 images = self.AIO_SPLIT_RE.findall(images[-1])
             images = [self.AIO_REFINEMENT_RE.search(img).groups()[-1] for img in images]
-            images = [c if (c.startswith('http://') or not fix_urls) else urllib.parse.urljoin(self.IMAGE_BASE_URL,c) for c in images]
+            images = [c if (c.startswith(('http://','https://')) or not fix_urls) else urllib.parse.urljoin(self.IMAGE_BASE_URL,c) for c in images]
             if not len(images):
                 e = ParserError('No Images found for chapter %s'%number)
                 e.display = 'No Images found for chapter %s'%number
@@ -462,7 +466,7 @@ class SeriesParser(object):
             if self.AIO_SPLIT_RE:
                 images = self.AIO_SPLIT_RE.findall(images[-1])
             images = [self.AIO_REFINEMENT_RE.search(img).groups()[-1] for img in images]
-            images = [c if (c.startswith('http://') or not fix_urls) else urllib.parse.urljoin(self.IMAGE_BASE_URL,c) for c in images]
+            images = [c if (c.startswith(('http://','https://')) or not fix_urls) else urllib.parse.urljoin(self.IMAGE_BASE_URL,c) for c in images]
             if not len(images):
                 e = ParserError('No Images found for chapter %s'%number)
                 e.display = 'No Images found for chapter %s'%number

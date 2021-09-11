@@ -36,6 +36,7 @@ Closing the main window will simply minimize it to tray. Double-click the icon t
 - MangaSushi
 - MangaPlus
 - VizWSJ
+- MangaMutiny
 
 ###### Known Bugs
 * Dynasty series with no chapter numbers will fail.

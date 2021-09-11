@@ -234,11 +234,25 @@
 		<viz_pages_re>pages[ ]*=[ ]*(\d+);</viz_pages_re><!-- used exclusively for viz.com -->
 		<viz_cookie_url>https://www.viz.com/account/refresh_login_links</viz_cookie_url><!-- used exclusively for viz.com -->
 	</site>
+	<site name="MangaMutiny">
+		<!-- essential args. you will need most of these. -->
+		<site_url>https://mangamutiny.org/</site_url> <!-- url of the main website -->
+		<abbr>MM</abbr> <!-- 2 letter abbreviation of the site's name. -->
+		<site_parser_re>https?://(?:www\.)?mangamutiny\.org/title/.+</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
+		<title_xpath>substring(//meta[@name="title"]/@content,1,string-length(//meta[@name="title"]/@content) - 14)</title_xpath> <!-- xpath that matches the series' title -->
+		<chapter_nums_xpath>//main[contains(@class,"overflow-y-auto")]/a/span[1]/text()</chapter_nums_xpath> <!-- xpath that matches all chapter numbers on the main series page -->
+		<chapter_urls_xpath>//main[contains(@class,"overflow-y-auto")]/a/@href</chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
+		<is_complete_xpath>//p[contains(@class,'capitalize') and contains(text(),'completed')]</is_complete_xpath> <!-- xpath that matches if the series has been marked "Complete" -->
+		<!-- optional args, delete these if not applicable. -->
+		<chapter_nums_re><![CDATA[Chapter (\d+\.?\d*)]]></chapter_nums_re> <!-- regex used to further refine the results of chapter_nums_xpath, default is typically fine. -->
+		<aio_images_re><![CDATA[images:\[([^\]]*)]]></aio_images_re> <!-- regex to match all image urls if the site includes them all on one page. -->
+		<aio_split_re><![CDATA["([^"][^"]+)]]></aio_split_re> <!-- split the results of aio_images, this is done before the refinement_re is applied -->
+	</site>
 	<!-- Copy this template and use it to add a new site.
 	Fields left blank will fall back to their default values, which are fine for most sites.
 	Make sure your title, next_url, and image_url xpaths return a string. (use substring(xpath,1))
 	ABBR must be unique even among deprecated sites, here is a list of all that are in use:
-	AA BT DS DX HT KM KS MH MK MN MP MR MS MW PA PL RO SE SU SP
+	AA BT DS DX HT KM KS MH MK MM MN MP MR MS MW PA PL RO SE SU SP
 	-->
 	<site name="TemplateSite">
 		<!-- essential args. you will need most of these. -->
