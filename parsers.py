@@ -639,8 +639,8 @@ class MangaDex(SeriesParser):
             r=self.SESSION.post(query, timeout = REQUEST_TIMEOUT, json = data)
             r.raise_for_status()
             jsresp = r.json()
-            if jsresp[0]['result'] == 'ok':
-                self.md_series_id = jsresp[0]['data']['attributes']['newId']
+            if jsresp['result'] == 'ok':
+                self.md_series_id = jsresp['data'][0]['attributes']['newId']
                 time.sleep(1)
             else:
                 self.VALID = False
@@ -683,21 +683,23 @@ class MangaDex(SeriesParser):
             r=self.SESSION.get(query, timeout = REQUEST_TIMEOUT, params=data)
             r.raise_for_status()
             res = r.json()
-            
-            for v in res['results']:
-                if v['result'].lower() == 'ok':
+            # print('results:',res)
+            if res['result'].lower() == 'ok':
+                for v in res['data']:
+            # for v in res['results']:
+                # if v['result'].lower() == 'ok':
                     try:
-                        thisvol = int(v['data']['attributes']['volume'])
+                        thisvol = int(v['attributes']['volume'])
                     except:
                         thisvol = 99999
                     try:
-                        thisch = float(v['data']['attributes']['chapter'])
+                        thisch = float(v['attributes']['chapter'])
                     except:
                         thisch = 0.0
-                    volumes.setdefault(thisvol,{})[thisch]=v['data']['id']
-                    self.CHAPTER_DATA[v['data']['id']] = {
-                        'hash': v['data']['attributes']['hash'],
-                        'data': v['data']['attributes']['data']
+                    volumes.setdefault(thisvol,{})[thisch]=v['id']
+                    self.CHAPTER_DATA[v['id']] = {
+                        'hash': v['attributes']['hash'],
+                        'data': v['attributes']['data']
                     }
             time.sleep(1)
             if res['offset'] + res['limit'] < res['total']:
