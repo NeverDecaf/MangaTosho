@@ -94,7 +94,7 @@ class ParserFetch:
     def get_req_credentials_sites(self):
         return self.parsers_req_creds
     
-    def __init__(self, credentials = {}):
+    def __init__(self, credentials = {}, user_settings = {}):
         self.matchers=[]
         self.parsers_req_creds=set()
         self.version_uptodate = 0
@@ -105,7 +105,12 @@ class ParserFetch:
             'ignore all exceptions to avoid a program-ending failure. should log them somewhere though.'
         self._generate_parsers()
         self.parsers = set(self.WORKING_SITES)#[globals()[cname] for cname in self.WORKING_SITES]
+        proxy = None
+        if 'use_proxy' in user_settings and user_settings['use_proxy'] == 2:
+            if user_settings['proxy_url']:
+                proxy = user_settings['proxy_url']
         for parser in self.parsers:
+            parser.PROXY_URL = proxy
             self.matchers.append((parser.SITE_PARSER_RE,parser,parser._create_session()))
             if parser.REQUIRES_CREDENTIALS:
                 self.parsers_req_creds.add(parser)
@@ -161,7 +166,16 @@ class ParserFetch:
                         parser.USERNAME = credentials[k][0]
                         parser.PASSWORD = credentials[k][1]
                         break
-
+    def updateProxy(self, proxy_url):
+        ''' this doesn't actually do anything, as matchers are already created before this is ever called. '''
+        for parser in self.parsers:
+            parser.PROXY_URL = proxy_url
+            # if not parser.PROXY_URL:
+                # parser.SESSION.proxies.clear()
+            # else:
+                # parser.SESSION.proxies.update({'http': parser.PROXY_URL,'https': parser.PROXY_URL})
+            
+            
     def _update_parsers(self):
         # auto-update the parsers xml file if possible.
         if not os.path.exists('NO_PARSER_UPDATE'):
@@ -279,6 +293,8 @@ class SeriesParser(object):
     
     CONVERT_WEBP = None
     
+    PROXY_URL = None
+    
     def _verify(self,url):
         # fetch initial series page and set validity of parser
         r=self.SESSION.get(url, timeout = REQUEST_TIMEOUT)
@@ -288,12 +304,20 @@ class SeriesParser(object):
         if not self.get_title():
             self.VALID=False
         return r
-    def _create_session(self):
-        if self.USE_CFSCRAPE:
+    @classmethod
+    def _create_session(cls, self=None):
+        if (self or cls).USE_CFSCRAPE:
             session = CloudflareBypass()
         else:
             session = requests.session()
-        return self.SESSION
+        proxy_url = (self or cls).PROXY_URL
+        # print('updating with proxy:',proxy_url)
+        if not proxy_url:
+            session.proxies.clear()
+        else:
+            # proxies = {'http': 'socks5://127.0.0.1:40000','https': 'socks5://127.0.0.1:40000'}
+            session.proxies.update({'http': proxy_url,'https': proxy_url})
+        return session
     def __init__(self,url,sessionobj=None):
         #loads the html from the series page, also checks to ensure the site is valid
         #note if this returns False you cannot use this object.

@@ -241,8 +241,7 @@ class MyWindow(HideableWindow):
     def __init__(self, *args): 
         QMainWindow.__init__(self, *args) 
 
-
-        self.parserFetcher = parsers.ParserFetch()
+        self.parserFetcher = parsers.ParserFetch(user_settings = SQLManager._user_settings())
         if self.parserFetcher.version_mismatch():
             msg = QMessageBox()
             msg.setWindowTitle('Version Out of Date')
@@ -1362,7 +1361,7 @@ class OptionsDialog(QDialog):
         from PyQt5.QtCore import Qt
         super(OptionsDialog, self).__init__(parent)
         self.result=None
-        self.setWindowTitle(self.tr("Credentials"))
+        self.setWindowTitle(self.tr("Options"))
         self.setWindowFlags(self.windowFlags() &~ Qt.WindowContextHelpButtonHint)
 
         mainLayout = QVBoxLayout()
@@ -1407,6 +1406,30 @@ class OptionsDialog(QDialog):
         self.options['convert_webp_to_jpeg'].setCheckState(int(initialSettings['convert_webp_to_jpeg']))
         optionsLayout.addRow(self.options['convert_webp_to_jpeg']) 
         
+        self.options['use_proxy'] = QCheckBox("Connect via Proxy (Requires Restart)")
+        self.options['use_proxy'].setCheckState(int(initialSettings['use_proxy']))
+        optionsLayout.addRow(self.options['use_proxy'])
+        def proxy_checked(btn):
+            self.options['proxy_url'].setReadOnly(True)
+            if btn==2:
+                self.options['proxy_url'].setReadOnly(False)
+            self.options['proxy_url'].style().unpolish(self.options['proxy_url'])
+            self.options['proxy_url'].style().polish(self.options['proxy_url'])
+        self.options['use_proxy'].stateChanged.connect(proxy_checked)        
+        
+        optionsLayout.addRow("Proxy address:",None)
+        self.options['proxy_url'] = QLineEdit("Connect via Proxy")
+        self.options['proxy_url'].setStyleSheet('QLineEdit[readOnly="true"] {background: palette(window);}');
+        self.options['proxy_url'].setText(initialSettings['proxy_url'])
+        optionsLayout.addRow(self.options['proxy_url'])
+            
+        self.options['proxy_url'].setReadOnly(True)
+        if int(initialSettings['use_proxy']) == 2:
+            self.options['proxy_url'].setReadOnly(False)
+            
+        self.options['proxy_url'].style().unpolish(self.options['proxy_url'])
+        self.options['proxy_url'].style().polish(self.options['proxy_url'])
+        
         if os.name!='nt':
             self.options['start_with_windows'].setDisabled(True)
 
@@ -1435,7 +1458,10 @@ class OptionsDialog(QDialog):
             try:
                 self.result[key] = self.options[key].value()
             except AttributeError:
-                self.result[key] = self.options[key].checkState()
+                try:
+                    self.result[key] = self.options[key].checkState()
+                except AttributeError:
+                    self.result[key] = self.options[key].text()
         self.close()
         
 if __name__ == "__main__":

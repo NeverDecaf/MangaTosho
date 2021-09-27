@@ -81,6 +81,8 @@ class SQLManager():
                     'start_with_windows int DEFAULT 0',
                     'series_update_freq int DEFAULT {}'.format(MIN_UPDATE_FREQ//60),
                     'convert_webp_to_jpeg int DEFAULT 2',
+                    'use_proxy int DEFAULT 0',
+                    'proxy_url text DEFAULT ""',
                     ):
             try:
                 c.execute('''ALTER TABLE user_settings ADD COLUMN {}'''.format(col))
@@ -120,6 +122,13 @@ class SQLManager():
         
     def updateParserCredentials(self,creds):
         self.parserFetch.updateCreds(creds)
+        
+    def updateUserSettings(self, settings):
+        settings = dict(settings)
+        if settings['use_proxy'] == 2:
+            self.parserFetch.updateProxy(settings['proxy_url'])
+        else:
+            self.parserFetch.updateProxy(None)
 
     def getCredentials(self):
         site_names = str(tuple([t.__name__ for t in self.parserFetch.get_valid_parsers()])).replace("'",'"')
@@ -160,15 +169,26 @@ class SQLManager():
         c.execute(query, [v if v==None else str(v) for v in list(settings_dict.values())])
         self.conn.commit()
         c.close()
+        self.updateUserSettings(settings_dict)
 
     def readSettings(self):
         c = self.conn.cursor()
         c.execute("SELECT * FROM user_settings WHERE id=0")
         data = c.fetchone()
         c.close()
+        self.updateUserSettings(data)
         return data
-
-
+    @classmethod
+    def _user_settings(self):
+        conn = sqlite3.connect(storage_path('manga.db'))
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        c.execute("SELECT * FROM user_settings WHERE id=0")
+        data = c.fetchone()
+        c.close()
+        conn.close()
+        return dict(data)
+        
     SERIES_URL_CONFLICT = 65
     SERIES_TITLE_CONFLICT = 66
     SERIES_NO_CONFLICT  = 64
