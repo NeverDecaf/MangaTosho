@@ -106,10 +106,7 @@ class ParserFetch:
         self._generate_parsers()
         self.parsers = set(self.WORKING_SITES)#[globals()[cname] for cname in self.WORKING_SITES]
         for parser in self.parsers:
-            if parser.USE_CFSCRAPE:
-                self.matchers.append((parser.SITE_PARSER_RE,parser,CloudflareBypass()))
-            else:
-                self.matchers.append((parser.SITE_PARSER_RE,parser,requests.session()))
+            self.matchers.append((parser.SITE_PARSER_RE,parser,parser._create_session()))
             if parser.REQUIRES_CREDENTIALS:
                 self.parsers_req_creds.add(parser)
         self.updateCreds(credentials)
@@ -291,6 +288,12 @@ class SeriesParser(object):
         if not self.get_title():
             self.VALID=False
         return r
+    def _create_session(self):
+        if self.USE_CFSCRAPE:
+            session = CloudflareBypass()
+        else:
+            session = requests.session()
+        return self.SESSION
     def __init__(self,url,sessionobj=None):
         #loads the html from the series page, also checks to ensure the site is valid
         #note if this returns False you cannot use this object.
@@ -311,10 +314,7 @@ class SeriesParser(object):
             return
         # create a random user agent
         if not sessionobj:
-            if self.USE_CFSCRAPE:
-                self.SESSION = CloudflareBypass()
-            else:
-                self.SESSION = requests.session()
+            self.SESSION = self._create_session()
         else:
             self.SESSION = sessionobj
         if sessionobj and hasattr(sessionobj,'init'):
@@ -1252,10 +1252,7 @@ class VizWSJ(SeriesParser):
     def _save_images_internals(self,images,tempdir,dl_state,ch):
     
         # create a new session obj so we don't pollute the main session cookies
-        if self.USE_CFSCRAPE:
-            session = CloudflareBypass()
-        else:
-            session = requests.session()
+        session = self._create_session()
         img_dl_errs = 0
 
         url = ch[1]
