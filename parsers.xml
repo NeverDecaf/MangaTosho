@@ -129,6 +129,21 @@
 		<aio_images_xpath>//div[@class='container-chapter-reader']/img/@src</aio_images_xpath> <!-- xpath to match all image urls if the site includes them all on one page. -->
 		<image_referer>https://mangakakalot.com/</image_referer> <!-- If images are hosted on an external site you may need to override the referer header. -->
 	</site>
+	<site name="MangaNato">
+		<!-- Some mangakakalot series redirect to this site. -->
+		<!-- essential args. you will need most of these. -->
+		<site_url>https://readmanganato.com/</site_url> <!-- url of the main website -->
+		<abbr>NA</abbr> <!-- 2 letter abbreviation of the site's name. -->
+		<site_parser_re>https?://(?:www\.)?readmanganato.com/(manga-).+</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
+		<title_xpath>substring(//h1/text(),1)</title_xpath> <!-- xpath that matches the series' title -->
+		<chapter_nums_xpath>//a[contains(@class,'chapter-name')]/text()</chapter_nums_xpath> <!-- xpath that matches all chapter numbers on the main series page -->
+		<chapter_urls_xpath>//a[contains(@class,'chapter-name')]/@href</chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
+		<is_complete_xpath>//td[text()='Completed' and contains(@class,'table-value')]</is_complete_xpath> <!-- xpath that matches if the series has been marked "Complete" -->
+		<!-- optional args, delete these if not applicable. -->
+		<chapter_nums_re><![CDATA[chapter (\d+\.?\d*)(?:v\d+)?]]></chapter_nums_re> <!-- regex used to further refine the results of chapter_nums_xpath, default is typically fine. -->
+		<aio_images_xpath>//div[@class='container-chapter-reader']/img/@src</aio_images_xpath> <!-- xpath to match all image urls if the site includes them all on one page. -->
+		<image_referer>https://readmanganato.com/</image_referer> <!-- If images are hosted on an external site you may need to override the referer header. -->
+	</site>
 	<site name="MangaNelo">
 		<!-- This is a copy of MangaKakalot, not sure if they are moving to a new site or not. -->
 		<site_url>https://manganelo.tv/</site_url> <!-- url of the main website -->
@@ -252,7 +267,7 @@
 	Fields left blank will fall back to their default values, which are fine for most sites.
 	Make sure your title, next_url, and image_url xpaths return a string. (use substring(xpath,1))
 	ABBR must be unique even among deprecated sites, here is a list of all that are in use:
-	AA BT DS DX HT KM KS MH MK MM MN MP MR MS MW PA PL RO SE SU SP
+	AA BT DS DX HT KM KS MH MK MM NA MP MR MS MW PA PL RO SE SU SP
 	-->
 	<site name="TemplateSite">
 		<!-- essential args. you will need most of these. -->

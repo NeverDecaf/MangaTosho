@@ -302,6 +302,7 @@ class SeriesParser(object):
         self.HTML = r.text
         self.etree = lxmlhtml.fromstring(self.HTML)
         if not self.get_title():
+            print('parser validation failed.')
             self.VALID=False
         return r
     @classmethod
@@ -358,7 +359,6 @@ class SeriesParser(object):
                 if var.startswith('CUSTOM_COOKIE_'):
                     data = getattr(self,var).split(',')
                     sessionobj.cookies.set(data[0], data[1], domain=data[2], path=data[3])
-            
         self.login()
         resp = self._verify(url)
         # r=self.SESSION.get(url, timeout = REQUEST_TIMEOUT)
@@ -375,10 +375,6 @@ class SeriesParser(object):
             except AttributeError:
                 self.HEADERS = {'Referer':ref}
             self.SESSION.headers.update(self.HEADERS)
-        # self.HTML = r.text
-        # self.etree = lxmlhtml.fromstring(self.HTML)
-        # if not self.get_title():
-            # self.VALID=False
         if self.VALID:
             self.SESSION.init = True # only init when valid so we are sure we didn't accidentally set referer to a 404 page or something
     def _cycle_UA(self):

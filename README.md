@@ -28,6 +28,7 @@ Closing the main window will simply minimize it to tray. Double-click the icon t
 - MangaPark
 - MangaStream
 - MangaKakalot
+- MangaNato
 - MangaNelo
 - Batoto
 - MangaWindow
