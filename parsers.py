@@ -142,6 +142,7 @@ class ParserFetch:
                 except requests.exceptions.InvalidSchema:
                     return None
                 except requests.exceptions.HTTPError as e:
+                    print('failed with status code:',e.response.status_code)
                     if e.response.status_code//100==5:
                         try:
                             if b'cloudflare' in e.response.content:
@@ -149,7 +150,7 @@ class ParserFetch:
                         except:
                             pass
                         return -2
-##                    if e.reponse.status_code//100==4:
+##                    if e.response.status_code//100==4:
                     return -1
                 except requests.exceptions.Timeout:
                     return -1

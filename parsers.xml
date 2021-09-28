@@ -58,7 +58,7 @@
 		<is_complete_xpath>//span[@class="detail-info-right-title-tip" and text()='Completed']</is_complete_xpath> <!-- xpath that matches if the series has been marked "Complete" -->
 		<image_delay>1,1.5</image_delay> <!-- Time (in seconds) between image fetches, may be needed to prevent rate limit. Give lower then upper bounds (comma separated). -->
 		<use_cfscrape>False</use_cfscrape> <!-- Use the cfscrape session object to fetch data. Only set to false in very specific cases -->
-		<custom_cookie_isadult>isAdult,1,www.mangahere.cc,/</custom_cookie_isadult><!-- Add any number of custom cookies, must start with prefix custom_cookie_ check session.cookies.set for syntax (csv) -->
+		<custom_cookie_isadult>isAdult,1,www.fanfox.net,/</custom_cookie_isadult><!-- Add any number of custom cookies, must start with prefix custom_cookie_ check session.cookies.set for syntax (csv) -->
 	</site>
 	<site name="DynastyScans">
 		<!-- essential args. must supply all of these -->
@@ -73,35 +73,6 @@
 		<chapter_nums_re>Chapter (\d+\.?\d*)(?:v\d+)?</chapter_nums_re> <!-- regex used to further refine the results of chapter_nums_xpath, default is typically fine. -->
 		<reverse>False</reverse> <!-- True if chapters are listed in reverse numerical order (latest chapter first) -->
 		<aio_images_re><![CDATA[(?<="image":")[^"]*]]></aio_images_re> <!-- regex to match all image urls if the site includes them all on one page. -->
-	</site>
-	<!-- NO LONGER TRUE, MANGAREADER SEEMS TO HAVE DIVERGED this is an exact copy of MangaReader, update as you update mangareader -->
-	<site name="MangaPanda">
-		<!-- essential args. must supply all of these -->
-		<site_url>http://www.mangapanda.com/</site_url> <!-- url of the main website -->
-		<abbr>MP</abbr> <!-- 2 letter abbreviation of the site's name. -->
-		<site_parser_re>https?://(?:www\.)?mangapanda.com/.*</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
-		<title_xpath>substring(//h2[@class='aname']/text(),1)</title_xpath> <!-- xpath that matches the series' title -->
-		<chapter_nums_xpath>//td[div[@class='chico_manga']]/a/text()</chapter_nums_xpath> <!-- xpath that matches all chapter numbers on the main series page -->
-		<chapter_urls_xpath>//td[div[@class='chico_manga']]/a/@href</chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
-		<image_url_xpath>substring(//img[@id='img']/@src,1)</image_url_xpath> <!-- xpath that matches the image url on a given page of the series -->
-		<next_url_xpath>substring(//span[@class='next']/a/@href,1)</next_url_xpath> <!-- xpath that matches the url of the next page on a given page of the series -->
-		<!-- optional args, delete these if not applicable. -->
-		<is_complete_xpath>//tr[td[text()='Status:']]/td[text()='Completed']</is_complete_xpath> <!-- xpath that matches if the series has been marked "Complete" -->
-		<reverse>False</reverse> <!-- True if chapters are listed in reverse numerical order (latest chapter first) -->
-		<licensed_error_codes>403</licensed_error_codes> <!-- some sites use error 403 to indicate a licensed series, this will also accept CSV -->
-	</site>
-	<site name="MangaPark">
-		<!-- essential args. must supply all of these -->
-		<site_url>http://mangapark.net/</site_url> <!-- url of the main website -->
-		<abbr>PA</abbr> <!-- 2 letter abbreviation of the site's name. -->
-		<site_parser_re>https?://(?:www\.)?mangapark.(net|me)/manga/.*</site_parser_re> <!-- regex that matches if the given url is a series on this site -->
-		<title_xpath>substring(//div[contains(@class,'cover')]/img/@title,1)</title_xpath> <!-- xpath that matches the series' title -->
-		<chapter_nums_xpath>(//div[contains(@class, 'stream')])[last()]//a[contains(@class,'visited')]/text()</chapter_nums_xpath> <!-- xpath that matches all chapter numbers on the main series page -->
-		<chapter_urls_xpath>(//div[contains(@class, 'stream')])[last()]//a[contains(@class,'visited')]/@href</chapter_urls_xpath> <!-- xpath that matches all chapter urls on the main series page -->
-		<image_url_re>"u":"([^"]*)</image_url_re> <!-- fallback for image_url_xpath, will override if this is included -->
-		<next_url_xpath>substring(//div[@class='page']/span[last()]/a/@href,1)</next_url_xpath> <!-- xpath that matches the url of the next page on a given page of the series -->
-		<!-- optional args, delete these if not applicable. -->
-		<is_complete_xpath>//tr[th[text()='Status']]/td[contains(text(),'Completed')]</is_complete_xpath> <!-- xpath that matches if the series has been marked "Complete" -->
 	</site>
 	<site name="MangaStream">
 		<!-- essential args. you will need most of these. -->
@@ -267,7 +238,7 @@
 	Fields left blank will fall back to their default values, which are fine for most sites.
 	Make sure your title, next_url, and image_url xpaths return a string. (use substring(xpath,1))
 	ABBR must be unique even among deprecated sites, here is a list of all that are in use:
-	AA BT DS DX HT KM KS MH MK MM NA MP MR MS MW PA PL RO SE SU SP
+	AA BT DS DX HT KM KS MH MK MM MN NA MP MR MS MW PA PL RO SE SU SP
 	-->
 	<site name="TemplateSite">
 		<!-- essential args. you will need most of these. -->
