@@ -29,8 +29,10 @@ def clean_tmp_files():
         for dir in os.listdir(tmpfolder):
             if dir.startswith('_MEI') and dir != os.path.basename(sys._MEIPASS):
                 shutil.rmtree(os.path.join(tmpfolder,dir))
-    except AttributeError:
+    except (AttributeError,PermissionError):
         'not a pyinstaller executable'
+    except:
+        pass # ensure the program won't crash
 def set_registry(windows_startup, minimized):
     if os.name=='nt':
         settings = QSettings(r"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run", QSettings.NativeFormat)
