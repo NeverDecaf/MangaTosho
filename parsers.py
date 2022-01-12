@@ -699,7 +699,6 @@ class MangaDex(SeriesParser):
         volumes = {}
         query = self.API_URL.strip('/')+'/manga/{}/feed'.format(self.md_series_id)
         data = {'translatedLanguage[]':['gb','en'], 'limit':500}
-        self.CHAPTER_DATA = {}
         while 1:
             r=self.SESSION.get(query, timeout = REQUEST_TIMEOUT, params=data)
             r.raise_for_status()
@@ -718,10 +717,6 @@ class MangaDex(SeriesParser):
                     except:
                         thisch = 0.0
                     volumes.setdefault(thisvol,{})[thisch]=v['id']
-                    self.CHAPTER_DATA[v['id']] = {
-                        'hash': v['attributes']['hash'],
-                        'data': v['attributes']['data']
-                    }
             time.sleep(1)
             if res['offset'] + res['limit'] < res['total']:
                 # still more results.
@@ -762,14 +757,14 @@ class MangaDex(SeriesParser):
             pass
         number,cid = chapter
         
-        # used cached data in self.CHAPTER_DATA
         # https://api.mangadex.org/docs.html#section/Chapter-pages-processing/Pages-processing 
         r = self.SESSION.get(self.API_URL.strip('/')+'/at-home/server/{}'.format(cid))
         r.raise_for_status()
-        server_node = r.json()['baseUrl']
-        hash = self.CHAPTER_DATA[cid]['hash']
+        json = r.json()
+        server_node = json['baseUrl']
+        hash = json['chapter']['hash']
         urls = []
-        for chdata in self.CHAPTER_DATA[cid]['data']:
+        for chdata in json['chapter']['data']:
             urls.append(f"{server_node}/data/{hash}/{chdata}")
         return urls
 
