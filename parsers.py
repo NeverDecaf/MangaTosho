@@ -27,6 +27,7 @@ import jsbeautifier
 from constants import *
 import subprocess
 from mloader import loader
+from mloader.exporter import RawExporter
 from itertools import chain
 from ast import literal_eval
 # add the cacert.pem file to the path correctly even if compiled with pyinstaller:
@@ -696,9 +697,10 @@ class MangaDex(SeriesParser):
         return self.JSON['data']['attributes']['status'].lower()=='completed'
     def get_chapters(self):
         #returns a list of all chapters, where each entry is a tuple (number,url)
+        #https://api.mangadex.org/docs/redoc.html#tag/Manga/operation/get-manga-id-feed
         volumes = {}
         query = self.API_URL.strip('/')+'/manga/{}/feed'.format(self.md_series_id)
-        data = {'translatedLanguage[]':['gb','en'], 'limit':500}
+        data = {'translatedLanguage[]':['gb','en'], 'limit':500, 'contentRating[]':["safe","suggestive","erotica","pornographic"]}
         while 1:
             r=self.SESSION.get(query, timeout = REQUEST_TIMEOUT, params=data)
             r.raise_for_status()
@@ -1172,7 +1174,7 @@ class SadPanda(SeriesParser):
 class MangaPlus(SeriesParser):
     # copied from mangadex
     def _verify(self,url):
-        self.LOADER = loader.MangaLoader()
+        self.LOADER = loader.MangaLoader(RawExporter)
 
         pieces = urllib.parse.urlsplit(url)
         series_id = pieces[2].split('/')[2]
