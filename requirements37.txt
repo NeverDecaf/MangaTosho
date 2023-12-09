@@ -3,7 +3,7 @@ jsbeautifier==1.11.0
 lxml==4.6.3
 Pillow==8.3.2
 pyaes==1.6.1
-PyInstaller==3.6
+PyInstaller==5.13.1
 PyQt5==5.15.0
 selenium==3.141.0
 mloader==1.1.4
