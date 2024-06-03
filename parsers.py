@@ -685,7 +685,15 @@ class MangaDex(SeriesParser):
         #returns the title of the series
         if self.TITLE:
             return self.TITLE
-        title = unescape(self.JSON['data']['attributes']['title']['en'])
+        if self.JSON['data']['attributes'].get('title',False):
+            title = unescape(list(self.JSON['data']['attributes']['title'].values())[0])
+        else:
+            lang_order = ['ja-ro','en','ja']
+            title = list(self.JSON['data']['attributes']['altTitles'].values())[0]
+            for l in lang_order:
+                for alt_title in self.JSON['data']['attributes']['altTitles']:
+                    if l in alt_title:
+                        title = alt_title[l]
         split = title.split()
         for i in range(len(split)):
             if split[i].isupper() or i==0:
@@ -1266,6 +1274,14 @@ class VizWSJ(SeriesParser):
             res.paste(_cropWH(img,((m%8+1)*(b+10), (m//8+1) * (w+10), b//1, w//1)),((y[m]%8+1)*b//1,(y[m]//8+1)*w//1))
         return res
     def get_images(self,chapter,delay=(0,0),fix_urls = True):
+        # do a small sanity check to detect broken parser (won't always be successful)
+        url = chapter[1]
+        manga_id = re.findall('/chapter/(\d+)',url)[0]
+        session = self._create_session()
+        session.get(self.VIZ_COOKIE_URL)
+        with session.get(url) as r:
+            p = re.findall(self.VIZ_PAGES_RE,r.text)
+            pagecount = int(p[0])
         return None
     def _save_images_internals(self,images,tempdir,dl_state,ch):
     
