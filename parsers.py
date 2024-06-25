@@ -26,8 +26,8 @@ import random
 import jsbeautifier
 from constants import *
 import subprocess
-from mloader import loader
-from mloader.exporter import RawExporter
+from mloader.loader import MangaLoader
+from mloader.exporter import ExporterBase
 from itertools import chain
 from ast import literal_eval
 # add the cacert.pem file to the path correctly even if compiled with pyinstaller:
@@ -1182,12 +1182,11 @@ class SadPanda(SeriesParser):
 class MangaPlus(SeriesParser):
     # copied from mangadex
     def _verify(self,url):
-        self.LOADER = loader.MangaLoader(RawExporter)
+        self.LOADER = MangaLoader(ExporterBase)
 
         pieces = urllib.parse.urlsplit(url)
         series_id = pieces[2].split('/')[2]
         self.DETAILS = self.LOADER._get_title_details(series_id)
-
         if not self.get_title():
 	        self.VALID=False
 
@@ -1209,18 +1208,14 @@ class MangaPlus(SeriesParser):
     def get_chapters(self):
         #returns a list of all chapters, where each entry is a tuple (number,url)
         nums = [
-            x.name
-            for x in chain(
-                self.DETAILS.first_chapter_list,
-                self.DETAILS.last_chapter_list,
-            )
+            chapter.name
+            for group in self.DETAILS.chapter_list_group
+            for chapter in chain(group.first_chapter_list, group.last_chapter_list)
         ]
         urls = [
-            x.chapter_id
-            for x in chain(
-                self.DETAILS.first_chapter_list,
-                self.DETAILS.last_chapter_list,
-            )
+            chapter.chapter_id
+            for group in self.DETAILS.chapter_list_group
+            for chapter in chain(group.first_chapter_list, group.last_chapter_list)
         ]
         nums = self.extrapolate_nums(nums)
         return nums,list(zip(nums,urls))
